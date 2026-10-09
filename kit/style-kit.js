@@ -533,22 +533,25 @@ K.SFX={
  heartbeat:function(){var t=NOWT();tn(t,60,.15,.4,'sine',40);tn(t+.22,55,.15,.3,'sine',38)}
 };
 /* K.renderAudio(duration, narrationBuffer) -> Promise<AudioBuffer>: narration + every cue + ambience, mixed offline (frame-exact) */
-K.renderAudio=function(dur,narr){var SR=48000,off=new OfflineAudioContext(2,Math.ceil(dur*SR),SR);
- var keep=[AC,MST,NB];AC=off;MST=off.createGain();MST.gain.value=.9;MST.connect(off.destination);
+K.renderAudio=function(dur,narr,mo){mo=mo||{};var SR=48000,off=new OfflineAudioContext(2,Math.ceil(dur*SR),SR);
+ var keep=[AC,MST,NB];AC=off;MST=off.createGain();MST.gain.value=.9*(mo.sfx===undefined?1:mo.sfx);MST.connect(off.destination);
  NB=off.createBuffer(1,SR*2,SR);var d=NB.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;
  var A=AMBI||{room:.04};
  if(A.room){var s=off.createBufferSource();s.buffer=NB;s.loop=true;var lp=off.createBiquadFilter();lp.type='lowpass';lp.frequency.value=320;var g=off.createGain();g.gain.value=A.room;s.connect(lp);lp.connect(g);g.connect(MST);s.start(0)}
  (A.pad||[]).forEach(function(fq,i){var o=off.createOscillator();o.type='triangle';o.frequency.value=fq;o.detune.value=i*4-4;var lf=off.createBiquadFilter();lf.type='lowpass';lf.frequency.value=900;
   var pg=off.createGain(),pv=A.padVol||.02;pg.gain.setValueAtTime(0,0);pg.gain.linearRampToValueAtTime(pv,1.5);pg.gain.setValueAtTime(pv,Math.max(1.6,dur-.6));pg.gain.linearRampToValueAtTime(0,dur);o.connect(lf);lf.connect(pg);pg.connect(MST);o.start(0)});
  CUES.forEach(function(c){if(c[0]<dur&&K.SFX[c[1]]){SCHED=Math.max(0,c[0]);try{K.SFX[c[1]](c[2])}catch(e){}SCHED=null}});
- if(narr){var ns=off.createBufferSource();ns.buffer=narr;ns.connect(off.destination);ns.start(0)}
+ if(narr){var ns=off.createBufferSource(),ng=off.createGain();ng.gain.value=mo.narr===undefined?1:mo.narr;ns.buffer=narr;ns.connect(ng);ng.connect(off.destination);ns.start(0)}
+ if(mo.music){var ms=off.createBufferSource(),mg=off.createGain(),mv=mo.musicVol===undefined?.25:mo.musicVol,dk=mo.duck===false?1:.4;ms.buffer=mo.music;ms.loop=true;ms.connect(mg);mg.connect(off.destination);
+  mg.gain.setValueAtTime(0,0);mg.gain.linearRampToValueAtTime(mv,1);(mo.speech||[]).forEach(function(r){if(r[0]<1)return;mg.gain.setTargetAtTime(mv*dk,Math.max(1,r[0]-.25),.12);mg.gain.setTargetAtTime(mv,r[1]+.15,.35)});
+  mg.gain.setValueAtTime(mv,Math.max(1.1,dur-2));mg.gain.linearRampToValueAtTime(0,dur);ms.start(0)}
  AC=keep[0];MST=keep[1];NB=keep[2];
  return off.startRendering()};
 var lastT=-1;
 /* app hooks: K.audioInit(), K.audio() -> {ctx, master, dest}, K.sound(on) */
 K.audioInit=function(){audioInit();if(AC.state==='suspended')AC.resume();return K.audio()};
 K.audio=function(){return {ctx:AC,master:MST,dest:DEST}};
-K.sound=function(on){audioInit();if(AC.state==='suspended')AC.resume();soundOn=!!on;MST.gain.setTargetAtTime(on?.9:0,AC.currentTime,.05)};
+K.sfxVol=1;K.sound=function(on){audioInit();if(AC.state==='suspended')AC.resume();soundOn=!!on;MST.gain.setTargetAtTime(on?.9*K.sfxVol:0,AC.currentTime,.05)};
 function audioTick(t){if(!AC||!soundOn)return;if(t<lastT||t-lastT>.35)lastT=t;
  CUES.forEach(function(c){if(lastT<c[0]&&t>=c[0]&&K.SFX[c[1]])K.SFX[c[1]](c[2])});
  LOOPS.forEach(function(L,i){var n=loopNodes[i];if(!n)return;var on=t>=(L.from||0)&&t<(L.to===undefined?1e9:L.to);
@@ -577,7 +580,6 @@ K.start=function(so){so=so||{};if(!R)K.init({});clk=new T.Clock();
   recording=true;rb.textContent='Recording...';bar.style.opacity=0;restart();mr.start();setTimeout(function(){mr.stop()},(K.duration+.4)*1000)};
  (function loop(){requestAnimationFrame(loop);var now=clk.getElapsedTime(),D=K.duration,raw=(now-T0)%(D+.8);if(raw<0)raw=0;var t=Math.min(D,Math.floor(raw*12)/12);
   frame(t,now);prog.style.width=(t/D*100)+'%';tl.textContent=t.toFixed(1)+' / '+D.toFixed(1)+' s'})()};
-var lastUT=-1;
 function frame(t,now){
   var bq=Math.floor(now*6);ALLEDGE.forEach(function(e){e.uniforms.sd.value=(bq%3)*1.7});
   try{if(UPDATE)UPDATE(t);camAt(t);faceStep(t)}catch(err){showErr(err);if(!K.onError)throw err}

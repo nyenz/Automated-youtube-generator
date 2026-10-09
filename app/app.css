@@ -45,3 +45,4 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
 .pill{display:inline-block;padding:3px 9px;margin:2px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:12px;cursor:pointer}
 .pill:hover{border-color:var(--acc)}
 .hidden-stage{position:fixed;left:-5000px;top:0;width:360px;height:640px;border:0}
+a{color:var(--acc)}a:hover{filter:brightness(1.15)}

@@ -185,7 +185,6 @@
   }
 
   /* ---------- per-frame ---------- */
-  var lastKey = '';
   function shotAt(t) { for (var i = RUN.length - 1; i >= 0; i--) if (t >= RUN[i].from) return i; return 0 }
   D.shotAt = function (t) { var i = shotAt(t); return RUN[i] };
 
@@ -377,7 +376,7 @@
   D.captionGroups = function () {
     var g = [], cur = [];
     WORDS.forEach(function (w, i) {
-      cur.push(i); var end = /[.!?,;:]$/.test(w.w) || cur.length >= 3, gap = WORDS[i + 1] && WORDS[i + 1].s - w.e > .35;
+      cur.push(i); var end = /[.!?,;:]$/.test(w.w) || cur.length >= (D.groupSize || 3), gap = WORDS[i + 1] && WORDS[i + 1].s - w.e > .35;
       if (end || gap || i === WORDS.length - 1) { g.push(cur); cur = [] }
     });
     return g;
@@ -387,24 +386,25 @@
     ctx.clearRect(0, 0, w, h);
     (D.overlayText || []).forEach(function (x) { card(ctx, w, h, x, t) });
     if (opts && opts.captions === false || !WORDS.length) return;
-    GROUPS = GROUPS || D.captionGroups();
+    if (GROUPS && GROUPS._size !== (D.groupSize || 3)) GROUPS = null;
+    if (!GROUPS) { GROUPS = D.captionGroups(); GROUPS._size = D.groupSize || 3 }
     var gi = -1; for (var i = 0; i < GROUPS.length; i++) { var g = GROUPS[i], s = WORDS[g[0]].s, e = WORDS[g[g.length - 1]].e + .25; if (t >= s && t < e) { gi = i; break } }
     if (gi < 0) return;
-    var land = w > h, grp = GROUPS[gi], fs = Math.round(Math.min(w, h) * (land ? .066 : .074)), active = grp[0];
+    var cs = (opts && opts.style) || {}, land = w > h, grp = GROUPS[gi], fs = Math.round(Math.min(w, h) * (land ? .066 : .074) * (cs.size || 1)), active = grp[0];
     grp.forEach(function (wi) { if (WORDS[wi].s <= t) active = wi });
     ctx.font = '900 ' + fs + 'px "Arial Black", "Trebuchet MS", Arial, sans-serif'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
     var parts = grp.map(function (wi) { return { i: wi, txt: WORDS[wi].w.toUpperCase().replace(/[,;:]$/, '') } });
-    var space = fs * .28, widths = parts.map(function (p) { return ctx.measureText(p.txt).width }), total = widths.reduce(function (a, b) { return a + b }, 0) + space * (parts.length - 1);
+    var space = fs * .28, widths = parts.map(function (p) { return ctx.measureText(p.txt).width });
     var lines = [[]], lw = [0], maxW = w * (land ? .7 : .86);
     parts.forEach(function (p, j) { var L = lines.length - 1; if (lw[L] + widths[j] > maxW && lines[L].length) { lines.push([]); lw.push(0); L++ } lines[L].push(j); lw[L] += widths[j] + space });
-    var y0 = h * (land ? .84 : .7) - (lines.length - 1) * fs * .6;
+    var y0 = h * (cs.pos || (land ? .84 : .7)) - (lines.length - 1) * fs * .6;
     lines.forEach(function (ln, li) {
       var x = (w - (lw[li] - space)) / 2, y = y0 + li * fs * 1.15;
       ln.forEach(function (j) {
         var p = parts[j], on = p.i === active;
         ctx.save(); ctx.translate(x + widths[j] / 2, y); if (on) ctx.scale(1.08, 1.08);
         ctx.lineWidth = fs * .2; ctx.strokeStyle = '#0d0a0c'; ctx.strokeText(p.txt, -widths[j] / 2, 0);
-        ctx.fillStyle = on ? '#f2c14e' : '#efe6d2'; ctx.fillText(p.txt, -widths[j] / 2, 0); ctx.restore();
+        ctx.fillStyle = on ? (cs.color || '#f2c14e') : '#efe6d2'; ctx.fillText(p.txt, -widths[j] / 2, 0); ctx.restore();
         x += widths[j] + space;
       });
     });

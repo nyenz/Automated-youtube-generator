@@ -25,7 +25,7 @@
 
   /* split a code answer into calls: KIT.asset('name', ...) or SHOT('id', ...)  -> {name: code} */
   PL.blocks = function (text, kind) {
-    var src = PL.code(text), out = {}, order = [], rest = src;
+    var src = PL.code(text), out = {}, order = [];
     var re = kind === 'shot' ? /SHOT\s*\(\s*(['"`])([^'"`]+)\1/g : /KIT\.asset\s*\(\s*(['"`])([^'"`]+)\1/g, m, cuts = [];
     while ((m = re.exec(src))) {
       var open = src.indexOf('(', m.index), end = matchParen(src, open);

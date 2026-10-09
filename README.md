@@ -40,6 +40,14 @@ Click **Load demo** to see a finished example right away.
 9. **Export**: **Export video (MP4)** renders every frame at full quality. It doesn't depend on your PC's speed; a slow PC just takes longer. If the browser can't make MP4, it makes WebM, which YouTube also accepts.
 10. **Publish**: pick a frame and type the text → **Make thumbnail**. **Copy publish prompt** → paste it into Claude for the title, description, tags and chapters.
 
+## Extras
+- **Background music**: Project page → Sound → add a free track from the YouTube Audio Library. It loops and gets quieter while the narrator talks. You can set the volumes for narration, sound effects and music.
+- **Caption style**: size, height, words at a time, colour of the spoken word.
+- **Smart paste**: on Assets and Shots, paste any chat answer into one box. The app finds which pieces it contains and checks them.
+- **Approve all**: approves everything that passed its check.
+- **Warning** if you change the script or timing after making the plan.
+- **Keys** in Watch & fix: Space = play/pause, ← → = previous/next shot.
+
 Projects and audio are saved in your browser. Use **Export project** to back up or to move to another PC.
 
 ## Files

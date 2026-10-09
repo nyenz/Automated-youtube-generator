@@ -92,7 +92,10 @@
   function preview(p) { loadAssets(p.assets); say(''); K.preview(p.name, {}) }
 
   /* ---------- PLAY ---------- */
-  var audio = null, clock = { playing: false, base: 0, at: 0 }, built = null, overlay, octx, rec = null, wired = false, lastPost = 0;
+  var audio = null, music = null, musicGain = null, clock = { playing: false, base: 0, at: 0 }, built = null, overlay, octx, rec = null, wired = false, lastPost = 0, SPEECH = [];
+  function MIX() { return Object.assign({ narr: 1, sfx: 1, music: .25, duck: true }, P.mix || {}) }
+  function speechRegions(words) { var out = []; (words || []).forEach(function (w) { var L = out[out.length - 1]; if (L && w[1] - L[1] < .6) L[1] = w[2]; else out.push([w[1], w[2]]) }); return out }
+  function speaking(t) { for (var i = 0; i < SPEECH.length; i++) if (t >= SPEECH[i][0] - .2 && t <= SPEECH[i][1] + .15) return true; return false }
   function now() { return performance.now() / 1000 }
   function time() {
     if (audio) return audio.currentTime;
@@ -100,22 +103,25 @@
   }
   function play() {
     K.sound(P.sound !== false);
-    if (audio) { wire(); audio.play() } else { clock.base = time(); clock.at = now(); clock.playing = true }
+    wire(); if (audio) audio.play(); else { clock.base = time(); clock.at = now(); clock.playing = true }
+    if (music) { music.currentTime = time() % (music.duration || 1e9); music.play() }
   }
-  function pause() { if (audio) audio.pause(); else { clock.base = time(); clock.playing = false } }
-  function seek(t) { t = Math.max(0, Math.min(P.cut.duration, t)); if (audio) audio.currentTime = t; else { clock.base = t; clock.at = now() } }
+  function pause() { if (audio) audio.pause(); else { clock.base = time(); clock.playing = false } if (music) music.pause() }
+  function seek(t) { t = Math.max(0, Math.min(P.cut.duration, t)); if (audio) audio.currentTime = t; else { clock.base = t; clock.at = now() } if (music && music.duration) music.currentTime = t % music.duration }
   function wire() { // narration through the kit's audio graph so recordings include it
-    if (wired || !audio) return; wired = true;
-    var A = K.audioInit(), src = A.ctx.createMediaElementSource(audio), g = A.ctx.createGain(); g.gain.value = 1;
-    src.connect(g); g.connect(A.ctx.destination); g.connect(A.dest);
+    if (wired) return; wired = true; var A = K.audioInit(), M = MIX();
+    if (audio) { var src = A.ctx.createMediaElementSource(audio), g = A.ctx.createGain(); g.gain.value = M.narr; src.connect(g); g.connect(A.ctx.destination); g.connect(A.dest) }
+    if (music) { var ms = A.ctx.createMediaElementSource(music); musicGain = A.ctx.createGain(); musicGain.gain.value = M.music; ms.connect(musicGain); musicGain.connect(A.ctx.destination); musicGain.connect(A.dest) }
   }
-  function buildPlay(p, quiet) {
+  function buildPlay(p) {
     K.init({ duration: p.cut.duration, sky: p.sky || 'night', aspect: p.aspect || '9:16', name: p.name || 'video', res: p.res || 1080 });
     var ae = loadAssets(p.assets), se = loadShots(p.shots);
     D.onError = function (id, msg) { post({ type: 'shot-error', id: id, msg: msg }) };
+    K.sfxVol = MIX().sfx; D.groupSize = (p.capStyle && p.capStyle.group) || 3; SPEECH = speechRegions(p.cut.words);
     built = D.build({ cut: p.cut, sky: p.sky });
     Object.keys(se).forEach(function (k) { built.errors[k] = se[k] });
     built.assetErrors = ae;
+    if (p.music) { music = new Audio(); music.src = URL.createObjectURL(p.music); music.loop = true; music.preload = 'auto' }
     if (p.audio) { audio = new Audio(); audio.src = URL.createObjectURL(p.audio); audio.preload = 'auto'; audio.onended = function () { post({ type: 'ended' }); if (rec) stopRec() } }
     overlay = document.createElement('canvas'); octx = overlay.getContext('2d'); document.body.appendChild(overlay);
     return built;
@@ -127,7 +133,8 @@
   }
   function after(tq) {
     fitOverlay(); var t = time();
-    D.drawOverlay(octx, overlay.width, overlay.height, t, { captions: P.captions !== false });
+    D.drawOverlay(octx, overlay.width, overlay.height, t, { captions: P.captions !== false, style: P.capStyle });
+    if (musicGain) { var M = MIX(); musicGain.gain.setTargetAtTime(M.music * (M.duck && speaking(t) ? .4 : 1), musicGain.context.currentTime, speaking(t) ? .12 : .35) }
     if (GRAB) { var g = composite(GRAB.w, GRAB.h); GRAB = null; g.toBlob(function (b) { post({ type: 'frame', blob: b, t: t }) }, 'image/png') }
     if (rec) { rec.ctx.drawImage(K.renderer.domElement, 0, 0, rec.c.width, rec.c.height); rec.ctx.drawImage(overlay, 0, 0, rec.c.width, rec.c.height); if (!audio && t >= P.cut.duration) stopRec() }
     var n = now(); if (n - lastPost > .1) { lastPost = n; var sh = D.shotAt(t); post({ type: 'time', t: t, shot: sh && sh.id, playing: audio ? !audio.paused : clock.playing }); if (UI) UI.tick(t, sh) }
@@ -161,7 +168,8 @@
     post({ type: 'export-progress', stage: 'audio', done: 0 });
     var narr = null;
     if (p.audio) { var ab = await p.audio.arrayBuffer(); narr = await new OfflineAudioContext(2, 48000, 48000).decodeAudioData(ab) }
-    var mix = await K.renderAudio(dur, narr);
+    var mus = null; if (p.music) { var mb = await p.music.arrayBuffer(); mus = await new OfflineAudioContext(2, 48000, 48000).decodeAudioData(mb) }
+    var M = MIX(), mix = await K.renderAudio(dur, narr, { narr: M.narr, sfx: M.sfx, music: mus, musicVol: M.music, duck: M.duck, speech: speechRegions(p.cut.words) });
     var mp4 = pick.fmt === 'mp4', Mx = mp4 ? window.Mp4Muxer : window.WebMMuxer, target = new Mx.ArrayBufferTarget();
     var muxer = mp4 ? new Mx.Muxer({ target: target, video: { codec: 'avc', width: W, height: H, frameRate: FPS }, audio: { codec: pick.amux, sampleRate: 48000, numberOfChannels: 2 }, fastStart: 'in-memory', firstTimestampBehavior: 'offset' })
       : new Mx.Muxer({ target: target, video: { codec: pick.vcfg.codec === 'vp8' ? 'V_VP8' : 'V_VP9', width: W, height: H, frameRate: FPS }, audio: { codec: 'A_OPUS', sampleRate: 48000, numberOfChannels: 2 }, firstTimestampBehavior: 'offset' });
@@ -184,7 +192,7 @@
     for (var f = 0; f < N; f++) {
       if (CANCEL) { post({ type: 'export-cancelled' }); return }
       var t = f / FPS, tq = Math.floor(t * 12) / 12;
-      K.frame(tq, t); fitOverlay(); D.drawOverlay(octx, overlay.width, overlay.height, t, { captions: P.captions !== false });
+      K.frame(tq, t); fitOverlay(); D.drawOverlay(octx, overlay.width, overlay.height, t, { captions: P.captions !== false, style: P.capStyle });
       cx.drawImage(K.renderer.domElement, 0, 0, W, H); cx.drawImage(overlay, 0, 0, W, H);
       var vf = new VideoFrame(comp, { timestamp: Math.round(f * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
       venc.encode(vf, { keyFrame: f % (FPS * 2) === 0 }); vf.close();
@@ -223,7 +231,7 @@
 
   /* ---------- CHECK SHOTS: run each shot at a few moments ---------- */
   function checkShots(p) {
-    var b = buildPlay(p, true); say('');
+    var b = buildPlay(p); say('');
     var res = {};
     (p.ids || []).forEach(function (id) {
       var r = D.run().filter(function (x) { return x.id === id })[0], out = res[id] = { ok: true, errors: [], warnings: [] };
@@ -266,6 +274,7 @@
     if (m.type === 'grab') { var wh = outSize(); GRAB = { w: wh[0], h: wh[1] } }
     if (m.type === 'cancel') CANCEL = true;
     if (m.type === 'sound') { P.sound = m.on; K.sound(m.on) }
+    if (m.type === 'style') { P.capStyle = m.capStyle; P.mix = m.mix; D.groupSize = (m.capStyle && m.capStyle.group) || 3; K.sfxVol = MIX().sfx }
   });
   function start(p) {
     P = p; say('Building…');

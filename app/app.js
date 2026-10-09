@@ -135,6 +135,7 @@
       ),
       h('div', { className: 'card' }, h('h3', null, 'This project makes:'), P.cuts.map(function (c) { return h('div', null, '• ' + c.label + ' (' + c.aspect + ') — ' + c.minutes + ' min (~' + Math.round(c.minutes * 150) + ' words), shot ids ' + c.prefix + '01, ' + c.prefix + '02…') }),
         s.type === 'long' ? h('p', { className: 'muted small' }, 'The shorts reuse the long video\'s assets, so they only need new shots. Each short gets its own script and its own audio.') : null),
+      progressCard(), soundCard(),
       nextBtn('topic', s.topic ? 'Next: Topic →' : 'Next: find a topic →'));
   }
 
@@ -256,7 +257,7 @@
      ================================================================= */
   var planCheck = null;
   function applyPlan(plan) {
-    P.plan = plan;
+    P.plan = plan; P.planSig = planSig();
     plan.assets.forEach(function (a) { if (!P.assets[a.name]) P.assets[a.name] = { code: '', versions: [], status: 'todo' } });
     makeAssetTickets(); P.cuts.forEach(function (c) { makeShotTickets(c.id) });
     save(true);
@@ -270,7 +271,7 @@
       rerender();
     }
     return h('div', null,
-      h('h1', null, 'Plan'), h('p', { className: 'lead' }, 'One prompt plans every asset and every shot for all cuts. Claude is best here (it decides how good the video can be), but free models work too.'),
+      staleBanner(), h('h1', null, 'Plan'), h('p', { className: 'lead' }, 'One prompt plans every asset and every shot for all cuts. Claude is best here (it decides how good the video can be), but free models work too.'),
       !ready ? h('div', { className: 'card' }, badge('First finish Voice & timing for every cut.', 'b-warn')) : null,
       h('div', { className: 'card' },
         help(['Click <b>Copy plan prompt</b>, paste into Claude (or any chat).', 'Paste the JSON answer below, click <b>Read plan</b>.', 'If there are problems, click <b>Copy fix prompt</b>, paste it into the SAME chat, and paste the new answer.']),
@@ -370,13 +371,15 @@
     if (!P.plan) return h('div', null, h('h1', null, 'Assets'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
     var T = P.assetTickets, nOk = P.plan.assets.filter(function (a) { return (P.assets[a.name] || {}).status === 'approved' }).length;
     return h('div', null,
-      h('h1', null, 'Assets'), h('p', { className: 'lead' }, 'Each ticket is a prompt for ONE new chat. Open several chats at the same time (Qwen, DeepSeek, free Claude…) — every ticket carries the same locked rules, so the pieces match.'),
+      staleBanner(), h('h1', null, 'Assets'), h('p', { className: 'lead' }, 'Each ticket is a prompt for ONE new chat. Open several chats at the same time (Qwen, DeepSeek, free Claude…) — every ticket carries the same locked rules, so the pieces match.'),
       help(['Click <b>Copy prompt</b> on a ticket → paste into a NEW chat → send. Do this for every ticket at once.', 'Paste each chat\'s answer into its ticket and click <b>Check</b>.', '✅ = good → <b>Approve</b>. ❌ = click <b>Copy fix prompt</b>, paste it into the SAME chat, paste the new answer, Check again.', 'Use <b>Asset sheet</b> to see everything side by side under the same light. Something looks off? Write a note and copy a fix prompt.']),
       h('div', { className: 'card row' },
         h('span', null, 'Difficulty points per chat:'), h('select', { on: { change: function () { P.ptsAsset = +this.value; makeAssetTickets(); save(); rerender() } } }, [2, 3, 4, 6, 99].map(function (v) { return h('option', { value: v, selected: P.ptsAsset === v }, v === 99 ? 'all in one chat (Claude)' : v) })),
         h('span', { className: 'muted small' }, '1 = simple, 2 = medium, 3 = hard. 3 points = one hard asset, or medium + simple, or three simple.'),
         h('span', { className: 'grow' }), badge(nOk + ' / ' + P.plan.assets.length + ' approved', nOk === P.plan.assets.length ? 'b-ok' : 'b-blue'),
+        h('button', { className: 'ok', on: { click: function () { approveAll(P.assets, P.plan.assets.map(function (a) { return a.name })) } } }, 'Approve all ✓'),
         h('button', { className: 'blue', on: { click: function () { sheetModal() } } }, 'Asset sheet')),
+      smartPaste('asset'),
       T.map(assetTicketCard),
       nOk === P.plan.assets.length ? nextBtn('shots', 'Next: Shots →') : null);
   }
@@ -440,13 +443,15 @@
     if (!P.shotTickets[CUT]) makeShotTickets(CUT);
     var plan = P.plan.cuts[CUT] || [], S = P.shots[CUT] || {}, nOk = plan.filter(function (s) { return (S[s.id] || {}).status === 'approved' }).length;
     return h('div', null,
-      h('h1', null, 'Shots'), h('p', { className: 'lead' }, 'Shot tickets are filled-in forms (camera, focus, light, moves, sound) — no animation code. Free models handle them well; Claude can do a whole cut in one chat.'),
+      staleBanner(), h('h1', null, 'Shots'), h('p', { className: 'lead' }, 'Shot tickets are filled-in forms (camera, focus, light, moves, sound) — no animation code. Free models handle them well; Claude can do a whole cut in one chat.'),
       cutTabs(),
       help(['Copy a ticket → paste into a NEW chat → paste the answer back → <b>Check</b>.', 'All shots ✅? Click <b>Approve all</b>, then go to <b>Watch & fix</b>.', 'You can watch even before all shots are made: missing shots show a placeholder.']),
       h('div', { className: 'card row' },
         h('label', { style: 'margin:0;display:flex;gap:6px;align-items:center;color:var(--ink)' }, h('input', { type: 'checkbox', checked: P.claudeShots, on: { change: function () { P.claudeShots = this.checked; makeShotTickets(CUT); save(); rerender() } } }), 'Claude mode: all shots of this cut in ONE chat'),
         !P.claudeShots ? h('span', null, ' · points per chat: ', h('select', { on: { change: function () { P.ptsShot = +this.value; makeShotTickets(CUT); save(); rerender() } } }, [2, 3, 4, 6, 8].map(function (v) { return h('option', { value: v, selected: P.ptsShot === v }, v) }))) : null,
-        h('span', { className: 'grow' }), badge(nOk + ' / ' + plan.length + ' approved', nOk === plan.length ? 'b-ok' : 'b-blue')),
+        h('span', { className: 'grow' }), badge(nOk + ' / ' + plan.length + ' approved', nOk === plan.length ? 'b-ok' : 'b-blue'),
+        h('button', { className: 'ok', on: { click: function () { approveAll(P.shots[CUT] || {}, plan.map(function (s) { return s.id })) } } }, 'Approve all ✓')),
+      smartPaste('shot', CUT),
       (P.shotTickets[CUT] || []).map(function (t) { return shotTicketCard(CUT, t) }),
       nextBtn('watch', 'Next: Watch & fix →'));
   }
@@ -477,8 +482,65 @@
      8) WATCH & FIX
      ================================================================= */
   var CURSHOT = null, PLAYING = false, CAPS = true, QUALITY = +(localStorage.getItem('quality') || 540), SHOTINFO = null;
+  /* ---------------- sound & captions settings (shared by Project + Watch) ---------------- */
+  function mixOf() { return Object.assign({ narr: 1, sfx: 1, music: .25, duck: true }, P.mix || {}) }
+  function capOf() { return Object.assign({ size: 1, pos: 0, color: '#f2c14e', group: 3 }, P.capStyle || {}) }
+  function media(cid) { return Promise.all([DB.getFile(P.id + ':' + cid), DB.getFile(P.id + ':music')]).then(function (r) { return { audio: r[0] || null, music: r[1] || null } }) }
+  function soundCard(onChange) {
+    var M = mixOf(), C = capOf(), fileIn = h('input', { type: 'file', accept: 'audio/*', hidden: true });
+    function set() { P.mix = M; P.capStyle = C; save(); if (onChange) onChange() }
+    function slider(label, obj, key, min, max, step, fmt) {
+      var val = h('span', { className: 'muted small', style: 'width:44px;display:inline-block' }, fmt(obj[key]));
+      return h('div', { className: 'row', style: 'margin:4px 0' }, h('span', { style: 'width:150px' }, label), h('input', { type: 'range', min: min, max: max, step: step, value: obj[key], style: 'width:180px', on: { input: function () { obj[key] = +this.value; val.textContent = fmt(obj[key]) }, change: set } }), val);
+    }
+    function pct(v) { return Math.round(v * 100) + '%' }
+    fileIn.onchange = function () { var f = fileIn.files[0]; if (!f) return; DB.putFile(P.id + ':music', f).then(function () { P.musicName = f.name; save(true); rerender(); toast('Music saved.'); if (onChange) onChange() }) };
+    return h('div', { className: 'card g2' },
+      h('div', null, h('h3', null, 'Sound'),
+        h('div', { className: 'row', style: 'margin-bottom:6px' }, P.musicName ? badge('music: ' + P.musicName, 'b-ok') : badge('no music', ''),
+          h('button', { className: 'ghost small', on: { click: function () { fileIn.click() } } }, P.musicName ? 'Change music' : 'Add background music'), fileIn,
+          P.musicName ? h('button', { className: 'ghost small danger', on: { click: function () { DB.delFile(P.id + ':music').then(function () { P.musicName = ''; save(true); rerender(); if (onChange) onChange() }) } } }, 'Remove') : null),
+        h('p', { className: 'muted small', html: 'Free music: <a href="https://www.youtube.com/audiolibrary" target="_blank">YouTube Audio Library</a> (YouTube Studio → Audio library). It loops and gets quieter while the narrator talks.' }),
+        slider('Narration', M, 'narr', 0, 1.5, .05, pct), slider('Sound effects', M, 'sfx', 0, 1.5, .05, pct), slider('Music', M, 'music', 0, .8, .01, pct),
+        h('label', { style: 'display:flex;gap:6px;align-items:center;color:var(--ink)' }, h('input', { type: 'checkbox', checked: M.duck, on: { change: function () { M.duck = this.checked; set() } } }), 'Lower the music while the narrator talks')),
+      h('div', null, h('h3', null, 'Captions'),
+        slider('Size', C, 'size', .6, 1.6, .05, pct),
+        slider('Height (0 = auto)', C, 'pos', 0, .92, .01, function (v) { return v ? Math.round(v * 100) + '%' : 'auto' }),
+        slider('Words at a time', C, 'group', 1, 6, 1, function (v) { return v }),
+        h('div', { className: 'row' }, h('span', { style: 'width:150px' }, 'Spoken word colour'), h('input', { type: 'color', value: C.color, on: { change: function () { C.color = this.value; set() } } }))));
+  }
+  function planSig() { return P.cuts.map(function (c) { return c.id + ':' + (c.lines || []).map(function (l) { return l.text }).join('|') }).join('#') }
+  function staleBanner() {
+    if (!P.plan || !P.planSig || P.planSig === planSig()) return null;
+    return h('div', { className: 'card', style: 'border-color:#7a6231;background:#2e2616' }, badge('⚠ The script or timing changed after the plan was made', 'b-warn'),
+      h('p', { className: 'small', style: 'margin:6px 0 0' }, 'Shot lines may not match the narration any more. Re-do the Plan (Copy plan prompt again), or click "Keep plan" if the lines are the same.'),
+      h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'small', on: { click: function () { go('plan') } } }, 'Go to Plan'), h('button', { className: 'ghost small', on: { click: function () { P.planSig = planSig(); save(); rerender() } } }, 'Keep plan')));
+  }
+  function smartPaste(kind, cid) {
+    var ta = h('textarea', { placeholder: 'Paste ANY chat answer here — the app finds which ' + (kind === 'shot' ? 'shots' : 'assets') + ' it contains and checks them.', style: 'min-height:70px' }), out = h('div');
+    return h('div', { className: 'card' }, h('h3', null, '⚡ Smart paste'), ta,
+      h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue', on: { click: function () {
+        var r = storeBlocks(ta.value, kind, cid); out.innerHTML = '';
+        if (!r.names.length) { out.appendChild(msgs(['Nothing found. The answer must contain ' + (kind === 'shot' ? "SHOT('id', {...})" : "KIT.asset('name', ...)") + '.'])); return }
+        out.textContent = 'Found: ' + r.names.join(', ') + ' — checking…';
+        var job = kind === 'shot' ? checkShots(cid, r.names) : checkAssets(r.names);
+        job.then(function () {
+          var tickets = kind === 'shot' ? P.shotTickets[cid] : P.assetTickets;
+          tickets.forEach(function (t) { var ids = t.ids || t.names; if (ids.some(function (n) { return r.names.indexOf(n) >= 0 })) { var bag = kind === 'shot' ? P.shots[cid] : P.assets; t.status = ids.every(function (n) { var x = bag[n] || {}; return x.status === 'checked' || x.status === 'approved' }) ? 'checked' : (ids.some(function (n) { return (bag[n] || {}).status === 'error' }) ? 'error' : 'pasted') } });
+          save(true); rerender(); toast('Checked: ' + r.names.join(', '));
+        }).catch(function (e) { out.textContent = 'Error: ' + e.message });
+      } } }, 'Find & check')), out);
+  }
+  function approveAll(bag, names) { var n = 0; names.forEach(function (k) { var x = bag[k]; if (x && x.status === 'checked') { x.status = 'approved'; n++ } }); save(true); rerender(); toast(n ? 'Approved ' + n + '.' : 'Nothing new to approve (only ✓ checked items can be approved).') }
+  function progressCard() {
+    if (!P.plan) return null;
+    var A = P.plan.assets, aOk = A.filter(function (a) { return (P.assets[a.name] || {}).status === 'approved' }).length;
+    return h('div', { className: 'card' }, h('h3', null, 'Progress'),
+      h('div', { className: 'row' }, badge('Assets ' + aOk + '/' + A.length, aOk === A.length ? 'b-ok' : 'b-blue'),
+        P.cuts.map(function (c) { var L = P.plan.cuts[c.id] || [], ok = L.filter(function (s) { return ((P.shots[c.id] || {})[s.id] || {}).status === 'approved' }).length; return badge(c.label + ': shots ' + ok + '/' + L.length + (c.hasAudio ? ' · audio ✓' : ' · no audio') + (c.exported ? ' · exported ✓' : ''), ok === L.length && L.length ? 'b-ok' : 'b-blue') })));
+  }
   function playerPayload(cid, res) {
-    return { mode: 'play', aspect: cutById(cid).aspect || '9:16', sky: sky(), name: (P.title || P.name) + ' - ' + cutById(cid).label, assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), captions: CAPS, res: res || QUALITY };
+    return { mode: 'play', aspect: cutById(cid).aspect || '9:16', sky: sky(), name: (P.title || P.name) + ' - ' + cutById(cid).label, assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), captions: CAPS, res: res || QUALITY, mix: mixOf(), capStyle: capOf() };
   }
   function vWatch() {
     if (!P.plan) return h('div', null, h('h1', null, 'Watch & fix'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
@@ -490,7 +552,7 @@
     function load() {
       if (PLAYER) PLAYER.remove(); PLAYING = false;
       PLAYER = h('iframe', { src: 'stage.html', style: 'width:100%;height:100%;border:0' }); frameBox.innerHTML = ''; frameBox.appendChild(PLAYER);
-      DB.getFile(P.id + ':' + CUT).then(function (audio) { var pl = playerPayload(CUT); pl.audio = audio || null; PLAYER.payload = pl });
+      media(CUT).then(function (md) { var pl = playerPayload(CUT); pl.audio = md.audio; pl.music = md.music; PLAYER.payload = pl });
     }
     window.onmessage = function (e) {
       if (!PLAYER || e.source !== PLAYER.contentWindow) return; var m = e.data || {};
@@ -502,7 +564,8 @@
     };
     seekR.oninput = function () { send({ type: 'seek', t: +this.value }) };
     var pb = h('button', { on: { click: function () { PLAYING = !PLAYING; send({ type: PLAYING ? 'play' : 'pause' }); pb.textContent = PLAYING ? 'Pause' : 'Play' } } }, 'Play');
-    function markCur() { [].forEach.call(list.children, function (el) { el.classList.toggle('cur', el.dataset.id === CURSHOT) }) }
+    function markCur() { [].forEach.call(list.children, function (el) { var on = el.dataset.id === CURSHOT; el.classList.toggle('cur', on); if (on && PLAYING) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }) }
+    document.onkeydown = function (e) { if (STEP !== 'watch' || /INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName)) return; if (e.code === 'Space') { e.preventDefault(); pb.click() } if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') { var i = plan.findIndex(function (s) { return s.id === CURSHOT }), j = Math.max(0, Math.min(plan.length - 1, i + (e.code === 'ArrowRight' ? 1 : -1))); send({ type: 'seek', t: times[j].from + .05 }) } };
     function drawList() {
       list.innerHTML = '';
       plan.forEach(function (s, i) {
@@ -539,7 +602,7 @@
           h('button', { className: 'blue small', style: 'margin-top:6px', on: { click: function () { var r = storeBlocks(ans.value, 'asset'); if (!r.names.length) { out.textContent = 'No KIT.asset found.'; return } out.textContent = 'Checking…'; checkAssets(r.names).then(function (rs) { out.innerHTML = ''; r.names.forEach(function (n) { var q = rs[n]; if (q) { if (q.ok) P.assets[n].status = 'approved'; out.appendChild(h('div', null, h('b', null, n + ': '), q.ok ? '✅ updated' : '', msgs(q.errors, q.warnings))) } }); save(true); load() }) } } }, 'Apply & check'), out);
       })());
     return h('div', null,
-      h('h1', null, 'Watch & fix'), h('p', { className: 'lead' }, 'Watch the video with the real audio and captions. Click a shot to jump to it and fix it: the app writes the fix prompt, and you can attach the video HTML so the AI sees everything.'),
+      staleBanner(), h('h1', null, 'Watch & fix'), h('p', { className: 'lead' }, 'Watch the video with the real audio and captions. Click a shot to jump to it and fix it: the app writes the fix prompt, and you can attach the video HTML so the AI sees everything.'),
       cutTabs(function () { CURSHOT = null; SHOTINFO = null }),
       h('div', { className: 'player', style: land ? 'flex-direction:column' : '' },
         h('div', { className: 'pbox', style: land ? 'width:560px' : '' }, frameBox,
@@ -548,6 +611,8 @@
             h('select', { title: 'Preview quality', on: { change: function () { QUALITY = +this.value; localStorage.setItem('quality', QUALITY); load() } } }, [[360, 'fast'], [540, 'good'], [720, 'better'], [1080, 'full']].map(function (q) { return h('option', { value: q[0], selected: QUALITY === q[0] }, q[1]) })),
             h('button', { className: 'ghost small', on: { click: load } }, 'Reload'))),
         list),
+      h('p', { className: 'muted small' }, 'Keys: Space = play/pause · ← → = previous/next shot.'),
+      soundCard(function () { send({ type: 'style', capStyle: capOf(), mix: mixOf() }) }),
       assetFix,
       nextBtn('export', 'Next: Export →'));
   }
@@ -593,8 +658,8 @@
   function vExport() {
     function exportVideo(cid) {
       var c = cutById(cid);
-      DB.getFile(P.id + ':' + cid).then(function (audio) {
-        var pl = playerPayload(cid, 1080); pl.mode = 'export'; pl.audio = audio || null; pl.captions = CAPS; pl.fps = 30;
+      media(cid).then(function (md) {
+        var pl = playerPayload(cid, 1080); pl.mode = 'export'; pl.audio = md.audio; pl.music = md.music; pl.captions = CAPS; pl.fps = 30;
         stageModal('Exporting: ' + c.label + ' (keep this tab open)', pl, {
           'ready': function (m, info) { info.textContent = 'Building…' },
           'export-progress': function (m, info) { info.textContent = m.stage === 'audio' ? 'Mixing narration + sound effects…' : 'Rendering frames: ' + Math.round(m.done * 100) + '%' + (m.eta ? ' · about ' + Math.ceil(m.eta / 60) + ' min left' : '') },
