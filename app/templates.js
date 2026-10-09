@@ -14,7 +14,7 @@
 - Shapes are ROUND: ellipsoids, rounded tubes, lathe profiles. Boxes only for furniture and buildings.
 - Every living thing has ONE exaggeration (big nose, giant head, huge belly, very long neck...).
 - Arms and legs are stubby. Hands are mittens with a thumb. Feet are big.
-- The video is vertical 9:16. Sets need vertical interest (tall trees, sky, shelves, a moon high up). Props must read clearly from their silhouette.
+- Shorts are vertical 9:16 (long videos may be 16:9 wide). Sets need vertical interest (tall trees, sky, shelves, a moon high up) AND some width. Props must read clearly from their silhouette.
 
 ## SCALE (very important — assets from different chats must fit together)
 - Units: the mascots are 2.6 units tall. A real adult (1.7 m) = 2.6 units, so 1 real metre is about 1.5 units.
@@ -355,9 +355,9 @@ ${parts}`;
      ================================================================= */
   TP.plan = function (p) {
     var s = p.settings, cuts = p.cuts || [];
-    var cutText = cuts.map(function (c) { return 'CUT "' + c.id + '" (' + c.label + ', ' + (c.duration ? c.duration.toFixed(1) + ' s' : '') + ', shot ids start with ' + c.prefix + '):\n' + cutLinesText(c) }).join('\n\n');
+    var cutText = cuts.map(function (c) { return 'CUT "' + c.id + '" (' + c.label + ', ' + (c.aspect || '9:16') + ', ' + (c.duration ? c.duration.toFixed(1) + ' s' : '') + ', shot ids start with ' + c.prefix + '):\n' + cutLinesText(c) }).join('\n\n');
     var mascots = s.mascot === 'both' ? 'kato and nia' : (s.mascot && s.mascot !== 'none' ? s.mascot : 'none (do not use the mascots)');
-    return `You are the director and art director of a narrated vertical (9:16) explainer video made with a code-only 3D paper cut-out style. Read the narration (already recorded and timed, split into numbered lines) and plan EVERYTHING the video needs. Other AI chats will build each asset and each shot from your plan, so be exact.
+    return `You are the director and art director of a narrated explainer video made with a code-only 3D paper cut-out style. Read the narration (already recorded and timed, split into numbered lines) and plan EVERYTHING the video needs. Other AI chats will build each asset and each shot from your plan, so be exact.
 
 TITLE: ${p.title || s.topic || ''}
 MASCOTS available: ${mascots}
@@ -494,10 +494,10 @@ words with time from shot start: ${shotWords(cut, s, idx[id] === 0 ? 0 : t0, t1)
 set: ${s.set} · cast: ${(s.cast || []).join(', ') || '(none)'}
 what we see: ${s.show}
 camera idea: ${s.camera || '-'} · mood: ${s.mood || 'normal'}
-before: ${prev ? prev.id + ' — ' + prev.show : '(start of video)'}
+before: ${prev ? prev.id + ' — ' + prev.show : '(start of video)'}${prev && ticket.ids.indexOf(prev.id) < 0 && p.shots && p.shots[cut.id] && p.shots[cut.id][prev.id] && p.shots[cut.id][prev.id].code ? '\n(the shot before is already made — keep continuity: same places and positions where it makes sense)\n' + p.shots[cut.id][prev.id].code.slice(0, 1500) : ''}
 after: ${next ? next.id + ' — ' + next.show : '(end of video)'}`;
     }).join('\n\n');
-    return `You are the shot director of a narrated vertical (9:16) video in a locked 3D paper cut-out style. You write each shot as a simple FORM. Other chats write the other shots, so follow the rules EXACTLY.
+    return `You are the shot director of a narrated ${cut.aspect === '16:9' ? 'landscape (16:9)' : 'vertical (9:16)'} video in a locked 3D paper cut-out style. You write each shot as a simple FORM. Other chats write the other shots, so follow the rules EXACTLY.
 
 VIDEO: ${p.title || ''}  ·  cut: ${cut.label}
 
@@ -550,6 +550,29 @@ ${note || '(see problems)'}
 ${problems && problems.length ? '\nProblems found by the app:\n' + problems.map(function (x) { return '- ' + x }).join('\n') : ''}
 
 Reply with ONE code block: the full corrected SHOT('${shotId}', {...}) only. Change only what is needed.`;
+  };
+
+  /* =================================================================
+     7) PUBLISH
+     ================================================================= */
+  TP.publish = function (p, cut, chapters) {
+    var land = cut.aspect === '16:9';
+    return `Write the YouTube upload text for this video. Channel style: narrated true stories and facts (like Zack D. Films), dark paper cut-out animation.
+
+VIDEO: ${p.title || p.settings.topic} · ${cut.label} · ${land ? 'long video' : 'YouTube Short'} · ${Math.round(cut.duration || 0)} seconds
+
+SCRIPT:
+<<<
+${cut.text}
+>>>
+${p.sources ? '\nSOURCES:\n' + p.sources + '\n' : ''}${chapters && land ? '\nCHAPTER START TIMES (keep these times, improve the names):\n' + chapters + '\n' : ''}
+Reply in this format:
+TITLE: (under 60 characters, curiosity, no clickbait lies${land ? '' : ', end with #shorts'})
+OTHER TITLES: (3 alternatives)
+DESCRIPTION: (2–4 short lines that hook, then "Sources:" with the links${land ? ', then the chapters list with times' : ''})
+TAGS: (15 comma-separated tags)
+HASHTAGS: (3)
+THUMBNAIL TEXT: (2–5 words, huge and simple)`;
   };
 
   /* =================================================================

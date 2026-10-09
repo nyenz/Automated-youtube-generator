@@ -3,7 +3,7 @@
   var P = null, STEP = 'project', CUT = null, PLAYER = null, $main = document.getElementById('main');
   var STEPS = [
     ['project', 'Project'], ['topic', 'Topic'], ['script', 'Script'], ['voice', 'Voice & timing'], ['plan', 'Plan'],
-    ['assets', 'Assets'], ['shots', 'Shots'], ['watch', 'Watch & fix'], ['export', 'Export']
+    ['assets', 'Assets'], ['shots', 'Shots'], ['watch', 'Watch & fix'], ['export', 'Export'], ['publish', 'Publish']
   ];
   var CATS = ['survival', 'history', 'science', 'mystery', 'nature', 'space', 'true crime', 'disasters', 'animals', 'human body', 'technology', 'other'];
 
@@ -57,9 +57,9 @@
   function syncCuts() {
     var s = P.settings, want = [];
     if (s.type === 'long') {
-      want.push({ id: 'long', label: 'Long video', prefix: 'L', minutes: +s.minutes });
-      for (var i = 1; i <= (+s.shorts || 0); i++) want.push({ id: 'short' + i, label: 'Short ' + i, prefix: 'ABCDEFG'[i - 1], minutes: +s.shortMinutes });
-    } else want.push({ id: 'main', label: 'Main video', prefix: 'M', minutes: +s.minutes });
+      want.push({ id: 'long', label: 'Long video', prefix: 'L', minutes: +s.minutes, aspect: s.longAspect || '16:9' });
+      for (var i = 1; i <= (+s.shorts || 0); i++) want.push({ id: 'short' + i, label: 'Short ' + i, prefix: 'ABCDEFG'[i - 1], minutes: +s.shortMinutes, aspect: '9:16' });
+    } else want.push({ id: 'main', label: 'Main video', prefix: 'M', minutes: +s.minutes, aspect: '9:16' });
     var old = {}; (P.cuts || []).forEach(function (c) { old[c.id] = c });
     P.cuts = want.map(function (w) { return Object.assign(old[w.id] || { text: '', words: [], lines: [], duration: 0 }, w) });
     if (!CUT || !P.cuts.some(function (c) { return c.id === CUT })) CUT = P.cuts[0].id;
@@ -92,9 +92,20 @@
   function go(step) { if (PLAYER && step !== 'watch') { PLAYER.remove(); PLAYER = null } STEP = step; render() }
   function render() {
     renderNav(); $main.innerHTML = '';
-    if (!P) { $main.appendChild(h('div', null, h('h1', null, 'Welcome'), h('p', { className: 'lead' }, 'Click "+ New" to start a video, or "Load demo" to see a finished example.'))); return }
-    var fn = { project: vProject, topic: vTopic, script: vScript, voice: vVoice, plan: vPlan, assets: vAssets, shots: vShots, watch: vWatch, export: vExport }[STEP];
+    if (!P) { $main.appendChild(welcome()); return }
+    var fn = { project: vProject, topic: vTopic, script: vScript, voice: vVoice, plan: vPlan, assets: vAssets, shots: vShots, watch: vWatch, export: vExport, publish: vPublish }[STEP];
     $main.appendChild(fn());
+  }
+  function welcome() {
+    var steps = [['Project', 'Pick the topic, short or long video, length, mascot and voice.'], ['Topic', 'Optional: load what is trending and let Claude suggest 10 ideas.'], ['Script', 'Claude researches and writes a human, TTS-ready script for every cut.'],
+      ['Voice & timing', 'Make the voice free in Google AI Studio, upload it; the app times every word.'], ['Plan', 'Claude (or any chat) plans every asset and every shot as JSON.'],
+      ['Assets', 'One ticket per chat, many chats at once (Qwen, DeepSeek, free Claude). The app checks every answer.'], ['Shots', 'Fill-in forms for camera, focus, light, moves and sound — synced to the spoken words.'],
+      ['Watch & fix', 'Play it with audio + captions. Click a bad shot, copy the fix prompt, paste the answer.'], ['Export', 'Frame-perfect MP4 at 1080 × 1920 (or 1920 × 1080).'], ['Publish', 'Thumbnail, title, description, tags and chapters.']];
+    return h('div', null, h('h1', null, 'Welcome to Paper Cinema Studio'),
+      h('p', { className: 'lead' }, 'Make narrated YouTube videos in a dark paper cut-out 3D style — all free. AI chats do the writing and building; this app keeps everything consistent, checks it, and renders the video.'),
+      h('div', { className: 'row' }, h('button', { on: { click: function () { document.getElementById('newBtn').click() } } }, '+ Start a new video'), h('button', { className: 'ghost', on: { click: function () { document.getElementById('demoBtn').click() } } }, 'See the demo first')),
+      h('div', { className: 'card', style: 'margin-top:16px' }, h('h3', null, 'How it works'), h('table', null, steps.map(function (x, i) { return h('tr', null, h('td', { style: 'width:28px' }, h('span', { className: 'badge' }, i + 1)), h('td', { style: 'width:130px' }, h('b', null, x[0])), h('td', { className: 'muted' }, x[1])) }))),
+      h('p', { className: 'muted small' }, 'Everything is saved in this browser. Use Export → Export project to back up.'));
   }
   function rerender() { var y = window.scrollY; render(); window.scrollTo(0, y) }
   function nextBtn(step, label) { return h('div', { className: 'row', style: 'margin-top:18px' }, h('button', { on: { click: function () { go(step) } } }, label || 'Next →')) }
@@ -115,13 +126,14 @@
         field('Category', sel('category', CATS)),
         field('Video type', sel('type', [['short', 'Short — vertical 9:16'], ['long', 'Long video + shorts made from it']])),
         field(s.type === 'long' ? 'Long video length (minutes)' : 'Length (minutes)', sel('minutes', mins)),
+        s.type === 'long' ? field('Long video shape', sel('longAspect', [['16:9', '16:9 landscape (normal YouTube video)'], ['9:16', '9:16 vertical']])) : null,
         s.type === 'long' ? field('How many shorts from it', sel('shorts', [0, 1, 2, 3, 4])) : null,
         s.type === 'long' ? field('Each short (minutes)', sel('shortMinutes', [.75, 1, 1.5, 2, 2.5, 3])) : null,
         field('Mascot on screen', sel('mascot', [['both', 'Both (kato + nia)'], ['kato', 'kato (male)'], ['nia', 'nia (female)'], ['none', 'None']])),
         field('Narration voice', sel('voice', [['male', 'Male'], ['female', 'Female']])),
         field('Sky / colour mood', sel('sky', [['auto', 'Let the plan choose'], ['night', 'Night (cool)'], ['warm', 'Warm (sunset)']]))
       ),
-      h('div', { className: 'card' }, h('h3', null, 'This project makes:'), P.cuts.map(function (c) { return h('div', null, '• ' + c.label + ' — ' + c.minutes + ' min (~' + Math.round(c.minutes * 150) + ' words), shot ids ' + c.prefix + '01, ' + c.prefix + '02…') }),
+      h('div', { className: 'card' }, h('h3', null, 'This project makes:'), P.cuts.map(function (c) { return h('div', null, '• ' + c.label + ' (' + c.aspect + ') — ' + c.minutes + ' min (~' + Math.round(c.minutes * 150) + ' words), shot ids ' + c.prefix + '01, ' + c.prefix + '02…') }),
         s.type === 'long' ? h('p', { className: 'muted small' }, 'The shorts reuse the long video\'s assets, so they only need new shots. Each short gets its own script and its own audio.') : null),
       nextBtn('topic', s.topic ? 'Next: Topic →' : 'Next: find a topic →'));
   }
@@ -466,13 +478,13 @@
      ================================================================= */
   var CURSHOT = null, PLAYING = false, CAPS = true, QUALITY = +(localStorage.getItem('quality') || 540), SHOTINFO = null;
   function playerPayload(cid, res) {
-    return { mode: 'play', sky: sky(), name: (P.title || P.name) + ' - ' + cutById(cid).label, assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), captions: CAPS, res: res || QUALITY };
+    return { mode: 'play', aspect: cutById(cid).aspect || '9:16', sky: sky(), name: (P.title || P.name) + ' - ' + cutById(cid).label, assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), captions: CAPS, res: res || QUALITY };
   }
   function vWatch() {
     if (!P.plan) return h('div', null, h('h1', null, 'Watch & fix'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
     var c = cutById(CUT), plan = P.plan.cuts[CUT] || [], S = P.shots[CUT] || {};
     var times = PLAN.shotTimes(c, plan), tlabel = h('span', { className: 'muted small' }, '0.0 s'), seekR = h('input', { type: 'range', min: 0, max: c.duration, step: .05, value: 0, style: 'flex:1' });
-    var frameBox = h('div', { className: 'pframe', style: 'position:relative;overflow:hidden' });
+    var land = c.aspect === '16:9', frameBox = h('div', { className: 'pframe', style: 'position:relative;overflow:hidden' + (land ? ';width:560px;height:315px' : '') });
     var list = h('div', { className: 'plist' });
     function send(m) { if (PLAYER && PLAYER.contentWindow) PLAYER.contentWindow.postMessage(m, '*') }
     function load() {
@@ -529,8 +541,8 @@
     return h('div', null,
       h('h1', null, 'Watch & fix'), h('p', { className: 'lead' }, 'Watch the video with the real audio and captions. Click a shot to jump to it and fix it: the app writes the fix prompt, and you can attach the video HTML so the AI sees everything.'),
       cutTabs(function () { CURSHOT = null; SHOTINFO = null }),
-      h('div', { className: 'player' },
-        h('div', { className: 'pbox' }, frameBox,
+      h('div', { className: 'player', style: land ? 'flex-direction:column' : '' },
+        h('div', { className: 'pbox', style: land ? 'width:560px' : '' }, frameBox,
           h('div', { className: 'row', style: 'margin-top:8px' }, pb, seekR), h('div', { className: 'row', style: 'margin-top:6px' }, tlabel,
             h('label', { style: 'margin:0;display:flex;gap:4px;align-items:center;color:var(--ink)' }, h('input', { type: 'checkbox', checked: CAPS, on: { change: function () { CAPS = this.checked; send({ type: 'captions', on: CAPS }) } } }), 'captions'),
             h('select', { title: 'Preview quality', on: { change: function () { QUALITY = +this.value; localStorage.setItem('quality', QUALITY); load() } } }, [[360, 'fast'], [540, 'good'], [720, 'better'], [1080, 'full']].map(function (q) { return h('option', { value: q[0], selected: QUALITY === q[0] }, q[1]) })),
@@ -563,22 +575,34 @@
   /* =================================================================
      9) EXPORT
      ================================================================= */
+  function stageModal(title, payload, handlers, size) {
+    var box = h('div', { style: 'height:100%;display:flex;flex-direction:column;align-items:center;gap:10px' }), info = h('div', { style: 'font-weight:700' }, 'Preparing…');
+    var wh = size || [360, 640], fr = h('div', { style: 'width:' + wh[0] + 'px;height:' + wh[1] + 'px;flex:none' }), f = h('iframe', { src: 'stage.html', style: 'width:100%;height:100%;border:0;border-radius:8px' });
+    box.append(info, fr); fr.appendChild(f);
+    function on(e) {
+      if (e.source !== f.contentWindow) return; var m = e.data || {};
+      if (m.type === 'stage-ready') f.contentWindow.postMessage({ type: 'load', payload: payload }, '*');
+      if (m.type === 'fatal') info.textContent = '✖ ' + m.msg;
+      if (handlers[m.type]) handlers[m.type](m, info, f);
+    }
+    window.addEventListener('message', on);
+    modal(title, box, function () { try { f.contentWindow.postMessage({ type: 'cancel' }, '*') } catch (e) { } window.removeEventListener('message', on) });
+    return f;
+  }
+  function frameSize(cid) { return cutById(cid).aspect === '16:9' ? [640, 360] : [360, 640] }
   function vExport() {
-    var st = h('div', { className: 'muted', style: 'margin-top:8px' });
-    function record(cid) {
-      var box = h('div', { style: 'height:100%;display:flex;flex-direction:column;align-items:center;gap:10px' }), fr = h('div', { style: 'width:360px;height:640px;flex:none' }), info = h('div', null, 'Preparing full quality (1080 × 1920)…');
-      box.append(info, fr); modal('Recording: ' + cutById(cid).label + ' — keep this window open and visible', box);
+    function exportVideo(cid) {
+      var c = cutById(cid);
       DB.getFile(P.id + ':' + cid).then(function (audio) {
-        var pl = playerPayload(cid, 1080); pl.audio = audio || null; pl.captions = CAPS;
-        var f = h('iframe', { src: 'stage.html', style: 'width:100%;height:100%;border:0' }); fr.appendChild(f);
-        function on(e) {
-          if (e.source !== f.contentWindow) return; var m = e.data || {};
-          if (m.type === 'stage-ready') f.contentWindow.postMessage({ type: 'load', payload: pl }, '*');
-          if (m.type === 'ready') { info.textContent = 'Recording in real time… (' + cutById(cid).duration.toFixed(0) + ' s)'; setTimeout(function () { f.contentWindow.postMessage({ type: 'record' }, '*') }, 800) }
-          if (m.type === 'time') info.textContent = 'Recording… ' + m.t.toFixed(1) + ' / ' + cutById(cid).duration.toFixed(1) + ' s';
-          if (m.type === 'recorded') { window.removeEventListener('message', on); download(slug((P.title || P.name) + '-' + cutById(cid).label) + '.webm', m.blob); info.textContent = 'Done! The .webm file is downloaded. Open it in CapCut / DaVinci / Clipchamp to export MP4 if you need.' }
-        }
-        window.addEventListener('message', on);
+        var pl = playerPayload(cid, 1080); pl.mode = 'export'; pl.audio = audio || null; pl.captions = CAPS; pl.fps = 30;
+        stageModal('Exporting: ' + c.label + ' (keep this tab open)', pl, {
+          'ready': function (m, info) { info.textContent = 'Building…' },
+          'export-progress': function (m, info) { info.textContent = m.stage === 'audio' ? 'Mixing narration + sound effects…' : 'Rendering frames: ' + Math.round(m.done * 100) + '%' + (m.eta ? ' · about ' + Math.ceil(m.eta / 60) + ' min left' : '') },
+          'export-fallback': function (m, info) { info.textContent = m.msg },
+          'time': function (m, info) { info.textContent = 'Recording in real time… ' + m.t.toFixed(1) + ' / ' + c.duration.toFixed(1) + ' s' },
+          'exported': function (m, info) { download(slug((P.title || P.name) + '-' + c.label) + '.' + m.ext, m.blob); info.textContent = '✅ Done in ' + Math.round(m.seconds) + ' s — ' + m.ext.toUpperCase() + ' (' + m.codec + '), ' + (m.blob.size / 1048576).toFixed(1) + ' MB. Upload it to YouTube.'; c.exported = Date.now(); save() },
+          'recorded': function (m, info) { download(slug((P.title || P.name) + '-' + c.label) + '.webm', m.blob); info.textContent = '✅ Done (.webm). YouTube accepts it directly.' }
+        }, frameSize(cid));
       });
     }
     function exportProject(withAudio) {
@@ -587,15 +611,69 @@
       Promise.all(jobs).then(function () { download(slug(P.name) + '.project.json', new Blob([JSON.stringify(data)], { type: 'application/json' })) });
     }
     return h('div', null,
-      h('h1', null, 'Export'), h('p', { className: 'lead' }, 'Record the final video (with narration, sound effects and captions) or save the project.'),
+      h('h1', null, 'Export'), h('p', { className: 'lead' }, 'Makes the final video file: every frame rendered at full quality (1080 × 1920, or 1920 × 1080 for 16:9), with narration, sound effects and captions. It does not depend on how fast your PC is — a slow PC just takes longer.'),
       P.cuts.map(function (c) {
-        return h('div', { className: 'card row' }, h('h3', { style: 'margin:0' }, c.label), c.hasAudio ? badge('audio ✓', 'b-ok') : badge('no audio', 'b-warn'), h('span', { className: 'grow' }),
-          h('button', { disabled: !P.plan, on: { click: function () { record(c.id) } } }, 'Record video (.webm)'),
-          h('button', { className: 'ghost', disabled: !P.plan, on: { click: function () { exportVideoHtml(c.id) } } }, 'Video HTML'));
+        var missing = P.plan ? (P.plan.cuts[c.id] || []).filter(function (s) { return !((P.shots[c.id] || {})[s.id] || {}).code }).length : 0;
+        return h('div', { className: 'card' }, h('div', { className: 'row' }, h('h3', { style: 'margin:0' }, c.label), badge(c.aspect || '9:16'), c.hasAudio ? badge('audio ✓', 'b-ok') : badge('no audio — silent video', 'b-warn'), missing ? badge(missing + ' shots not made', 'b-warn') : null, c.exported ? badge('exported ✓', 'b-ok') : null, h('span', { className: 'grow' }),
+          h('button', { disabled: !P.plan, on: { click: function () { exportVideo(c.id) } } }, 'Export video (MP4)'),
+          h('button', { className: 'ghost', disabled: !P.plan, on: { click: function () { exportVideoHtml(c.id) } } }, 'Video HTML')));
       }),
-      h('div', { className: 'card' }, h('h3', null, 'Project file'), h('p', { className: 'muted small' }, 'Back up the project or move it to another PC (Import at the top).'),
-        h('div', { className: 'row' }, h('button', { className: 'ghost', on: { click: function () { exportProject(false) } } }, 'Export project'), h('button', { className: 'ghost', on: { click: function () { exportProject(true) } } }, 'Export project + audio'))), st,
-      h('p', { className: 'muted small' }, 'Recording plays the video once in real time at 1080 × 1920. Keep the window visible while it records. YouTube accepts .webm directly.'));
+      h('div', { className: 'card' }, h('h3', null, 'Project file'), h('p', { className: 'muted small' }, 'Back up the project or move it to another PC (use Import at the top).'),
+        h('div', { className: 'row' }, h('button', { className: 'ghost', on: { click: function () { exportProject(false) } } }, 'Export project'), h('button', { className: 'ghost', on: { click: function () { exportProject(true) } } }, 'Export project + audio'))),
+      h('p', { className: 'muted small' }, 'Chrome makes an MP4 (H.264 + AAC). If your browser can\'t, the app makes a WebM instead, which YouTube also accepts.'),
+      nextBtn('publish', 'Next: Publish →'));
+  }
+
+  /* =================================================================
+     10) PUBLISH — thumbnail + title / description / tags / chapters
+     ================================================================= */
+  function chapters(c) {
+    var paras = String(c.text || '').split(/\n\s*\n/).map(function (x) { return x.trim() }).filter(Boolean), out = [], wi = 0, W = c.words || [];
+    paras.forEach(function (p) { var n = TIMING.words(p).length; if (W[wi]) out.push({ t: wi === 0 ? 0 : W[wi][1], text: p.split(/(?<=[.!?])\s/)[0].slice(0, 90) }); wi += n });
+    return out;
+  }
+  function ts(t) { t = Math.floor(t); var m = Math.floor(t / 60), s = t % 60; return m + ':' + (s < 10 ? '0' : '') + s }
+  function vPublish() {
+    var c = cutById(CUT);
+    var thumbText = h('input', { value: P.thumbText || (P.title || '').toUpperCase(), style: 'width:100%', on: { input: function () { P.thumbText = this.value; save() } } });
+    var tSlider = h('input', { type: 'range', min: 0, max: c.duration || 1, step: .05, value: P.thumbT || Math.min(3, (c.duration || 1) / 2), style: 'flex:1' });
+    var out = h('div', { style: 'margin-top:10px' });
+    function grab() {
+      DB.getFile(P.id + ':' + CUT).then(function () {
+        var pl = playerPayload(CUT, 1080); pl.captions = false; P.thumbT = +tSlider.value; save();
+        stageModal('Thumbnail frame', pl, {
+          'ready': function (m, info, f) { info.textContent = 'Rendering frame at ' + (+tSlider.value).toFixed(1) + ' s…'; f.contentWindow.postMessage({ type: 'seek', t: +tSlider.value }, '*'); setTimeout(function () { f.contentWindow.postMessage({ type: 'grab' }, '*') }, 1500) },
+          'frame': function (m, info) { info.textContent = 'Done.'; document.getElementById('mclose').click(); makeThumb(m.blob) }
+        }, frameSize(CUT));
+      });
+    }
+    function makeThumb(blob) {
+      var img = new Image(); img.onload = function () {
+        var land = c.aspect === '16:9', W = land ? 1280 : 1080, H = land ? 720 : 1920, cv = document.createElement('canvas'); cv.width = W; cv.height = H; var x = cv.getContext('2d');
+        var sc = Math.max(W / img.width, H / img.height); x.drawImage(img, (W - img.width * sc) / 2, (H - img.height * sc) / 2, img.width * sc, img.height * sc);
+        var txt = thumbText.value.trim();
+        if (txt) {
+          var fs = Math.round(Math.min(W, H) * (land ? .13 : .1)); x.font = '900 ' + fs + 'px "Arial Black", Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
+          var words = txt.split(/\s+/), lines = [], cur = ''; words.forEach(function (w) { var tr = cur ? cur + ' ' + w : w; if (x.measureText(tr).width > W * .86 && cur) { lines.push(cur); cur = w } else cur = tr }); if (cur) lines.push(cur);
+          var y0 = (land ? H * .2 : H * .16);
+          lines.forEach(function (l, i) { var y = y0 + i * fs * 1.08; x.lineWidth = fs * .22; x.strokeStyle = '#0d0a0c'; x.strokeText(l, W / 2, y); x.fillStyle = i === lines.length - 1 ? '#f2c14e' : '#efe6d2'; x.fillText(l, W / 2, y) });
+        }
+        cv.toBlob(function (b) { out.innerHTML = ''; var u = URL.createObjectURL(b); out.append(h('img', { src: u, style: 'max-width:' + (land ? 480 : 240) + 'px;border-radius:8px;display:block;margin-bottom:8px' }), h('button', { on: { click: function () { download(slug(P.title || P.name) + '-thumbnail.png', b) } } }, 'Download thumbnail')) }, 'image/png');
+      }; img.src = URL.createObjectURL(blob);
+    }
+    var ch = chapters(c), meta = TPL.publish(P, c, ch.map(function (x) { return ts(x.t) + ' ' + x.text }).join('\n'));
+    return h('div', null,
+      h('h1', null, 'Publish'), h('p', { className: 'lead' }, 'A thumbnail from your own video, plus title, description, tags and chapters written by Claude.'),
+      cutTabs(),
+      h('div', { className: 'card' }, h('h3', null, 'Thumbnail'),
+        h('div', { className: 'row' }, h('span', null, 'Frame at'), tSlider), field('Text on the thumbnail (short, 2–5 words works best)', thumbText),
+        h('div', { className: 'row', style: 'margin-top:8px' }, h('button', { on: { click: grab } }, 'Make thumbnail')), out,
+        c.aspect !== '16:9' ? h('p', { className: 'muted small' }, 'For Shorts, YouTube picks the thumbnail from a frame in the video (you can choose it in the YouTube app). This image is for the long video, or to use as the first frame.') : null),
+      h('div', { className: 'card' }, h('h3', null, 'Title, description, tags'),
+        help(['Click <b>Copy publish prompt</b> → paste into Claude.', 'Copy its answer into YouTube Studio when you upload.']),
+        h('button', { on: { click: function () { promptBox('Publish prompt', meta, 'Publish prompt') } } }, 'Copy publish prompt'),
+        ch.length > 1 ? h('div', { style: 'margin-top:10px' }, h('b', null, 'Chapters (from the script paragraphs):'), h('div', { className: 'lines', style: 'margin-top:6px' }, ch.map(function (x) { return h('div', null, ts(x.t) + '  ' + x.text) }))) : null),
+      h('div', { className: 'card' }, h('h3', null, 'Upload'), h('p', { className: 'muted small', html: 'Open <a href="https://studio.youtube.com" target="_blank">YouTube Studio</a> → <b>Create</b> → <b>Upload videos</b> → pick the exported MP4 → paste title, description and tags → choose the thumbnail.' })));
   }
 
   /* =================================================================

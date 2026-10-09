@@ -390,14 +390,14 @@
     GROUPS = GROUPS || D.captionGroups();
     var gi = -1; for (var i = 0; i < GROUPS.length; i++) { var g = GROUPS[i], s = WORDS[g[0]].s, e = WORDS[g[g.length - 1]].e + .25; if (t >= s && t < e) { gi = i; break } }
     if (gi < 0) return;
-    var grp = GROUPS[gi], fs = Math.round(w * .074), active = grp[0];
+    var land = w > h, grp = GROUPS[gi], fs = Math.round(Math.min(w, h) * (land ? .066 : .074)), active = grp[0];
     grp.forEach(function (wi) { if (WORDS[wi].s <= t) active = wi });
     ctx.font = '900 ' + fs + 'px "Arial Black", "Trebuchet MS", Arial, sans-serif'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
     var parts = grp.map(function (wi) { return { i: wi, txt: WORDS[wi].w.toUpperCase().replace(/[,;:]$/, '') } });
     var space = fs * .28, widths = parts.map(function (p) { return ctx.measureText(p.txt).width }), total = widths.reduce(function (a, b) { return a + b }, 0) + space * (parts.length - 1);
-    var lines = [[]], lw = [0], maxW = w * .86;
+    var lines = [[]], lw = [0], maxW = w * (land ? .7 : .86);
     parts.forEach(function (p, j) { var L = lines.length - 1; if (lw[L] + widths[j] > maxW && lines[L].length) { lines.push([]); lw.push(0); L++ } lines[L].push(j); lw[L] += widths[j] + space });
-    var y0 = h * .7 - (lines.length - 1) * fs * .6;
+    var y0 = h * (land ? .84 : .7) - (lines.length - 1) * fs * .6;
     lines.forEach(function (ln, li) {
       var x = (w - (lw[li] - space)) / 2, y = y0 + li * fs * 1.15;
       ln.forEach(function (j) {
@@ -410,9 +410,9 @@
     });
   };
   function card(ctx, w, h, x, t) {
-    var a = Math.min(1, (t - x.t0) * 6, (x.t0 + x.dur - t) * 6), fs = Math.round(w * (x.small ? .045 : .068));
+    var a = Math.min(1, (t - x.t0) * 6, (x.t0 + x.dur - t) * 6), fs = Math.round(Math.min(w, h) * (x.small ? .045 : .068));
     ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.font = '900 ' + fs + 'px Georgia, "Times New Roman", serif';
-    var lines = wrap(ctx, x.say, w * .74), bw = Math.max.apply(null, lines.map(function (l) { return ctx.measureText(l).width })) + fs * 1.4, bh = lines.length * fs * 1.2 + fs * .9;
+    var lines = wrap(ctx, x.say, Math.min(w, h * .8) * .74), bw = Math.max.apply(null, lines.map(function (l) { return ctx.measureText(l).width })) + fs * 1.4, bh = lines.length * fs * 1.2 + fs * .9;
     var cx = w / 2, cy = h * (x.small ? .5 : .24);
     ctx.fillStyle = 'rgba(0,0,0,.45)'; torn(ctx, cx - bw / 2 + fs * .12, cy - bh / 2 + fs * .12, bw, bh, x.t0); ctx.fill();
     ctx.fillStyle = '#d9ccb0'; torn(ctx, cx - bw / 2, cy - bh / 2, bw, bh, x.t0); ctx.fill();

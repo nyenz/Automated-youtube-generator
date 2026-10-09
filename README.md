@@ -19,7 +19,8 @@ Click **Load demo** to see a finished example right away.
 | 7. Assets: one prompt ("ticket") per chat, several chats at once | Qwen / DeepSeek / free Claude | free |
 | 8. Shots: fill-in forms (camera, focus, light, moves, sound) | any chat | free |
 | 9. Watch & fix: click a bad shot, copy the fix prompt, paste the answer back | any chat | free |
-| 10. Record: 1080 × 1920 video with narration, sound effects and captions | the app | free |
+| 10. Export: frame-perfect MP4 (1080 × 1920, or 1920 × 1080 for long videos) with narration, sound effects and captions | the app | free |
+| 11. Publish: thumbnail from your video + title, description, tags, chapters | the app + Claude | free |
 
 ## Why different chats still match
 - The **look is locked** in `kit/style-kit.js`: paper texture, ink edges, lighting, lens blur, colour grade. AI chats can only build shapes with its tools.
@@ -36,7 +37,8 @@ Click **Load demo** to see a finished example right away.
 6. **Assets**: for each ticket, **Copy prompt** → paste it into a NEW chat → paste the answer back → **Check** → **Approve**. Open the **Asset sheet** to compare everything side by side.
 7. **Shots**: same as assets, one ticket per chat. You can also tick "Claude mode" to do a whole cut in one chat.
 8. **Watch & fix**: press Play. Click a shot to jump to it. Write what's wrong → **Copy fix prompt**, optionally with **Download video HTML** attached in the chat → paste the fixed shot → **Apply & check**.
-9. **Export**: **Record video** downloads a `.webm` file. YouTube accepts `.webm` directly.
+9. **Export**: **Export video (MP4)** renders every frame at full quality. It doesn't depend on your PC's speed; a slow PC just takes longer. If the browser can't make MP4, it makes WebM, which YouTube also accepts.
+10. **Publish**: pick a frame and type the text → **Make thumbnail**. **Copy publish prompt** → paste it into Claude for the title, description, tags and chapters.
 
 Projects and audio are saved in your browser. Use **Export project** to back up or to move to another PC.
 
@@ -47,7 +49,8 @@ stage.html          the 3D stage (player, checks, asset sheet), runs inside the 
 app/                app code: templates (all prompts), timing (Whisper + alignment), plan checks, trends
 kit/style-kit.js    LOCKED look: paper materials, face kit, people, lens, light, sound, recorder
 kit/director.js     LOCKED: turns SHOT forms into camera, focus, light, moves, captions
-kit/stage.js        runs the stage modes
+kit/stage.js        runs the stage modes (play, checks, sheet, export)
+kit/vendor/         MP4 / WebM muxers (offline video export)
 examples/demo.js    the demo project ("A Hand in the Dark")
 ```
 

@@ -110,7 +110,7 @@
     src.connect(g); g.connect(A.ctx.destination); g.connect(A.dest);
   }
   function buildPlay(p, quiet) {
-    K.init({ duration: p.cut.duration, sky: p.sky || 'night', aspect: '9:16', name: p.name || 'video', res: p.res || 1080 });
+    K.init({ duration: p.cut.duration, sky: p.sky || 'night', aspect: p.aspect || '9:16', name: p.name || 'video', res: p.res || 1080 });
     var ae = loadAssets(p.assets), se = loadShots(p.shots);
     D.onError = function (id, msg) { post({ type: 'shot-error', id: id, msg: msg }) };
     built = D.build({ cut: p.cut, sky: p.sky });
@@ -128,12 +128,81 @@
   function after(tq) {
     fitOverlay(); var t = time();
     D.drawOverlay(octx, overlay.width, overlay.height, t, { captions: P.captions !== false });
+    if (GRAB) { var g = composite(GRAB.w, GRAB.h); GRAB = null; g.toBlob(function (b) { post({ type: 'frame', blob: b, t: t }) }, 'image/png') }
     if (rec) { rec.ctx.drawImage(K.renderer.domElement, 0, 0, rec.c.width, rec.c.height); rec.ctx.drawImage(overlay, 0, 0, rec.c.width, rec.c.height); if (!audio && t >= P.cut.duration) stopRec() }
     var n = now(); if (n - lastPost > .1) { lastPost = n; var sh = D.shotAt(t); post({ type: 'time', t: t, shot: sh && sh.id, playing: audio ? !audio.paused : clock.playing }); if (UI) UI.tick(t, sh) }
   }
+  var GRAB = null;
+  function composite(W, H) { var c = document.createElement('canvas'); c.width = W; c.height = H; var x = c.getContext('2d'); x.drawImage(K.renderer.domElement, 0, 0, W, H); x.drawImage(overlay, 0, 0, W, H); return c }
+  function outSize() { return (P.aspect === '16:9') ? [1920, 1080] : [1080, 1920] }
+
+  /* ---------- EXPORT: render every frame offline -> MP4 (H.264 + AAC) or WebM (VP9 + Opus) ---------- */
+  async function pickCodecs(W, H, FPS, br) {
+    if (!window.VideoEncoder || !window.AudioEncoder) return null;
+    var vids = [{ c: 'avc1.640028', fmt: 'mp4' }, { c: 'avc1.4d0028', fmt: 'mp4' }, { c: 'avc1.42003e', fmt: 'mp4' }, { c: 'vp09.00.40.08', fmt: 'webm' }, { c: 'vp8', fmt: 'webm' }];
+    for (var i = 0; i < vids.length; i++) {
+      var v = vids[i], cfg = { codec: v.c, width: W, height: H, bitrate: br, framerate: FPS };
+      if (v.fmt === 'mp4') cfg.avc = { format: 'avc' };
+      try { var r = await VideoEncoder.isConfigSupported(cfg); if (!r.supported) continue } catch (e) { continue }
+      var auds = v.fmt === 'mp4' ? [['mp4a.40.2', 'aac'], ['opus', 'opus']] : [['opus', 'A_OPUS']];
+      for (var j = 0; j < auds.length; j++) {
+        var ac = { codec: auds[j][0], sampleRate: 48000, numberOfChannels: 2, bitrate: 192000 };
+        try { var ra = await AudioEncoder.isConfigSupported(ac); if (ra.supported) return { fmt: v.fmt, vcfg: cfg, acfg: ac, amux: auds[j][1] } } catch (e) { }
+      }
+    }
+    return null;
+  }
+  async function exportMode(p) {
+    var b = buildPlay(Object.assign({}, p, { audio: null })); say('');
+    var WH = outSize(), W = WH[0], H = WH[1], FPS = p.fps || 30, dur = p.cut.duration, N = Math.ceil(dur * FPS);
+    post({ type: 'ready', info: { shots: b.shots, warnings: b.warnings, errors: b.errors } });
+    var pick = await pickCodecs(W, H, FPS, p.bitrate || 12e6);
+    if (!pick) { post({ type: 'export-fallback', msg: 'This browser cannot encode video directly. Using real-time recording instead.' }); K.start({ bar: false, time: time, after: after }); setTimeout(startRec, 500); return }
+    post({ type: 'export-progress', stage: 'audio', done: 0 });
+    var narr = null;
+    if (p.audio) { var ab = await p.audio.arrayBuffer(); narr = await new OfflineAudioContext(2, 48000, 48000).decodeAudioData(ab) }
+    var mix = await K.renderAudio(dur, narr);
+    var mp4 = pick.fmt === 'mp4', Mx = mp4 ? window.Mp4Muxer : window.WebMMuxer, target = new Mx.ArrayBufferTarget();
+    var muxer = mp4 ? new Mx.Muxer({ target: target, video: { codec: 'avc', width: W, height: H, frameRate: FPS }, audio: { codec: pick.amux, sampleRate: 48000, numberOfChannels: 2 }, fastStart: 'in-memory', firstTimestampBehavior: 'offset' })
+      : new Mx.Muxer({ target: target, video: { codec: pick.vcfg.codec === 'vp8' ? 'V_VP8' : 'V_VP9', width: W, height: H, frameRate: FPS }, audio: { codec: 'A_OPUS', sampleRate: 48000, numberOfChannels: 2 }, firstTimestampBehavior: 'offset' });
+    // audio first (kept in memory, interleaved with video later)
+    var aq = [], aerr = null, aenc = new AudioEncoder({ output: function (c, m) { aq.push([c, m]) }, error: function (e) { aerr = e } });
+    aenc.configure(pick.acfg);
+    var L = mix.getChannelData(0), R = mix.numberOfChannels > 1 ? mix.getChannelData(1) : L, step = 4800;
+    for (var i = 0; i < mix.length; i += step) {
+      var n = Math.min(step, mix.length - i), buf = new Float32Array(n * 2); buf.set(L.subarray(i, i + n), 0); buf.set(R.subarray(i, i + n), n);
+      var ad = new AudioData({ format: 'f32-planar', sampleRate: 48000, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round(i / 48000 * 1e6), data: buf });
+      aenc.encode(ad); ad.close();
+    }
+    await aenc.flush(); if (aerr) throw aerr;
+    var ai = 0;
+    function flushAudio(ts) { while (ai < aq.length && aq[ai][0].timestamp <= ts) { muxer.addAudioChunk(aq[ai][0], aq[ai][1]); ai++ } }
+    var verr = null, venc = new VideoEncoder({ output: function (c, m) { flushAudio(c.timestamp); muxer.addVideoChunk(c, m) }, error: function (e) { verr = e } });
+    venc.configure(pick.vcfg);
+    K.sound(false); fitOverlay();
+    var comp = document.createElement('canvas'); comp.width = W; comp.height = H; var cx = comp.getContext('2d'), t0 = performance.now();
+    for (var f = 0; f < N; f++) {
+      if (CANCEL) { post({ type: 'export-cancelled' }); return }
+      var t = f / FPS, tq = Math.floor(t * 12) / 12;
+      K.frame(tq, t); fitOverlay(); D.drawOverlay(octx, overlay.width, overlay.height, t, { captions: P.captions !== false });
+      cx.drawImage(K.renderer.domElement, 0, 0, W, H); cx.drawImage(overlay, 0, 0, W, H);
+      var vf = new VideoFrame(comp, { timestamp: Math.round(f * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      venc.encode(vf, { keyFrame: f % (FPS * 2) === 0 }); vf.close();
+      if (verr) throw verr;
+      while (venc.encodeQueueSize > 6) await new Promise(function (r) { setTimeout(r, 4) });
+      if (f % 10 === 0) { var el = (performance.now() - t0) / 1000; post({ type: 'export-progress', stage: 'video', done: f / N, eta: f ? el / f * (N - f) : 0 }); await new Promise(function (r) { setTimeout(r, 0) }) }
+    }
+    await venc.flush(); if (verr) throw verr; flushAudio(1e15);
+    muxer.finalize();
+    var blob = new Blob([target.buffer], { type: mp4 ? 'video/mp4' : 'video/webm' });
+    post({ type: 'exported', blob: blob, ext: mp4 ? 'mp4' : 'webm', codec: pick.vcfg.codec + ' + ' + pick.acfg.codec, seconds: (performance.now() - t0) / 1000 });
+    if (P.standalone) { var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (P.name || 'video') + '.' + (mp4 ? 'mp4' : 'webm'); document.body.appendChild(a); a.click() }
+  }
+  var CANCEL = false;
+
   function startRec() {
     if (rec) return; var A = K.audioInit(); wire();
-    var c = document.createElement('canvas'), src = K.renderer.domElement; c.width = src.width; c.height = src.height;
+    var c = document.createElement('canvas'), wh = outSize(); c.width = wh[0]; c.height = wh[1];
     var stream = c.captureStream(30), tracks = stream.getVideoTracks().concat(A.dest.stream.getAudioTracks());
     var mime = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].filter(function (m) { return MediaRecorder.isTypeSupported(m) })[0];
     var mr = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: 14e6 }), chunks = [];
@@ -177,13 +246,12 @@
   function standaloneUI(b) {
     var bar = document.createElement('div');
     bar.style.cssText = 'position:fixed;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:6px 12px 6px 6px;border-radius:999px;background:rgba(233,223,200,.14);color:#e9dfc8;font:700 12px "Trebuchet MS",sans-serif;z-index:9;width:min(520px,calc(100% - 24px));box-sizing:border-box';
-    bar.innerHTML = '<button id="sp">Play</button><input id="ss" type="range" min="0" max="' + P.cut.duration + '" step=".01" value="0" style="flex:1"><span id="st">0.0</span><span id="sh"></span><button id="sr">Record</button>';
+    bar.innerHTML = '<button id="sp">Play</button><input id="ss" type="range" min="0" max="' + P.cut.duration + '" step=".01" value="0" style="flex:1"><span id="st">0.0</span><span id="sh"></span>';
     document.body.appendChild(bar);
     [].forEach.call(bar.querySelectorAll('button'), function (x) { x.style.cssText = 'border:0;border-radius:999px;padding:8px 12px;background:#e9dfc8;color:#14111a;font:inherit;cursor:pointer' });
     var playing = false, sp = bar.querySelector('#sp');
     sp.onclick = function () { playing = !playing; playing ? play() : pause(); sp.textContent = playing ? 'Pause' : 'Play' };
     bar.querySelector('#ss').oninput = function () { seek(+this.value) };
-    bar.querySelector('#sr').onclick = startRec;
     UI = { tick: function (t, sh) { bar.querySelector('#st').textContent = t.toFixed(1) + ' s'; bar.querySelector('#sh').textContent = sh ? sh.id : ''; if (document.activeElement !== bar.querySelector('#ss')) bar.querySelector('#ss').value = t } };
   }
 
@@ -195,6 +263,8 @@
     if (m.type === 'play') play(); if (m.type === 'pause') pause(); if (m.type === 'seek') seek(m.t);
     if (m.type === 'record') startRec(); if (m.type === 'stop-record') stopRec();
     if (m.type === 'captions') P.captions = m.on;
+    if (m.type === 'grab') { var wh = outSize(); GRAB = { w: wh[0], h: wh[1] } }
+    if (m.type === 'cancel') CANCEL = true;
     if (m.type === 'sound') { P.sound = m.on; K.sound(m.on) }
   });
   function start(p) {
@@ -205,6 +275,7 @@
         else if (p.mode === 'sheet') sheet(p);
         else if (p.mode === 'preview') preview(p);
         else if (p.mode === 'check-shots') checkShots(p);
+        else if (p.mode === 'export') exportMode(p).catch(function (e) { post({ type: 'fatal', msg: 'Export failed: ' + errText(e) }) });
         else playMode(p);
       } catch (e) { say('Error: ' + errText(e)); post({ type: 'fatal', msg: errText(e) + lineInfo(e) }) }
     }, 20);
