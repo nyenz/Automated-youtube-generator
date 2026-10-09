@@ -2,7 +2,7 @@
 
 A free app that makes narrated YouTube videos (vertical shorts, and long videos with shorts cut from them) in a **dark paper cut-out 3D style**. All the visuals are code. You don't need an API, a paid service or video editing skills.
 
-**Open the app:** https://nyenz.github.io/automated-youtube-generator/ (use Chrome on a PC)
+**Open the app:** https://nyenz.github.io/Automated-youtube-generator/ (use Chrome on a PC). First time only: in GitHub, open the repo → **Settings** → **Pages** → Source: **Deploy from a branch** → Branch: **main**, folder **/ (root)** → **Save**. Wait 1–2 minutes.
 
 Click **Load demo** to see a finished example right away.
 
