@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Paper Cinema Studio</title>
+<link rel="stylesheet" href="app/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">Paper Cinema <b>Studio</b></div>
+  <select id="projSel" title="Your projects"></select>
+  <button id="newBtn">+ New</button>
+  <button id="demoBtn" class="ghost">Load demo</button>
+  <span class="grow"></span>
+  <button id="importBtn" class="ghost">Import</button>
+  <button id="exportBtn" class="ghost">Export</button>
+  <button id="delBtn" class="ghost danger">Delete</button>
+  <input id="importFile" type="file" accept=".json" hidden>
+</header>
+<div class="wrap">
+  <nav id="steps"></nav>
+  <main id="main"></main>
+</div>
+<div id="modal" class="modal" hidden><div class="mbox"><div class="mhead"><b id="mtitle"></b><span class="grow"></span><button id="mclose">Close</button></div><div id="mbody" class="mbody"></div></div></div>
+<div id="toast" class="toast" hidden></div>
+<script src="app/db.js"></script>
+<script src="app/timing.js"></script>
+<script src="app/trends.js"></script>
+<script src="app/plan.js"></script>
+<script src="app/templates.js"></script>
+<script src="examples/demo.js"></script>
+<script src="app/app.js"></script>
+</body>
+</html>
