@@ -149,7 +149,7 @@
     function list(title, arr) { return arr.length ? h('div', null, h('h3', { style: 'margin-top:10px' }, title), h('div', null, arr.slice(0, 40).map(function (t) { return h('span', { className: 'pill', title: 'Use as topic', on: { click: function () { s.topic = t; save(); toast('Topic set: ' + t) } } }, t) }))) : null }
     function fetcher(btn, fn, k) { btn.disabled = true; btn.textContent = 'Loading…'; fn().then(function (r) { TREND[k] = r; rerender() }).catch(function (e) { toast('Could not load: ' + e.message, 5000); rerender() }) }
     var ideas = parseIdeas(P.topicAnswer);
-    box.append(
+    box.append.apply(box, [
       h('h3', null, 'What is trending (free)'),
       h('div', { className: 'row' },
         h('button', { className: 'ghost', on: { click: function () { fetcher(this, function () { return TRENDS.wikipedia() }, 'wiki') } } }, 'Wikipedia: most read'),
@@ -160,7 +160,7 @@
         field('YouTube API key (free — saved only in this browser)', h('input', { value: key, type: 'password', placeholder: 'AIza…', on: { change: function () { localStorage.setItem('ytKey', this.value.trim()); rerender() } } })),
         field('Reference channel (handle)', h('input', { value: s.refChannel, placeholder: '@zackdfilms', on: { change: function () { s.refChannel = this.value.trim(); save() } } }))),
       h('p', { className: 'muted small', html: 'Free key: <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">Google Cloud</a> → enable "YouTube Data API v3" → Credentials → Create API key. Region: ' }, h('input', { value: region, style: 'width:60px', on: { change: function () { localStorage.setItem('ytRegion', this.value.trim().toUpperCase()) } } })),
-      list('Wikipedia — most read yesterday', TREND.wiki), list('YouTube trending', TREND.yt), list('Reference channel — most viewed', TREND.channel), list('Hacker News', TREND.hn));
+      list('Wikipedia — most read yesterday', TREND.wiki), list('YouTube trending', TREND.yt), list('Reference channel — most viewed', TREND.channel), list('Hacker News', TREND.hn)].filter(Boolean));
     return h('div', null,
       h('h1', null, 'Topic'), h('p', { className: 'lead' }, 'Get 10 ideas from Claude (or any free chat), using what is trending right now. Then pick one.'),
       box,
