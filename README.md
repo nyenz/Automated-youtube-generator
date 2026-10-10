@@ -51,6 +51,11 @@ Click **Load demo** to see a finished example right away.
 - **Mood grading**: every light mood also sets the colour (cold blue, warm gold, faded sepia `flashback` for the past).
 - **Composition**: subjects sit on a third with room in front of the face, eyes on the upper third in vertical shots. Inside rooms the camera slides closer with a wider lens instead of hitting the walls.
 - **Proportions**: if a chat builds something more than 2.5× too big or small, the app rescales it to the plan's size.
+- **Continuous scenes**: shots in the same place flow into each other: the camera glides on and people keep their positions. It only cuts when the place or time changes, or with `transition: 'cut'`.
+- **Captions never block faces**: they sit at the bottom, or move to the top when a face or the subject is there.
+- **Balanced framing**: long shots keep everyone sharp, characters don't fill the screen, and small props never become giant.
+- **No title cards**: the story is told with pictures and narration only.
+- **Real people**: 9 skin tones, 8 hair colours (including grey and white), beards, mustaches and stubble, long hair and braids, so people in true stories are recognisable.
 - **Characters**: body language follows the emotion (scared hunches, determined stands tall), small weight shifts, and `talk` moves the mouth in time with the narration's syllables.
 
 Projects and audio are saved in your browser. Use **Export project** to back up or to move to another PC.
@@ -64,7 +69,9 @@ kit/style-kit.js    LOCKED look: paper materials, face kit, people, lens, light,
 kit/director.js     LOCKED: turns SHOT forms into camera, focus, light, moves, captions
 kit/stage.js        runs the stage modes (play, checks, sheet, export)
 kit/vendor/         MP4 / WebM muxers (offline video export)
-examples/demo.js    the demo project ("A Hand in the Dark")
+examples/demo.js    demo 1 ("A Hand in the Dark")
+examples/demo2.js   demo 2 ("The Missing Milk", 1:30 test video)
+examples/the-missing-milk.html  demo 2 as a standalone playable page
 ```
 
 ## Running it locally (optional)

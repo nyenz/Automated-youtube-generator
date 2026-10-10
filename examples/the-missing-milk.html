@@ -1,7 +1,7 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The Missing Cup</title></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The Missing Milk</title></head>
 <body style="margin:0;background:#0d0b10"><div id="msg" style="color:#e9dfc8;font:14px sans-serif;padding:20px">Loading…</div>
-<!-- VIDEO: The Missing Cup — Paper Cinema Studio sample. Press Play. -->
+<!-- VIDEO: The Missing Milk — Paper Cinema Studio sample. Press Play. -->
 <script type="text/x-asset" data-name="garden">
 KIT.asset('garden', function (K, opts) {
   var root = new K.T.Group(), D = K.PAL.dio;
@@ -13,8 +13,11 @@ KIT.asset('garden', function (K, opts) {
   K.paperTree(root, -8, -5, { scale: 1.6 });
   [[-6, -9, 1.2], [-1, -10, 1], [4, -10, 1.1]].forEach(function (c) { K.cloudSwirl(root, c[0], c[1] + 16, c[1], c[2]); });
   for (var i = 0; i < 40; i++) { var x = (K.rnd() - .5) * 16, z = (K.rnd() - .5) * 9 - 2; if (Math.abs(x) < 4 && z > -1.5) continue; K.tuft(root, x, z, .8 + K.rnd() * .6, [D.coral, D.teal, D.salmon][i % 3]); }
+  K.tuft(root, 1.1, 1.7, .6, D.teal); K.tuft(root, .0, 1.9, .5, D.coral);
   K.rock(root, 2.8, 1.8, 1.2); K.rock(root, -3, 2.2, 1); K.rock(root, -4.2, -1.6, .8);
-  return { root: root, kind: 'set', spots: { center: new K.T.Vector3(0, 0, 0), left: new K.T.Vector3(-1.8, 0, .4), right: new K.T.Vector3(1.8, 0, .4), 'far-left': new K.T.Vector3(-3.4, 0, -.2), 'far-right': new K.T.Vector3(3.4, 0, -.2), cup: new K.T.Vector3(.4, 0, 1.4), tree: new K.T.Vector3(-3.8, 0, -1.4) } };
+  var V = function (x, z) { return new K.T.Vector3(x, 0, z); };
+  return { root: root, kind: 'set', spots: { center: V(0, 0), left: V(-1.8, .4), right: V(1.8, .4), 'far-left': V(-3.4, -.2), 'far-right': V(3.4, -.2),
+    cup: V(.4, 1.4), cup2: V(1.1, 1.55), tree: V(-3.8, -1.4), hide: V(-3.5, -1.5), patch1: V(1.5, 1.1), patch2: V(-.5, 2.0) } };
 });
 </script>
 <script type="text/x-asset" data-name="farmer">
@@ -70,120 +73,288 @@ KIT.asset('cup', function (K, opts) {
   return { root: root, kind: 'prop', grip: grip, handle: h };
 });
 </script>
-<script type="text/x-shot" data-name="M01">
-SHOT('M01', {
-  set: 'garden', air: 'dust',
-  cast: { cup: { at: 'cup' } },
-  camera: { framing: 'wide', angle: 'high', move: 'crane-down', height: -1.1 },
-  light: [{ mood: 'cold' }],
-  moves: [{ word: 'missing', who: 'cup', do: 'vanish', for: .4 }],
-  sfx: [{ word: 'missing', sound: 'pop' }]
-});
-</script>
-<script type="text/x-shot" data-name="M02">
-SHOT('M02', {
-  set: 'garden',
-  cast: { kato: { at: 'left', turn: 'right', face: 'annoyed' } },
-  camera: { framing: 'medium', on: 'kato', side: 'front-right', move: 'push-in' },
-  light: 'normal',
-  moves: [
-    { sec: 0, who: 'kato', do: 'walk', to: 'center', for: 1.4 },
-    { word: 'right', who: 'kato', do: 'turn', to: 'camera', for: .3 },
-    { word: 'here', who: 'kato', do: 'point', to: 'cup', for: 1.2 },
-    { word: 'sure', who: 'kato', do: 'nod' }
-  ],
-  sfx: [{ sec: 0, sound: 'step' }, { sec: .6, sound: 'step' }]
-});
-</script>
-<script type="text/x-shot" data-name="M03">
-SHOT('M03', {
-  set: 'garden',
-  cast: { nia: { at: 'right', turn: -15, face: 'sneaky' }, farmer: { at: 'far-left', turn: 30, face: 'neutral' } },
-  camera: { framing: 'medium', on: 'nia', side: 'front-right', move: 'drift' },
-  focus: [{ on: 'nia' }],
-  light: 'warm',
-  moves: [
-    { word: 'farmer', who: 'nia', do: 'point', to: 'farmer', for: 1.6 },
-    { word: 'thinks', who: 'nia', do: 'look', to: 'farmer' }
-  ],
-  sfx: [{ word: 'farmer', sound: 'swish' }]
-});
-</script>
-<script type="text/x-shot" data-name="M04">
-SHOT('M04', {
-  set: 'garden',
-  cast: { farmer: { at: 'far-left', turn: 20, face: 'surprised' }, stranger: { at: 'far-right', turn: -30 } },
-  camera: { framing: 'medium', on: 'farmer', side: 'front', angle: 'low', move: 'push-in' },
-  light: 'normal',
-  moves: [
-    { sec: 0, who: 'farmer', do: 'react', type: 'take' },
-    { word: 'blames', who: 'farmer', face: 'annoyed' },
-    { word: 'tall', who: 'farmer', do: 'look', to: 'stranger' }
-  ],
-  sfx: [{ sec: .05, sound: 'pop' }]
-});
-</script>
-<script type="text/x-shot" data-name="M05">
-SHOT('M05', {
-  set: 'garden',
-  cast: { stranger: { at: 'far-right', turn: -60, face: 'sneaky' }, neighbour: { at: 'left', turn: 40, face: 'neutral' } },
-  camera: { framing: 'full', on: ['stranger', 'neighbour'], side: 'front', angle: 'low', move: 'crane-up' },
-  focus: [{ on: 'stranger' }, { word: 'strong', on: 'neighbour', pull: .5 }],
+<script type="text/x-shot" data-name="N01">
+SHOT('N01', {
+  set: 'garden', transition: 'cut', air: 'dust',
+  cast: { kato: { at: 'far-left', turn: 'right', face: 'happy' }, cup: { at: 'cup' } },
+  camera: { framing: 'wide', angle: 'high', move: 'crane-down', height: -.8 },
   light: 'cold',
   moves: [
-    { word: 'points', who: 'stranger', do: 'point', to: 'neighbour', for: 2 },
-    { word: 'strong', who: 'neighbour', face: 'surprised' },
-    { word: 'strong', who: 'neighbour', do: 'react', type: 'take' }
+    { sec: 0, who: 'kato', do: 'walk', to: [-.4, 0, 1.2], for: 2.6 },
+    { word: 'cup', who: 'cup', do: 'appear', for: .4 },
+    { word: 'garden', who: 'kato', do: 'turn', to: 'camera', for: .4 }
+  ],
+  sfx: [{ sec: .2, sound: 'step' }, { sec: .9, sound: 'step' }, { sec: 1.6, sound: 'step' }, { word: 'cup', sound: 'clink' }]
+});
+</script>
+<script type="text/x-shot" data-name="N02">
+SHOT('N02', {
+  set: 'garden', transition: 'cut', air: 'dust',
+  cast: { cup: { at: 'cup', turn: 20 } },
+  camera: { framing: 'medium', on: 'cup', side: 'front-right', angle: 'high', move: 'push-in' },
+  light: [{ mood: 'warm' }],
+  sfx: [{ word: 'empty', sound: 'tick' }]
+});
+</script>
+<script type="text/x-shot" data-name="N03">
+SHOT('N03', {
+  set: 'garden', transition: 'cut',
+  cast: { kato: { at: [-.4, 0, 1.2], turn: 60, face: 'determined' }, cup: { at: 'cup' } },
+  camera: { framing: 'medium', on: 'kato', side: 'front-left', move: 'push-in' },
+  light: 'cold',
+  moves: [{ word: 'drinking', who: 'kato', do: 'look', to: 'cup' }, { word: 'know', who: 'kato', do: 'nod' }]
+});
+</script>
+<script type="text/x-shot" data-name="N04">
+SHOT('N04', {
+  set: 'garden',
+  cast: { kato: { at: [-.4, 0, 1.2], face: 'neutral' }, nia: { at: 'right', turn: -40, face: 'neutral' } },
+  camera: { framing: 'full', on: ['nia', 'kato'], side: 'front', move: 'drift' },
+  light: 'cold',
+  moves: [
+    { sec: 0, who: 'kato', do: 'walk', to: [.7, 0, .7], for: 1.2 },
+    { word: 'Nia', who: 'nia', do: 'look', to: 'kato' },
+    { word: 'first', who: 'kato', do: 'talk', for: .8 }
+  ],
+  sfx: [{ sec: .1, sound: 'step' }, { sec: .6, sound: 'step' }]
+});
+</script>
+<script type="text/x-shot" data-name="N05">
+SHOT('N05', {
+  set: 'garden',
+  cast: { nia: { at: 'right', turn: -40, face: 'sneaky' }, kato: { at: [.7, 0, .7] } },
+  camera: { framing: 'medium', on: 'nia', side: 'front-left', move: 'push-in' },
+  light: 'normal',
+  moves: [
+    { sec: 0, who: 'nia', do: 'talk', for: 3.5 },
+    { word: 'farmer', who: 'nia', do: 'point', to: 'far-left', for: 2 },
+    { word: 'round', who: 'nia', face: 'surprised' }
   ]
 });
 </script>
-<script type="text/x-shot" data-name="M06">
-SHOT('M06', {
+<script type="text/x-shot" data-name="N06">
+SHOT('N06', {
+  set: 'garden',
+  cast: { farmer: { at: 'far-left', turn: 35, face: 'annoyed' } },
+  camera: { framing: 'medium', on: 'farmer', side: 'front-left', move: 'drift' },
+  light: 'normal',
+  moves: [{ word: 'happy', who: 'farmer', do: 'shake-head' }],
+  sfx: [{ word: 'farmer', sound: 'swish' }]
+});
+</script>
+<script type="text/x-shot" data-name="N07">
+SHOT('N07', {
+  set: 'garden',
+  cast: { farmer: { at: 'far-left', turn: 35, face: 'annoyed' } },
+  camera: { framing: 'medium', on: 'farmer', side: 'front-right', move: 'push-in' },
+  light: 'normal',
+  moves: [{ sec: 0, who: 'farmer', do: 'talk', for: 2.4 }, { word: 'hat', who: 'farmer', do: 'nod' }]
+});
+</script>
+<script type="text/x-shot" data-name="N08">
+SHOT('N08', {
+  set: 'garden',
+  cast: { farmer: { at: 'far-left', turn: 35, face: 'determined' }, stranger: { at: 'far-right', turn: -50, face: 'neutral' } },
+  camera: { framing: 'full', on: 'stranger', side: 'front-left', angle: 'low', move: 'drift' },
+  light: 'cold',
+  moves: [
+    { word: 'points', who: 'farmer', do: 'point', to: 'stranger', for: 2.2 },
+    { word: 'stranger', who: 'stranger', do: 'look', to: 'farmer' },
+    { word: 'week', who: 'stranger', face: 'sneaky' }
+  ],
+  sfx: [{ word: 'stranger', sound: 'sting' }]
+});
+</script>
+<script type="text/x-shot" data-name="N09">
+SHOT('N09', {
+  set: 'garden',
+  cast: { stranger: { at: 'far-right', turn: -50, face: 'happy' } },
+  camera: { framing: 'medium', on: 'stranger', side: 'front-right', angle: 'low', move: 'drift' },
+  light: 'cold',
+  moves: [
+    { word: 'laughs', who: 'stranger', do: 'nod', for: 1 },
+    { word: 'hates', who: 'stranger', face: 'annoyed' },
+    { word: 'milk', who: 'stranger', do: 'shake-head' }
+  ]
+});
+</script>
+<script type="text/x-shot" data-name="N10">
+SHOT('N10', {
+  set: 'garden',
+  cast: { stranger: { at: 'far-right', turn: -50, face: 'sneaky' }, neighbour: { at: 'left', turn: 50, face: 'neutral' } },
+  camera: { framing: 'full', on: 'neighbour', side: 'front-right', move: 'push-in' },
+  light: 'cold',
+  moves: [
+    { word: 'strong', who: 'stranger', do: 'point', to: 'neighbour', for: 2.4 },
+    { word: 'strong', who: 'neighbour', do: 'look', to: 'stranger' },
+    { word: 'never', who: 'neighbour', face: 'surprised' }
+  ]
+});
+</script>
+<script type="text/x-shot" data-name="N11">
+SHOT('N11', {
+  set: 'garden',
+  cast: { neighbour: { at: 'left', turn: 50, face: 'annoyed' } },
+  camera: { framing: 'full', on: 'neighbour', side: 'front', angle: 'low', move: 'static', shake: [{ word: 'foot', amount: .05 }] },
+  light: 'danger',
+  moves: [{ word: 'stamps', who: 'neighbour', do: 'jump', height: .25, for: .45 }],
+  sfx: [{ word: 'foot', sound: 'thud' }]
+});
+</script>
+<script type="text/x-shot" data-name="N12">
+SHOT('N12', {
   set: 'garden',
   cast: {
-    kato: { at: 'left', turn: 30, face: 'annoyed' }, nia: { at: 'center', turn: 0, face: 'annoyed' },
-    farmer: { at: 'right', turn: -30, face: 'annoyed' }, stranger: { at: 'far-right', turn: -40, face: 'determined' },
-    neighbour: { at: 'far-left', turn: 40, face: 'annoyed' }
+    neighbour: { at: 'left', turn: 30, face: 'annoyed' }, kato: { at: 'center', turn: 0, face: 'annoyed' },
+    nia: { at: 'right', turn: -20, face: 'annoyed' }, farmer: { at: 'far-left', turn: 35, face: 'annoyed' },
+    stranger: { at: 'far-right', turn: -40, face: 'determined' }
   },
-  camera: { framing: 'wide', side: 'front', move: 'orbit-left', shake: [{ word: 'argues', amount: .04 }] },
+  camera: { framing: 'wide', side: 'front', move: 'orbit-left' },
   light: 'danger',
   moves: [
-    { sec: 0, who: 'kato', do: 'talk', for: 1.2 }, { sec: .1, who: 'farmer', do: 'shake-head' },
-    { sec: .2, who: 'neighbour', do: 'wave', for: 1 }, { sec: 0, who: 'nia', do: 'talk', for: 1.2 },
-    { word: 'argues', who: 'stranger', do: 'shake' }
+    { sec: 0, who: 'kato', do: 'talk', for: 3 }, { sec: .3, who: 'nia', do: 'talk', for: 3 },
+    { sec: 0, who: 'farmer', do: 'shake-head', for: 1.2 }, { word: 'garden', who: 'neighbour', do: 'wave', for: 1.4 },
+    { word: 'single', who: 'stranger', do: 'point', to: 'farmer', for: 2 }, { word: 'someone', who: 'kato', do: 'shake' }
   ],
-  sfx: [{ word: 'argues', sound: 'thud' }]
+  sfx: [{ word: 'shouting', sound: 'boom' }]
 });
 </script>
-<script type="text/x-shot" data-name="M07">
-SHOT('M07', {
+<script type="text/x-shot" data-name="N13">
+SHOT('N13', {
+  set: 'garden', transition: 'cut',
+  cast: { kato: { at: 'center', turn: 20, face: 'determined' } },
+  camera: { framing: 'medium', on: 'kato', side: 'front-left', move: 'push-in' },
+  light: 'dark',
+  moves: [{ word: 'plan', who: 'kato', do: 'nod' }]
+});
+</script>
+<script type="text/x-shot" data-name="N14">
+SHOT('N14', {
   set: 'garden',
-  cast: { cup: { at: 'tree', turn: 30 }, worm: { at: 'tree', y: .2, size: .4, turn: 20, face: 'sneaky' } },
-  camera: { framing: 'medium', on: ['cup', 'worm'], side: 'front-right', angle: 'eye', move: 'push-in' },
-  focus: [{ on: ['cup', 'worm'] }],
-  light: [{ mood: 'silhouette' }, { word: 'pink', mood: 'hope', ease: .8 }],
+  cast: { kato: { at: 'center', face: 'sneaky' }, cup: { at: 'cup' } },
+  camera: { framing: 'full', on: 'kato', side: 'front-left', move: 'drift' },
+  light: 'dark',
   moves: [
-    { sec: 0, who: 'worm', do: 'appear', for: .5 },
-    { word: 'slow', who: 'worm', do: 'crawl', for: 2 },
-    { word: 'pink', who: 'worm', face: 'happy' }
+    { sec: 0, who: 'kato', do: 'walk', to: 'hide', for: 2.2 },
+    { word: 'waits', who: 'kato', do: 'turn', to: 'cup', for: .5 },
+    { word: 'waits', who: 'kato', do: 'look', to: 'cup' }
   ],
-  sfx: [{ word: 'thief', sound: 'sting' }, { word: 'pink', sound: 'tada' }]
+  sfx: [{ sec: .2, sound: 'step' }, { sec: .8, sound: 'step' }, { sec: 1.4, sound: 'rustle' }]
 });
 </script>
-<script type="text/x-shot" data-name="M08">
-SHOT('M08', {
-  set: 'garden', air: 'dust',
-  cast: { cup: { at: 'tree', turn: 30 }, worm: { at: 'tree', y: .2, size: .4, turn: 20, face: 'happy', look: 'camera' } },
+<script type="text/x-shot" data-name="N15">
+SHOT('N15', {
+  set: 'garden',
+  cast: { kato: { at: 'hide', face: 'neutral', look: 'cup' }, cup: { at: 'cup' } },
+  camera: { framing: 'medium', on: 'kato', side: 'front-right', move: 'push-in' },
+  focus: [{ on: 'kato' }],
+  light: 'dark',
+  moves: [
+    { word: 'nothing', who: 'kato', face: 'sleepy' },
+    { word: 'one', who: 'kato', face: 'neutral' },
+    { word: 'still', who: 'kato', face: 'sleepy' },
+    { word: 'still', who: 'kato', do: 'nod', for: 1 }
+  ],
+  sfx: [{ word: 'midnight', sound: 'tick' }, { word: 'one', sound: 'tick' }]
+});
+</script>
+<script type="text/x-shot" data-name="N16">
+SHOT('N16', {
+  set: 'garden', air: 'rain',
+  cast: { kato: { at: 'hide', face: 'surprised' }, cup: { at: 'cup' } },
+  camera: { framing: 'wide', side: 'front', angle: 'high', move: 'drift', height: -.6 },
+  light: [{ mood: 'dark' }, { word: 'rain', mood: 'cold', ease: 1 }],
+  sfx: [{ word: 'rain', sound: 'rustle', length: 2 }]
+});
+</script>
+<script type="text/x-shot" data-name="N17">
+SHOT('N17', {
+  set: 'garden', air: 'rain',
+  cast: { cup: { at: 'cup' }, worm: { at: [.95, -.32, 1.75], size: .4, turn: -60, face: 'neutral' } },
+  camera: { framing: 'medium', on: 'cup', side: 'front-right', angle: 'low', move: 'push-in' },
+  light: 'cold',
+  moves: [{ word: 'move', who: 'worm', do: 'shake', for: 1 }],
+  sfx: [{ word: 'grass', sound: 'rustle' }]
+});
+</script>
+<script type="text/x-shot" data-name="N18">
+SHOT('N18', {
+  set: 'garden', air: 'rain',
+  cast: { cup: { at: 'cup' }, worm: { at: [.95, -.32, 1.75], size: .4, turn: -60, face: 'neutral' } },
+  camera: { framing: 'medium', on: ['cup', 'worm'], side: 'front-right', move: 'drift' },
+  focus: [{ on: 'worm' }],
+  light: [{ mood: 'silhouette' }, { word: 'crawls', mood: 'cold', ease: .8 }],
+  moves: [
+    { word: 'pushes', who: 'worm', do: 'move', to: [.95, 0, 1.75], for: 1.2 },
+    { word: 'pink', who: 'worm', face: 'happy' },
+    { word: 'crawls', who: 'worm', do: 'move', to: [.4, .2, 1.4], arc: .25, for: 1.6 },
+    { word: 'crawls', who: 'worm', do: 'crawl', for: 1.6 }
+  ],
+  sfx: [{ word: 'pink', sound: 'pop' }, { word: 'cup', sound: 'clink' }]
+});
+</script>
+<script type="text/x-shot" data-name="N19">
+SHOT('N19', {
+  set: 'garden', transition: 'cut', air: 'rain',
+  cast: { kato: { at: 'hide', turn: 80, face: 'surprised' } },
+  camera: { framing: 'close', on: 'kato', side: 'front-right', move: 'push-in' },
+  light: 'cold',
+  moves: [{ word: 'worm', who: 'kato', do: 'react', type: 'take' }],
+  sfx: [{ word: 'worm', sound: 'sting' }]
+});
+</script>
+<script type="text/x-shot" data-name="N20">
+SHOT('N20', {
+  set: 'garden', transition: 'cut', air: 'rain',
+  cast: {
+    worm2: { asset: 'worm', at: [1.5, -.4, 1.1], size: .5, turn: 40 }, worm3: { asset: 'worm', at: [-.5, -.4, 2.0], size: .45, turn: -30 },
+    cup: { at: 'cup' }
+  },
+  camera: { framing: 'full', on: ['worm2', 'worm3'], side: 'front', angle: 'high', move: 'crane-down' },
+  light: 'cold',
+  moves: [
+    { word: 'surface', who: 'worm2', do: 'move', to: 'patch1', for: 1.3 },
+    { word: 'surface', who: 'worm3', do: 'move', to: 'patch2', for: 1.5 },
+    { word: 'travel', who: 'worm2', do: 'crawl', for: 2 }, { word: 'travel', who: 'worm3', do: 'crawl', for: 2 }
+  ]
+});
+</script>
+<script type="text/x-shot" data-name="N21">
+SHOT('N21', {
+  set: 'garden', transition: 'cut',
+  cast: { cup: { at: 'cup' }, worm: { at: [.4, .2, 1.4], size: .4, turn: 20, face: 'happy', look: 'camera' } },
   camera: { framing: 'medium', on: ['cup', 'worm'], side: 'front', move: 'pull-out' },
-  light: 'hope',
-  moves: [
-    { word: 'dry', who: 'worm', face: 'sleepy' },
-    { word: 'sleep', who: 'worm', do: 'nod' }
-  ],
-  sfx: [{ word: 'sleep', sound: 'snore', length: 1.6 }]
+  light: 'hope', shafts: true,
+  moves: [{ word: 'driest', who: 'worm', face: 'sleepy' }, { word: 'bed', who: 'worm', do: 'nod' }],
+  sfx: [{ word: 'bed', sound: 'snore', length: 1.6 }]
 });
 </script>
-<script>window.STAGE_PAYLOAD={"mode":"play","standalone":true,"aspect":"9:16","sky":"night","name":"The Missing Cup","cut":{"duration":24.6,"words":[["Every",0.3,0.725],["night,",0.725,1.151],["in",1.229,1.458],["a",1.458,1.688],["quiet",1.688,2.113],["paper",2.113,2.538],["garden,",2.538,3.029],["a",3.108,3.337],["cup",3.337,3.631],["goes",3.631,3.991],["missing.",3.991,4.548],["Kato",4.724,5.084],["is",5.084,5.313],["sure",5.313,5.673],["he",5.673,5.902],["left",5.902,6.262],["it",6.262,6.491],["right",6.491,6.917],["here.",6.917,7.277],["Nia",7.454,7.748],["thinks",7.748,8.239],["the",8.239,8.533],["farmer",8.533,9.024],["took",9.024,9.384],["it.",9.384,9.613],["The",9.79,10.085],["farmer",10.085,10.575],["blames",10.575,11.066],["the",11.066,11.361],["tall",11.361,11.721],["stranger.",11.721,12.343],["The",12.519,12.814],["stranger",12.814,13.436],["points",13.436,13.926],["at",13.926,14.155],["the",14.155,14.45],["strong",14.45,14.941],["man",14.941,15.235],["next",15.235,15.595],["door.",15.595,15.955],["Everyone",16.132,16.754],["argues.",16.754,17.245],["But",17.421,17.716],["the",17.716,18.01],["real",18.01,18.37],["thief",18.37,18.796],["is",18.796,19.025],["small,",19.025,19.45],["slow,",19.529,19.889],["and",19.967,20.262],["very",20.262,20.622],["pink.",20.622,20.982],["The",21.158,21.453],["worm",21.453,21.813],["just",21.813,22.173],["wanted",22.173,22.664],["somewhere",22.664,23.351],["dry",23.351,23.646],["to",23.646,23.875],["sleep.",23.875,24.3]],"lines":[{"i":0,"text":"Every night, in a quiet paper garden,","s":0.3,"e":3.029,"w0":0,"w1":6},{"i":1,"text":"a cup goes missing.","s":3.108,"e":4.548,"w0":7,"w1":10},{"i":2,"text":"Kato is sure he left it right here.","s":4.724,"e":7.277,"w0":11,"w1":18},{"i":3,"text":"Nia thinks the farmer took it.","s":7.454,"e":9.613,"w0":19,"w1":24},{"i":4,"text":"The farmer blames the tall stranger.","s":9.79,"e":12.343,"w0":25,"w1":30},{"i":5,"text":"The stranger points at the strong man next door.","s":12.519,"e":15.955,"w0":31,"w1":39},{"i":6,"text":"Everyone argues.","s":16.132,"e":17.245,"w0":40,"w1":41},{"i":7,"text":"But the real thief is small,","s":17.421,"e":19.45,"w0":42,"w1":47},{"i":8,"text":"slow, and very pink.","s":19.529,"e":20.982,"w0":48,"w1":51},{"i":9,"text":"The worm just wanted somewhere dry to sleep.","s":21.158,"e":24.3,"w0":52,"w1":59}],"shots":[{"id":"M01","from_line":0,"to_line":1},{"id":"M02","from_line":2,"to_line":2},{"id":"M03","from_line":3,"to_line":3},{"id":"M04","from_line":4,"to_line":4},{"id":"M05","from_line":5,"to_line":5},{"id":"M06","from_line":6,"to_line":6},{"id":"M07","from_line":7,"to_line":8},{"id":"M08","from_line":9,"to_line":9}]},"captions":true,"res":720,"sizes":{"farmer":2.4,"stranger":3.4,"neighbour":3,"worm":1.2,"cup":0.3,"kato":2.66,"nia":2.64},"look":{"film":0.8,"atmos":0.8,"fg":true},"mix":{"narr":1,"sfx":1,"music":0.25,"duck":true}};STAGE_PAYLOAD.assets={};STAGE_PAYLOAD.shots={};[].forEach.call(document.querySelectorAll('script[type="text/x-asset"]'),function(s){STAGE_PAYLOAD.assets[s.dataset.name]=s.textContent});[].forEach.call(document.querySelectorAll('script[type="text/x-shot"]'),function(s){STAGE_PAYLOAD.shots[s.dataset.name]=s.textContent});window.LOG=[];window.STAGE_LISTENER=function(m){if(m.type!=="time")LOG.push(m)};</script>
+<script type="text/x-shot" data-name="N22">
+SHOT('N22', {
+  set: 'garden', transition: 'cut', air: 'dust',
+  cast: { kato: { at: [-.5, 0, .9], turn: 40, face: 'happy' }, cup: { at: 'cup' }, cup2: { asset: 'cup', at: 'cup2', tilt: 90, turn: -30 } },
+  camera: { framing: 'full', on: 'kato', side: 'front-right', move: 'drift' },
+  light: 'warm',
+  moves: [
+    { word: 'two', who: 'kato', do: 'point', to: 'cup2', for: 1.6 },
+    { word: 'milk', who: 'cup', do: 'react', type: 'twitch' }
+  ],
+  sfx: [{ word: 'cups', sound: 'clink' }]
+});
+</script>
+<script type="text/x-shot" data-name="N23">
+SHOT('N23', {
+  set: 'garden',
+  cast: { kato: { at: [-.5, 0, .9], turn: 40, face: 'happy' }, cup: { at: 'cup' }, cup2: { asset: 'cup', at: 'cup2', tilt: 90, turn: -30 },
+    worm: { at: [1.12, .08, 1.5], size: .34, turn: -40, face: 'happy', look: 'camera' } },
+  camera: { framing: 'medium', on: ['cup2', 'worm'], side: 'front', move: 'pull-out' },
+  focus: [{ on: ['cup2', 'worm'] }],
+  light: 'hope',
+  moves: [{ word: 'guest', who: 'worm', do: 'nod' }, { word: 'guest', who: 'kato', do: 'wave', for: 1.4 }],
+  sfx: [{ word: 'guest', sound: 'tada' }]
+});
+</script>
+<script>window.STAGE_PAYLOAD={"mode":"play","standalone":true,"aspect":"9:16","sky":"night","name":"The Missing Milk","cut":{"duration":90.6,"words":[["Every",0.3,0.734],["night,",0.734,1.168],["Kato",1.248,1.615],["leaves",1.615,2.115],["a",2.115,2.349],["cup",2.349,2.649],["of",2.649,2.883],["warm",2.883,3.25],["milk",3.25,3.617],["in",3.617,3.851],["the",3.851,4.151],["garden.",4.151,4.652],["And",4.832,5.132],["every",5.132,5.566],["morning,",5.566,6.134],["the",6.214,6.514],["cup",6.514,6.814],["is",6.814,7.048],["empty.",7.048,7.482],["Tonight,",7.662,8.229],["he",8.309,8.543],["wants",8.543,8.977],["to",8.977,9.211],["know",9.211,9.578],["who",9.578,9.878],["is",9.878,10.112],["drinking",10.112,10.746],["it.",10.746,10.979],["He",11.16,11.393],["asks",11.393,11.76],["Nia",11.76,12.061],["first.",12.061,12.494],["She",12.675,12.975],["says",12.975,13.342],["she",13.342,13.642],["saw",13.642,13.943],["the",13.943,14.243],["farmer",14.243,14.744],["walking",14.744,15.311],["through",15.311,15.878],["the",15.878,16.179],["garden",16.179,16.679],["after",16.679,17.113],["dark,",17.113,17.48],["carrying",17.56,18.195],["something",18.195,18.895],["round.",18.895,19.329],["The",19.509,19.81],["farmer",19.81,20.31],["is",20.31,20.544],["not",20.544,20.844],["happy.",20.844,21.278],["He",21.458,21.692],["was",21.692,21.992],["only",21.992,22.359],["looking",22.359,22.927],["for",22.927,23.227],["his",23.227,23.528],["lost",23.528,23.895],["hat.",23.895,24.195],["And",24.375,24.676],["he",24.676,24.909],["points",24.909,25.41],["straight",25.41,26.044],["at",26.044,26.277],["the",26.277,26.578],["tall",26.578,26.945],["stranger,",26.945,27.579],["who",27.659,27.959],["moved",27.959,28.393],["in",28.393,28.627],["last",28.627,28.994],["week.",28.994,29.361],["The",29.541,29.842],["stranger",29.842,30.476],["laughs.",30.476,30.976],["He",31.157,31.39],["hates",31.39,31.824],["milk.",31.824,32.191],["But",32.371,32.672],["the",32.672,32.972],["strong",32.972,33.473],["man",33.473,33.773],["next",33.773,34.14],["door",34.14,34.507],["drinks",34.507,35.008],["four",35.008,35.375],["cups",35.375,35.742],["a",35.742,35.976],["day,",35.976,36.276],["and",36.356,36.656],["he",36.656,36.89],["never",36.89,37.324],["buys",37.324,37.691],["any.",37.691,37.991],["The",38.172,38.472],["strong",38.472,38.973],["man",38.973,39.273],["stamps",39.273,39.773],["his",39.773,40.074],["foot.",40.074,40.441],["Soon,",40.621,40.988],["everyone",41.068,41.702],["is",41.702,41.936],["shouting",41.936,42.57],["in",42.57,42.804],["the",42.804,43.104],["middle",43.104,43.605],["of",43.605,43.838],["the",43.838,44.139],["garden.",44.139,44.639],["Every",44.819,45.253],["single",45.253,45.754],["one",45.754,46.054],["of",46.054,46.288],["them",46.288,46.655],["is",46.655,46.889],["sure",46.889,47.256],["it",47.256,47.489],["was",47.489,47.79],["someone",47.79,48.357],["else.",48.357,48.724],["So",48.904,49.138],["Kato",49.138,49.505],["makes",49.505,49.939],["a",49.939,50.172],["plan.",50.172,50.54],["He",50.72,50.953],["hides",50.953,51.387],["behind",51.387,51.888],["the",51.888,52.188],["old",52.188,52.489],["tree,",52.489,52.856],["and",52.936,53.236],["he",53.236,53.47],["waits.",53.47,53.904],["Midnight.",54.084,54.718],["Nothing.",54.898,55.465],["One",55.646,55.946],["o'clock.",55.946,56.447],["Still",56.627,57.061],["nothing.",57.061,57.628],["Then",57.808,58.175],["the",58.175,58.476],["rain",58.476,58.843],["begins.",58.843,59.343],["The",59.524,59.824],["grass",59.824,60.258],["starts",60.258,60.758],["to",60.758,60.992],["move.",60.992,61.359],["Something",61.539,62.24],["small,",62.24,62.674],["slow",62.754,63.121],["and",63.121,63.421],["very",63.421,63.789],["pink",63.789,64.156],["pushes",64.156,64.656],["out",64.656,64.957],["of",64.957,65.19],["the",65.19,65.491],["ground,",65.491,65.991],["and",66.071,66.372],["crawls",66.372,66.872],["straight",66.872,67.506],["into",67.506,67.873],["the",67.873,68.174],["cup.",68.174,68.474],["It",68.654,68.888],["is",68.888,69.122],["a",69.122,69.355],["worm.",69.355,69.722],["When",69.902,70.27],["rain",70.27,70.637],["floods",70.637,71.137],["the",71.137,71.438],["soil,",71.438,71.805],["worms",71.885,72.319],["come",72.319,72.686],["up",72.686,72.919],["to",72.919,73.153],["the",73.153,73.453],["surface.",73.453,74.021],["Scientists",74.201,74.968],["think",74.968,75.402],["it",75.402,75.636],["helps",75.636,76.07],["them",76.07,76.437],["breathe",76.437,77.004],["and",77.004,77.305],["travel.",77.305,77.805],["And",77.985,78.286],["a",78.286,78.519],["warm",78.519,78.886],["cup",78.886,79.187],["is",79.187,79.42],["the",79.42,79.721],["driest",79.721,80.221],["bed",80.221,80.522],["in",80.522,80.755],["the",80.755,81.056],["whole",81.056,81.49],["garden.",81.49,81.99],["The",82.17,82.471],["next",82.471,82.838],["night,",82.838,83.272],["Kato",83.352,83.719],["leaves",83.719,84.219],["two",84.219,84.52],["cups.",84.52,84.887],["One",85.067,85.367],["full",85.367,85.735],["of",85.735,85.968],["milk.",85.968,86.335],["And",86.516,86.816],["one",86.816,87.116],["lying",87.116,87.55],["on",87.55,87.784],["its",87.784,88.084],["side,",88.084,88.451],["just",88.531,88.898],["for",88.898,89.199],["his",89.199,89.499],["tiny",89.499,89.866],["guest.",89.866,90.3]],"lines":[{"i":0,"text":"Every night, Kato leaves a cup of warm milk in the garden.","s":0.3,"e":4.652,"w0":0,"w1":11},{"i":1,"text":"And every morning, the cup is empty.","s":4.832,"e":7.482,"w0":12,"w1":18},{"i":2,"text":"Tonight, he wants to know who is drinking it.","s":7.662,"e":10.979,"w0":19,"w1":27},{"i":3,"text":"He asks Nia first.","s":11.16,"e":12.494,"w0":28,"w1":31},{"i":4,"text":"She says she saw the farmer walking through the garden after dark,","s":12.675,"e":17.48,"w0":32,"w1":43},{"i":5,"text":"carrying something round.","s":17.56,"e":19.329,"w0":44,"w1":46},{"i":6,"text":"The farmer is not happy.","s":19.509,"e":21.278,"w0":47,"w1":51},{"i":7,"text":"He was only looking for his lost hat.","s":21.458,"e":24.195,"w0":52,"w1":59},{"i":8,"text":"And he points straight at the tall stranger,","s":24.375,"e":27.579,"w0":60,"w1":67},{"i":9,"text":"who moved in last week.","s":27.659,"e":29.361,"w0":68,"w1":72},{"i":10,"text":"The stranger laughs.","s":29.541,"e":30.976,"w0":73,"w1":75},{"i":11,"text":"He hates milk.","s":31.157,"e":32.191,"w0":76,"w1":78},{"i":12,"text":"But the strong man next door drinks four cups a day,","s":32.371,"e":36.276,"w0":79,"w1":89},{"i":13,"text":"and he never buys any.","s":36.356,"e":37.991,"w0":90,"w1":94},{"i":14,"text":"The strong man stamps his foot.","s":38.172,"e":40.441,"w0":95,"w1":100},{"i":15,"text":"Soon, everyone is shouting in the middle of the garden.","s":40.621,"e":44.639,"w0":101,"w1":110},{"i":16,"text":"Every single one of them is sure it was someone else.","s":44.819,"e":48.724,"w0":111,"w1":121},{"i":17,"text":"So Kato makes a plan.","s":48.904,"e":50.54,"w0":122,"w1":126},{"i":18,"text":"He hides behind the old tree,","s":50.72,"e":52.856,"w0":127,"w1":132},{"i":19,"text":"and he waits.","s":52.936,"e":53.904,"w0":133,"w1":135},{"i":20,"text":"Midnight.","s":54.084,"e":54.718,"w0":136,"w1":136},{"i":21,"text":"Nothing.","s":54.898,"e":55.465,"w0":137,"w1":137},{"i":22,"text":"One o'clock.","s":55.646,"e":56.447,"w0":138,"w1":139},{"i":23,"text":"Still nothing.","s":56.627,"e":57.628,"w0":140,"w1":141},{"i":24,"text":"Then the rain begins.","s":57.808,"e":59.343,"w0":142,"w1":145},{"i":25,"text":"The grass starts to move.","s":59.524,"e":61.359,"w0":146,"w1":150},{"i":26,"text":"Something small, slow and very pink pushes out of the ground,","s":61.539,"e":65.991,"w0":151,"w1":161},{"i":27,"text":"and crawls straight into the cup.","s":66.071,"e":68.474,"w0":162,"w1":167},{"i":28,"text":"It is a worm.","s":68.654,"e":69.722,"w0":168,"w1":171},{"i":29,"text":"When rain floods the soil,","s":69.902,"e":71.805,"w0":172,"w1":176},{"i":30,"text":"worms come up to the surface.","s":71.885,"e":74.021,"w0":177,"w1":182},{"i":31,"text":"Scientists think it helps them breathe and travel.","s":74.201,"e":77.805,"w0":183,"w1":190},{"i":32,"text":"And a warm cup is the driest bed in the whole garden.","s":77.985,"e":81.99,"w0":191,"w1":202},{"i":33,"text":"The next night, Kato leaves two cups.","s":82.17,"e":84.887,"w0":203,"w1":209},{"i":34,"text":"One full of milk.","s":85.067,"e":86.335,"w0":210,"w1":213},{"i":35,"text":"And one lying on its side,","s":86.516,"e":88.451,"w0":214,"w1":219},{"i":36,"text":"just for his tiny guest.","s":88.531,"e":90.3,"w0":220,"w1":224}],"shots":[{"id":"N01","from_line":0,"to_line":0},{"id":"N02","from_line":1,"to_line":1},{"id":"N03","from_line":2,"to_line":2},{"id":"N04","from_line":3,"to_line":3},{"id":"N05","from_line":4,"to_line":5},{"id":"N06","from_line":6,"to_line":6},{"id":"N07","from_line":7,"to_line":7},{"id":"N08","from_line":8,"to_line":9},{"id":"N09","from_line":10,"to_line":11},{"id":"N10","from_line":12,"to_line":13},{"id":"N11","from_line":14,"to_line":14},{"id":"N12","from_line":15,"to_line":16},{"id":"N13","from_line":17,"to_line":17},{"id":"N14","from_line":18,"to_line":19},{"id":"N15","from_line":20,"to_line":23},{"id":"N16","from_line":24,"to_line":24},{"id":"N17","from_line":25,"to_line":25},{"id":"N18","from_line":26,"to_line":27},{"id":"N19","from_line":28,"to_line":28},{"id":"N20","from_line":29,"to_line":31},{"id":"N21","from_line":32,"to_line":32},{"id":"N22","from_line":33,"to_line":34},{"id":"N23","from_line":35,"to_line":36}]},"captions":true,"res":720,"sizes":{"farmer":2.4,"stranger":3.4,"neighbour":3,"worm":1.2,"cup":0.3,"kato":2.66,"nia":2.64},"look":{"film":0.8,"atmos":0.8,"fg":true},"mix":{"narr":1,"sfx":1,"music":0.25,"duck":true}};STAGE_PAYLOAD.assets={};STAGE_PAYLOAD.shots={};[].forEach.call(document.querySelectorAll('script[type="text/x-asset"]'),function(s){STAGE_PAYLOAD.assets[s.dataset.name]=s.textContent});[].forEach.call(document.querySelectorAll('script[type="text/x-shot"]'),function(s){STAGE_PAYLOAD.shots[s.dataset.name]=s.textContent});window.LOG=[];window.STAGE_LISTENER=function(m){if(m.type!=="time")LOG.push(m)};</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script>
 /* =====================================================================
@@ -199,7 +370,10 @@ var T=THREE,K={T:T,version:2};window.KIT=K;
 
 /* ---------- palette (the only colours assets may use) ---------- */
 K.PAL={
- skin:[0xb7774f,0x8d5a3b,0xc78e66,0x6e4630],hair:[0x1c130f,0x241812,0x3a2416],
+ skin:[0xb7774f,0x8d5a3b,0xc78e66,0x6e4630,0xe8c3a6,0xd6a888,0xa86e4c,0x55361f,0x3e2718],
+ hair:[0x1c130f,0x241812,0x3a2416,0x5c3b22,0x9a7444,0x7a3a22,0x8c8780,0xd2ccc2],
+ /* skin: 0 tan · 1 brown · 2 light tan · 3 dark brown · 4 very light · 5 light · 6 medium brown · 7 deep brown · 8 very deep
+    hair: 0 black · 1 near-black · 2 dark brown · 3 brown · 4 blond · 5 auburn/red · 6 grey · 7 white */
  teal:0x2b5a6c,mustard:0x8a6a2a,burgundy:0x6a2a35,charcoal:0x2c2b3a,brown:0x3a2c2a,moss:0x2e3b2a,
  cream:0xd9ccb0,gold:0xc4952c,rust:0x9a3b2a,ink:0x120d10,
  night:0x1b2233,moonlit:0x2a3550,moonlight:0x4f6f8a,wood:0x4a2e1c,woodDark:0x2e1d14,
@@ -409,6 +583,7 @@ K.human=function(o){o=o||{};var P=K.HUMAN[o.build||'average'];if(!P)throw new Er
  var face=K.face(head,{r:.36,cy:.44,y:.49,gap:.13,size:1,mouthY:.2,mouthZ:Hh.mouthZ,mouthW:Hh.mouthW,cheekZ:Hh.cheekZ,brow:o.brow||C.hair,lashes:!!o.lashes});
  if(o.glasses){[-1,1].forEach(function(s){var r=K.M(new T.TorusGeometry(.085,.012,8,24),K.PAL.ink,head,s*.13,.49,.355,1,1,1,false)});K.M(K.limb(.008,.008,.08),K.PAL.ink,head,-.04,.5,.37,1,1,1,false).rotation.z=Math.PI/2}
  hair(head,o.hairStyle||'quiff',C.hair);
+ if(o.beard)facialHair(head,o.beard,o.beardColor||C.hair);
  var headTop=new T.Object3D();headTop.position.set(0,.88,0);head.add(headTop);
  // arms
  var A=P.arm,arms=[];[-1,1].forEach(function(s){var g=new T.Group();g.position.set(s*A.x,A.y,0);g.rotation.z=s*A.spread;body.add(g);
@@ -425,6 +600,12 @@ K.human=function(o){o=o||{};var P=K.HUMAN[o.build||'average'];if(!P)throw new Er
   armR:arms[0],armL:arms[1],legR:legs[0],legL:legs[1],arms:arms,legs:legs,handR:arms[0].hand,handL:arms[1].hand,gripR:arms[0].grip,gripL:arms[1].grip,
   height:P.h+dy,hipHeight:hip,build:o.build||'average',preset:P};
  return rig};
+/* facial hair: 'beard' | 'goatee' | 'mustache' | 'stubble' */
+function facialHair(head,kind,col){
+ if(kind==='beard'||kind==='goatee'){var b=K.M(K.SPH,col,head,0,kind==='beard'?.14:.1,kind==='beard'?.08:.2,kind==='beard'?.33:.12,kind==='beard'?.2:.12,kind==='beard'?.3:.14);
+  if(kind==='beard')[-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.27,.3,.02,.08,.16,.16)})}
+ if(kind==='beard'||kind==='mustache'||kind==='goatee')[-1,1].forEach(function(s){var m=K.M(K.SPH,col,head,s*.065,.275,.355,.075,.03,.04,'thin');m.rotation.z=s*.25});
+ if(kind==='stubble'){var st=K.flat(K.SPH,col,head,0,.17,.07,.335,.2,.31,.35);st.renderOrder=2}}
 function hair(head,style,col){var cap=function(){K.M(new T.SphereGeometry(1,40,20,0,Math.PI*2,0,Math.PI*.5),col,head,0,.54,-.03,.41,.4,.41).rotation.x=-.5};
  var sides=function(){[-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.33,.52,-.06,.07,.14,.18)});K.M(K.SPH,col,head,0,.48,-.22,.32,.24,.18)};
  if(style==='bald'){sides();return}
@@ -438,6 +619,8 @@ function hair(head,style,col){var cap=function(){K.M(new T.SphereGeometry(1,40,2
   K.M(K.limb(.09,.04,.55),col,pg,0,0,0);K.M(new T.SphereGeometry(.06,12,10),K.PAL.burgundy,pg,0,-.02,0,1,.6,1,'thin');return}
  if(style==='curly'){cap();for(var i=0;i<16;i++){var a=i/16*Math.PI*2,rr=i%2?.3:.36;K.M(K.SPH,col,head,Math.cos(a)*rr,.66+(i%3)*.06,Math.sin(a)*rr*.9-.08,.11,.1,.11,'thin')}
   [-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.34,.48,-.06,.1,.16,.18)});return}
+ if(style==='long'){cap();sides();K.M(K.SPH,col,head,0,.3,-.26,.38,.55,.2);[-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.34,.2,-.08,.1,.36,.18)});return}
+ if(style==='braids'){cap();for(var b=0;b<6;b++){var bg=new T.Group();bg.position.set(-.25+b*.1,.52,-.28);bg.rotation.x=.25;head.add(bg);K.M(K.limb(.035,.03,.55),col,bg,0,0,0,1,1,1,'thin')}return}
  if(style==='afro'){K.M(K.SPH,col,head,0,.74,-.1,.5,.42,.46);[-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.36,.52,-.08,.14,.2,.22)});return}
  cap();sides()}
 /* face look-at: face.look(target or null, weight 0..1) — eyes turn toward a world point/object (called by scenes) */
@@ -661,7 +844,7 @@ function slab(list,pad){BB.makeEmpty();(list||[]).forEach(function(o){if(o){o.up
 function lensAt(t){if(!LENS.length)return {near:4,far:6,ap:.008};var i=0;while(i+1<LENS.length&&t>=LENS[i+1].at)i++;var L=LENS[i],Pv=LENS[Math.max(0,i-1)];
  var A=slab(Pv.on,Pv.pad===undefined?.05:Pv.pad),B=slab(L.on,L.pad===undefined?.05:L.pad);BB.getCenter(FC);
  var k=L.pull>0?K.seg(t,L.at,L.at+L.pull):1,near=K.mix(A[0],B[0],k),far=K.mix(A[1],B[1],k),ap=K.mix(Pv.ap||.01,L.ap||.01,k);
- var cut=SHOTS.length?SHOTS[shotIndex(t)].from:0,s=t-cut,hunt=1+.05*Math.exp(-s*14)*Math.cos(s*30);return {near:near*hunt,far:far*hunt,ap:ap}}
+ var SH=SHOTS.length?SHOTS[shotIndex(t)]:null,cut=SH?SH.from:0,s=t-cut,hunt=SH&&SH.flow?1:1+.05*Math.exp(-s*14)*Math.cos(s*30);return {near:near*hunt,far:far*hunt,ap:ap}}
 
 /* ---------- light / silhouette ---------- */
 var LKEYS=['key','amb','back','glow','fg','sub','fog','warm','sat','sepia'],LDEF={key:.95,amb:.34,back:.3,glow:.35,fg:.8,sub:0,fog:0,warm:0,sat:1,sepia:0};
@@ -782,7 +965,7 @@ function frame(t,now){
    D2.c[1]+(((s[i*4+1]+t*D2.rise)%1)-.5)*D2.sz[1],D2.c[2]+(s[i*4+2]-.5)*D2.sz[2])}a.needsUpdate=true});
   cam.updateMatrixWorld();cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
   var fp=lensAt(t),U=QM.uniforms;U.fn.value=fp.near;U.ff.value=fp.far;U.ap.value=fp.ap;mood(t);
-  if(t!==lastStep){prevVP.copy(curVP);curVP.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);if(curShot!==lastShotIdx||t<lastStep)prevVP.copy(curVP);lastShotIdx=curShot;lastStep=t;U.fr.value=(U.fr.value+1.37)%100;var wa=.0007*K.film.weave,ws=Math.floor(t*12);U.wv.value.set((Math.sin(ws*12.9898)*43758.5453%1)*wa,(Math.sin(ws*78.233)*12543.1234%1)*wa*.6)}
+  if(t!==lastStep){prevVP.copy(curVP);curVP.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);if((curShot!==lastShotIdx&&!(SHOTS[curShot]&&SHOTS[curShot].flow))||t<lastStep)prevVP.copy(curVP);lastShotIdx=curShot;lastStep=t;U.fr.value=(U.fr.value+1.37)%100;var wa=.0007*K.film.weave,ws=Math.floor(t*12);U.wv.value.set((Math.sin(ws*12.9898)*43758.5453%1)*wa,(Math.sin(ws*78.233)*12543.1234%1)*wa*.6)}
   U.ip.value.copy(cam.projectionMatrixInverse);U.cw.value.copy(cam.matrixWorld);U.pvp.value.copy(prevVP);
   audioTick(t);R.setRenderTarget(RT);R.render(S,cam);R.setRenderTarget(null);R.render(QS,QC)}
 K.frame=function(t,now){frame(t,now===undefined?(clk?clk.getElapsedTime():0):now)};
@@ -848,8 +1031,8 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     flashback: { key: .62, amb: .32, back: .5, glow: .55, fg: .6, sub: .2, fog: .016, warm: .25, sat: .35, sepia: .6 }
   };
   var FRAMES = { // h = frame height as part of subject height, cy = look height as part of subject height, ap = blur strength
-    extreme: { h: .2, cy: .86, ap: .034 }, close: { h: .5, cy: .78, ap: .026 }, medium: { h: .85, cy: .62, ap: .018 },
-    full: { h: 1.3, cy: .5, ap: .011 }, wide: { h: 2.4, cy: .45, ap: .006 }
+    extreme: { h: .3, cy: .86, ap: .026 }, close: { h: .62, cy: .78, ap: .02 }, medium: { h: 1.05, cy: .62, ap: .014 },
+    full: { h: 1.6, cy: .5, ap: .007 }, wide: { h: 2.9, cy: .45, ap: .0035 }
   };
   var SIDES = { front: 0, 'front-left': 35, 'front-right': -35, left: 90, right: -90, 'back-left': 145, 'back-right': -145, back: 180 };
   var ANGLES = { eye: 4, low: -14, high: 28, top: 72, dutch: 4 };
@@ -889,7 +1072,7 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     var p = POOL[name] || (POOL[name] = []);
     while (p.length <= n) {
       var a = K.make(name, {}); a.root.updateMatrixWorld(true);
-      var inst = { name: name, a: a, kind: a.kind || (isHuman(a) ? 'character' : 'prop'), snap: snapshot(a.root) };
+      var inst = { name: name, uid: name + '#' + p.length, a: a, kind: a.kind || (isHuman(a) ? 'character' : 'prop'), snap: snapshot(a.root) };
       var bx = new T.Box3().setFromObject(a.root); inst.size = bx.getSize(new T.Vector3()); inst.boxMin = bx.min.clone(); inst.boxMax = bx.max.clone();
       if (isHuman(a)) inst.height = a.height || inst.size.y; else inst.height = inst.size.y;
       var plan = SIZES[name], kind0 = inst.kind;
@@ -937,16 +1120,26 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
       return { id: p.id, idx: i, plan: p, from: from, spec: defs[p.id] || placeholder(p), made: !!defs[p.id] };
     });
     RUN.forEach(function (r, i) { r.to = i + 1 < RUN.length ? RUN[i + 1].from : dur; if (r.to <= r.from) { r.to = r.from + .5; warn(r.id, 'This shot has no time (its lines overlap the next shot).') } });
+    // continuous shots: same place as the shot before -> the camera glides and people carry on from where they were
+    RUN.forEach(function (r, i) { var pv = RUN[i - 1], tr = r.spec.transition; r.flow = !!pv && r.made && pv.made && tr !== 'cut' && (tr === 'flow' || (r.spec.set || 'void') === (pv.spec.set || 'void')) });
     var shots = [], lens = [], light = [], cues = [];
     RUN.forEach(function (r) {
       try { prepare(r) } catch (e) { ERRORS[r.id] = String(e && e.message || e); r.spec = placeholder(r); r.spec.text[0].say = 'SHOT ' + r.id + ' ERROR'; prepare(r) }
       var c = r.cam;
-      r.shotObj = { from: r.from, to: r.to, pos: [function () { return c.pos }], look: [function () { return c.look }], fov: c.fov, hand: c.hand, roll: c.roll, shake: c.shake, ease: 'linear' };
+      r.shotObj = { from: r.from, to: r.to, flow: r.flow, pos: [function () { return c.pos }], look: [function () { return c.look }], fov: c.fov, hand: c.hand, roll: c.roll, shake: c.shake, ease: 'linear' };
       shots.push(r.shotObj);
       r.lens.forEach(function (l) { lens.push(l) }); r.light.forEach(function (l) { light.push(l) }); r.cues.forEach(function (q) { cues.push(q) });
     });
     lens.sort(function (a, b) { return a.at - b.at }); light.sort(function (a, b) { return a.at - b.at }); cues.sort(function (a, b) { return a[0] - b[0] });
     K.shots(shots).lens(lens).light(light).cues(cues);
+    RUN.forEach(function (r, i) { // walk the video once to learn where everything ends, so the next continuous shot starts there
+      var pv = RUN[i - 1]; if (r.flow && pv) { r.startFrom = pv.endState; r.prevCam = pv.endCam }
+      var tEnd = Math.max(r.from, r.to - .02);
+      try { show(i); pose(r, tEnd, tEnd - r.from); camera(r, tEnd) } catch (e) { }
+      r.endState = {}; Object.keys(r.cast).forEach(function (k) { var a = r.cast[k].a; r.endState[r.cast[k].uid] = { pos: a.root.position.clone(), yaw: a.root.rotation.y } });
+      r.endCam = { pos: r.cam.pos.slice(), look: r.cam.look.slice(), fov: r.shotObj.fov };
+    });
+    CUR = -1;
     K.ambience({ room: .03, pad: o.sky === 'warm' ? [196, 246.9, 293.7] : [174.6, 207.7, 261.6], padVol: .012 });
     K.update(update);
     return { warnings: WARN, errors: ERRORS, shots: RUN.map(function (r) { return { id: r.id, from: r.from, to: r.to, made: r.made } }) };
@@ -981,12 +1174,14 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     r.cam = { pos: [0, 2, 8], look: [0, 1, 0], fov: fov, hand: cm.move === 'handheld' ? .02 : 0, roll: cm.angle === 'dutch' ? .12 : 0, shake: (cm.shake ? [].concat(cm.shake) : []).map(function (e) { return [timeOf(e, r, 'camera shake'), e.amount || .06] }) };
     // focus
     var fr = FRAMES[cm.framing || 'medium'] || FRAMES.medium, onNames = [].concat(cm.on || (cm.framing === 'wide' ? [] : Object.keys(r.cast)[0]) || []);
-    var focus = s.focus && s.focus.length ? s.focus : [{ on: onNames.length ? onNames : Object.keys(r.cast)[0] }];
-    focus.forEach(function (f) { [].concat(f.on || []).forEach(function (n) { if (n && r.cast[n] && onNames.indexOf(n) < 0 && cm.framing !== 'wide') warn(id, 'focus on "' + n + '" but the camera only frames ' + (onNames.join(', ') || 'the set') + ' — add it to camera.on or it may be off screen.') }) });
+    var longShot = cm.framing === 'wide' || cm.framing === 'full';
+    // long shots keep every character sharp (deep focus); closer shots focus on the subject
+    var focus = s.focus && s.focus.length ? s.focus : [{ on: longShot && Object.keys(r.cast).length ? Object.keys(r.cast) : (onNames.length ? onNames : Object.keys(r.cast)[0]) }];
+    (s.focus || []).forEach(function (f) { [].concat(f.on || []).forEach(function (n) { if (n && r.cast[n] && onNames.indexOf(n) < 0 && cm.framing !== 'wide') warn(id, 'focus on "' + n + '" but the camera only frames ' + (onNames.join(', ') || 'the set') + ' — add it to camera.on or it may be off screen.') }) });
     r.lens = focus.map(function (f, i) {
       var objs = [].concat(f.on || []).map(function (n) { var ii = r.cast[n]; if (!ii) { if (n) warn(id, 'focus: "' + n + '" is not in the cast.'); return null } return ii.a.root }).filter(Boolean);
       if (!objs.length) objs = [r.set.a.root];
-      return { at: i === 0 ? r.from : timeOf(f, r, 'focus ' + (i + 1)), on: objs, pull: i === 0 ? 0 : (f.pull === undefined ? .4 : f.pull), ap: f.blur ? clamp(fr.ap * f.blur, .003, .06) : fr.ap, pad: (cm.framing === 'wide' ? .4 : .08) };
+      return { at: i === 0 ? r.from : timeOf(f, r, 'focus ' + (i + 1)), on: objs, pull: i === 0 ? (r.flow ? .6 : 0) : (f.pull === undefined ? .4 : f.pull), ap: f.blur ? clamp(fr.ap * f.blur, .002, .05) : fr.ap, pad: longShot ? .9 : .12 };
     });
     // light
     var ls = s.light ? [].concat(s.light) : [{ mood: 'normal' }];
@@ -994,7 +1189,7 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     r.light = ls.map(function (l, i) {
       if (typeof l === 'string') l = { mood: l };
       var M = D.MOODS[l.mood] || (warn(id, 'light: unknown mood "' + l.mood + '"'), D.MOODS.normal);
-      return Object.assign({ at: i === 0 ? r.from : timeOf(l, r, 'light ' + (i + 1)), ease: i === 0 ? 0 : (l.ease === undefined ? .3 : l.ease) }, M);
+      return Object.assign({ at: i === 0 ? r.from : timeOf(l, r, 'light ' + (i + 1)), ease: i === 0 ? (r.flow ? 1 : 0) : (l.ease === undefined ? .3 : l.ease) }, M);
     });
     // sound
     r.cues = (s.sfx || []).map(function (q, i) {
@@ -1044,7 +1239,7 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     var L = t - r.from;
     try { pose(r, t, L) } catch (e) { var msg = String(e && e.message || e); if (ERRORS[r.id] !== msg) { ERRORS[r.id] = msg; if (D.onError) D.onError(r.id, msg) } }
     camera(r, t);
-    D.overlayText = r.text.filter(function (x) { return t >= x.t0 && t < x.t0 + x.dur });
+    D.overlayText = (D.LOOK.cards || r.spec._placeholder) ? r.text.filter(function (x) { return t >= x.t0 && t < x.t0 + x.dur }) : [];
   }
 
   function pose(r, t, L) {
@@ -1052,8 +1247,10 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     keys.forEach(function (k) {
       var inst = r.cast[k], a = inst.a, c = r.castSpec[k] || {};
       restore(inst);
-      a.root.position.copy(resolvePos(r, c.at)); if (c.y) a.root.position.y += c.y;
-      a.root.rotation.y = 0; a.root.rotation.y = resolveYaw(r, inst, c.turn);
+      var sf = r.startFrom && r.startFrom[inst.uid];
+      if (sf && !c.reset) { a.root.position.copy(sf.pos); a.root.rotation.y = sf.yaw }
+      else { a.root.position.copy(resolvePos(r, c.at)); if (c.y) a.root.position.y += c.y; a.root.rotation.y = 0; a.root.rotation.y = resolveYaw(r, inst, c.turn) }
+      if (c.tilt) a.root.rotation.z = c.tilt * DEG;
       if (c.size) a.root.scale.multiplyScalar(c.size);
       if (a.face) { a.face.show(c.face || 'neutral'); if (c.look) a.face.look(lookTarget(r, c.look)) }
       if (isHuman(a)) a.body.position.y += Math.sin(t * 2.1 + k.length) * .012; // breathing
@@ -1165,6 +1362,7 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     } else { center = new T.Vector3(0, 0, 0); H = 3; W = 4; yaw = 0 }
     if (cm.framing === 'wide' && !subj.length) H = 4;
     var frameH = Math.max(.25, H * fr.h), fovR = (r.cam.fov) * DEG, asp = K.camera.aspect || 9 / 16;
+    if (subj.length && !subj.some(function (s) { return isHuman(s.a) })) frameH = Math.max(frameH, (cm.framing === 'extreme' ? .45 : cm.framing === 'close' ? .8 : 1.25)); // small things never fill the whole screen
     var dist = frameH / (2 * Math.tan(fovR / 2)), hf = 2 * Math.atan(Math.tan(fovR / 2) * asp);
     if (subj.length > 1 || cm.framing === 'full' || cm.framing === 'wide') dist = Math.max(dist, (W * 1.15) / (2 * Math.tan(hf / 2)));
     var az = (SIDES[cm.side || 'front'] || 0) * DEG, el = (ANGLES[cm.angle || 'eye'] || 4) * DEG, lat = 0;
@@ -1193,6 +1391,7 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     if (comp === 'left') lat += third; else if (comp === 'right') lat -= third;
     else if (comp === 'auto' && subj.length === 1 && Math.abs(Math.sin(az)) > .3 && cm.framing !== 'wide') lat += -Math.sign(Math.sin(az)) * third;
     if (asp < 1 && !(one && isHuman(one)) && /extreme|close|medium/.test(fname)) look.y -= frameH * .06;
+    if (asp < 1 && /full|wide/.test(fname)) look.y -= frameH * .1; // keep the lower part of a vertical frame free for captions
     pos.addScaledVector(side, lat); look.addScaledVector(side, lat);
     if (pos.y < .12) pos.y = .12;
     var fovNow = r.cam.fov;
@@ -1205,15 +1404,21 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
       if (tm < 1) { pos = look.clone().addScaledVector(d, tm); fovNow = Math.min(78, 2 * Math.atan(Math.tan(r.cam.fov * DEG / 2) / tm) / DEG) }
       pos.x = clamp(pos.x, lo.x + m, hi.x - m); pos.z = clamp(pos.z, lo.z + m, hi.z - m); pos.y = clamp(pos.y, .12, Math.max(.2, hi.y - .25));
     }
-    if (r.shotObj) r.shotObj.fov = fovNow;
     if (cm.pos) pos = v3(cm.pos); if (cm.look) look = v3(cm.look);
+    if (r.flow && r.prevCam) { // continuous shot: glide from where the last camera was
+      var fd = Math.min(1.3, (r.to - r.from) * .45), b = K.ease((t - r.from) / Math.max(.1, fd));
+      if (b < 1) { pos = v3(r.prevCam.pos).lerp(pos, b); look = v3(r.prevCam.look).lerp(look, b); fovNow = K.mix(r.prevCam.fov || fovNow, fovNow, b) }
+    }
+    if (r.shotObj) r.shotObj.fov = fovNow;
+    K.film.fog = D.LOOK.atmos * clamp(9 / Math.max(1, pos.distanceTo(look)), .25, 1); // far shots get less haze so the subject stays clear
+    safePoints(r, pos, look, fovNow, asp);
     r.cam.pos = [pos.x, pos.y, pos.z]; r.cam.look = [look.x, look.y, look.z];
     placeFG(r, pos, look, fovR, asp, frameH, lat, subj.length); placeAir(r, t, pos, look, frameH); placeShafts(r, t, pos, look, frameH);
   }
 
 
   /* ---------- LOOK: composition helpers, foreground silhouettes, air, light shafts ---------- */
-  D.LOOK = { film: .8, atmos: .8, fg: true };
+  D.LOOK = { film: .8, atmos: .8, fg: true, cards: false };
   var FG = [], AIR = null, SHAFTS = null, UP = new T.Vector3(0, 1, 0);
   function fgShapes() {
     if (FG.length) return FG;
@@ -1225,6 +1430,20 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     ];
     shapes.forEach(function (fn) { var g = new T.Group(); fn(g); g.visible = false; K.scene.add(g); FG.push(g) });
     return FG;
+  }
+  /* screen points that captions must never cover: faces and the things being shown */
+  var SCAM = new T.PerspectiveCamera(32, 1, .01, 200), SP = new T.Vector3();
+  D.important = [];
+  function safePoints(r, pos, look, fov, asp) {
+    SCAM.fov = fov; SCAM.aspect = asp; SCAM.position.copy(pos); SCAM.lookAt(look); SCAM.updateProjectionMatrix(); SCAM.updateMatrixWorld(true);
+    var pts = [];
+    Object.keys(r.cast).forEach(function (k) {
+      var inst = r.cast[k], a = inst.a; if (!a.root.visible) return;
+      a.root.updateMatrixWorld(true);
+      var list = isHuman(a) ? [a.head.getWorldPosition(new T.Vector3()), a.headTop.getWorldPosition(new T.Vector3())] : [a.root.position.clone().add(new T.Vector3(0, inst.height * a.root.scale.y * .5, 0)), a.root.position.clone().add(new T.Vector3(0, inst.height * a.root.scale.y, 0))];
+      list.forEach(function (w) { SP.copy(w).project(SCAM); if (SP.z < 1 && Math.abs(SP.x) < 1.1) pts.push((1 - SP.y) / 2) });
+    });
+    D.important = pts;
   }
   function placeFG(r, pos, look, fovR, asp, frameH, lat, nSubj) {
     // a small dark blurred shape in a bottom corner, on the side AWAY from the subject, so it frames and never covers
@@ -1245,6 +1464,7 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
   }
   var AIRS = { dust: { c: 0xffd9a0, o: .32, s: .012, vy: .04 }, bubbles: { c: 0xa9dcea, o: .5, s: .02, vy: .35 }, snow: { c: 0xeef0ff, o: .55, s: .016, vy: -.18 }, embers: { c: 0xffa050, o: .75, s: .011, vy: .22 }, rain: { c: 0xb8c8e0, o: .35, s: .009, vy: -1.6 } };
   D.ENUM.air = ['dust', 'bubbles', 'snow', 'embers', 'rain', 'none'];
+  D.ENUM.transition = ['flow', 'cut'];
   function placeAir(r, t, pos, look, frameH) {
     var A = airInit(), type = r.spec.air || 'dust', P = AIRS[type];
     if (!P || D.LOOK.atmos <= 0 || r.spec._placeholder) { A.visible = false; return }
@@ -1311,14 +1531,20 @@ K.preview=function(name,opts){K.init({duration:8,sky:(opts&&opts.sky)||'warm'});
     if (!GROUPS) { GROUPS = D.captionGroups(); GROUPS._size = D.groupSize || 3 }
     var gi = -1; for (var i = 0; i < GROUPS.length; i++) { var g = GROUPS[i], s = WORDS[g[0]].s, e = WORDS[g[g.length - 1]].e + .25; if (t >= s && t < e) { gi = i; break } }
     if (gi < 0) return;
-    var cs = (opts && opts.style) || {}, land = w > h, grp = GROUPS[gi], fs = Math.round(Math.min(w, h) * (land ? .066 : .074) * (cs.size || 1)), active = grp[0];
+    var cs = (opts && opts.style) || {}, land = w > h, grp = GROUPS[gi], fs = Math.round(Math.min(w, h) * (land ? .058 : .066) * (cs.size || 1)), active = grp[0];
     grp.forEach(function (wi) { if (WORDS[wi].s <= t) active = wi });
     ctx.font = '900 ' + fs + 'px "Arial Black", "Trebuchet MS", Arial, sans-serif'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
     var parts = grp.map(function (wi) { return { i: wi, txt: WORDS[wi].w.toUpperCase().replace(/[,;:]$/, '') } });
     var space = fs * .28, widths = parts.map(function (p) { return ctx.measureText(p.txt).width });
     var lines = [[]], lw = [0], maxW = w * (land ? .7 : .86);
     parts.forEach(function (p, j) { var L = lines.length - 1; if (lw[L] + widths[j] > maxW && lines[L].length) { lines.push([]); lw.push(0); L++ } lines[L].push(j); lw[L] += widths[j] + space });
-    var y0 = h * (cs.pos || (land ? .84 : .7)) - (lines.length - 1) * fs * .6;
+    var bands = land ? [.86, .13] : [.78, .17], half = (lines.length * fs * 1.15) / h / 2 + .04;
+    if (!GROUPS._band) GROUPS._band = {};
+    if (GROUPS._band[gi] === undefined) {
+      var pick = bands.map(function (b) { return (D.important || []).filter(function (y) { return Math.abs(y - b) < half + .03 }).length });
+      GROUPS._band[gi] = pick[0] === 0 || pick[0] <= pick[1] ? bands[0] : bands[1];
+    }
+    var y0 = h * (cs.pos || GROUPS._band[gi]) - (lines.length - 1) * fs * .575;
     lines.forEach(function (ln, li) {
       var x = (w - (lw[li] - space)) / 2, y = y0 + li * fs * 1.15;
       ln.forEach(function (j) {

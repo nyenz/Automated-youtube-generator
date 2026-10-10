@@ -11,7 +11,10 @@ var T=THREE,K={T:T,version:2};window.KIT=K;
 
 /* ---------- palette (the only colours assets may use) ---------- */
 K.PAL={
- skin:[0xb7774f,0x8d5a3b,0xc78e66,0x6e4630],hair:[0x1c130f,0x241812,0x3a2416],
+ skin:[0xb7774f,0x8d5a3b,0xc78e66,0x6e4630,0xe8c3a6,0xd6a888,0xa86e4c,0x55361f,0x3e2718],
+ hair:[0x1c130f,0x241812,0x3a2416,0x5c3b22,0x9a7444,0x7a3a22,0x8c8780,0xd2ccc2],
+ /* skin: 0 tan · 1 brown · 2 light tan · 3 dark brown · 4 very light · 5 light · 6 medium brown · 7 deep brown · 8 very deep
+    hair: 0 black · 1 near-black · 2 dark brown · 3 brown · 4 blond · 5 auburn/red · 6 grey · 7 white */
  teal:0x2b5a6c,mustard:0x8a6a2a,burgundy:0x6a2a35,charcoal:0x2c2b3a,brown:0x3a2c2a,moss:0x2e3b2a,
  cream:0xd9ccb0,gold:0xc4952c,rust:0x9a3b2a,ink:0x120d10,
  night:0x1b2233,moonlit:0x2a3550,moonlight:0x4f6f8a,wood:0x4a2e1c,woodDark:0x2e1d14,
@@ -221,6 +224,7 @@ K.human=function(o){o=o||{};var P=K.HUMAN[o.build||'average'];if(!P)throw new Er
  var face=K.face(head,{r:.36,cy:.44,y:.49,gap:.13,size:1,mouthY:.2,mouthZ:Hh.mouthZ,mouthW:Hh.mouthW,cheekZ:Hh.cheekZ,brow:o.brow||C.hair,lashes:!!o.lashes});
  if(o.glasses){[-1,1].forEach(function(s){var r=K.M(new T.TorusGeometry(.085,.012,8,24),K.PAL.ink,head,s*.13,.49,.355,1,1,1,false)});K.M(K.limb(.008,.008,.08),K.PAL.ink,head,-.04,.5,.37,1,1,1,false).rotation.z=Math.PI/2}
  hair(head,o.hairStyle||'quiff',C.hair);
+ if(o.beard)facialHair(head,o.beard,o.beardColor||C.hair);
  var headTop=new T.Object3D();headTop.position.set(0,.88,0);head.add(headTop);
  // arms
  var A=P.arm,arms=[];[-1,1].forEach(function(s){var g=new T.Group();g.position.set(s*A.x,A.y,0);g.rotation.z=s*A.spread;body.add(g);
@@ -237,6 +241,12 @@ K.human=function(o){o=o||{};var P=K.HUMAN[o.build||'average'];if(!P)throw new Er
   armR:arms[0],armL:arms[1],legR:legs[0],legL:legs[1],arms:arms,legs:legs,handR:arms[0].hand,handL:arms[1].hand,gripR:arms[0].grip,gripL:arms[1].grip,
   height:P.h+dy,hipHeight:hip,build:o.build||'average',preset:P};
  return rig};
+/* facial hair: 'beard' | 'goatee' | 'mustache' | 'stubble' */
+function facialHair(head,kind,col){
+ if(kind==='beard'||kind==='goatee'){var b=K.M(K.SPH,col,head,0,kind==='beard'?.14:.1,kind==='beard'?.08:.2,kind==='beard'?.33:.12,kind==='beard'?.2:.12,kind==='beard'?.3:.14);
+  if(kind==='beard')[-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.27,.3,.02,.08,.16,.16)})}
+ if(kind==='beard'||kind==='mustache'||kind==='goatee')[-1,1].forEach(function(s){var m=K.M(K.SPH,col,head,s*.065,.275,.355,.075,.03,.04,'thin');m.rotation.z=s*.25});
+ if(kind==='stubble'){var st=K.flat(K.SPH,col,head,0,.17,.07,.335,.2,.31,.35);st.renderOrder=2}}
 function hair(head,style,col){var cap=function(){K.M(new T.SphereGeometry(1,40,20,0,Math.PI*2,0,Math.PI*.5),col,head,0,.54,-.03,.41,.4,.41).rotation.x=-.5};
  var sides=function(){[-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.33,.52,-.06,.07,.14,.18)});K.M(K.SPH,col,head,0,.48,-.22,.32,.24,.18)};
  if(style==='bald'){sides();return}
@@ -250,6 +260,8 @@ function hair(head,style,col){var cap=function(){K.M(new T.SphereGeometry(1,40,2
   K.M(K.limb(.09,.04,.55),col,pg,0,0,0);K.M(new T.SphereGeometry(.06,12,10),K.PAL.burgundy,pg,0,-.02,0,1,.6,1,'thin');return}
  if(style==='curly'){cap();for(var i=0;i<16;i++){var a=i/16*Math.PI*2,rr=i%2?.3:.36;K.M(K.SPH,col,head,Math.cos(a)*rr,.66+(i%3)*.06,Math.sin(a)*rr*.9-.08,.11,.1,.11,'thin')}
   [-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.34,.48,-.06,.1,.16,.18)});return}
+ if(style==='long'){cap();sides();K.M(K.SPH,col,head,0,.3,-.26,.38,.55,.2);[-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.34,.2,-.08,.1,.36,.18)});return}
+ if(style==='braids'){cap();for(var b=0;b<6;b++){var bg=new T.Group();bg.position.set(-.25+b*.1,.52,-.28);bg.rotation.x=.25;head.add(bg);K.M(K.limb(.035,.03,.55),col,bg,0,0,0,1,1,1,'thin')}return}
  if(style==='afro'){K.M(K.SPH,col,head,0,.74,-.1,.5,.42,.46);[-1,1].forEach(function(s){K.M(K.SPH,col,head,s*.36,.52,-.08,.14,.2,.22)});return}
  cap();sides()}
 /* face look-at: face.look(target or null, weight 0..1) — eyes turn toward a world point/object (called by scenes) */
@@ -473,7 +485,7 @@ function slab(list,pad){BB.makeEmpty();(list||[]).forEach(function(o){if(o){o.up
 function lensAt(t){if(!LENS.length)return {near:4,far:6,ap:.008};var i=0;while(i+1<LENS.length&&t>=LENS[i+1].at)i++;var L=LENS[i],Pv=LENS[Math.max(0,i-1)];
  var A=slab(Pv.on,Pv.pad===undefined?.05:Pv.pad),B=slab(L.on,L.pad===undefined?.05:L.pad);BB.getCenter(FC);
  var k=L.pull>0?K.seg(t,L.at,L.at+L.pull):1,near=K.mix(A[0],B[0],k),far=K.mix(A[1],B[1],k),ap=K.mix(Pv.ap||.01,L.ap||.01,k);
- var cut=SHOTS.length?SHOTS[shotIndex(t)].from:0,s=t-cut,hunt=1+.05*Math.exp(-s*14)*Math.cos(s*30);return {near:near*hunt,far:far*hunt,ap:ap}}
+ var SH=SHOTS.length?SHOTS[shotIndex(t)]:null,cut=SH?SH.from:0,s=t-cut,hunt=SH&&SH.flow?1:1+.05*Math.exp(-s*14)*Math.cos(s*30);return {near:near*hunt,far:far*hunt,ap:ap}}
 
 /* ---------- light / silhouette ---------- */
 var LKEYS=['key','amb','back','glow','fg','sub','fog','warm','sat','sepia'],LDEF={key:.95,amb:.34,back:.3,glow:.35,fg:.8,sub:0,fog:0,warm:0,sat:1,sepia:0};
@@ -594,7 +606,7 @@ function frame(t,now){
    D2.c[1]+(((s[i*4+1]+t*D2.rise)%1)-.5)*D2.sz[1],D2.c[2]+(s[i*4+2]-.5)*D2.sz[2])}a.needsUpdate=true});
   cam.updateMatrixWorld();cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
   var fp=lensAt(t),U=QM.uniforms;U.fn.value=fp.near;U.ff.value=fp.far;U.ap.value=fp.ap;mood(t);
-  if(t!==lastStep){prevVP.copy(curVP);curVP.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);if(curShot!==lastShotIdx||t<lastStep)prevVP.copy(curVP);lastShotIdx=curShot;lastStep=t;U.fr.value=(U.fr.value+1.37)%100;var wa=.0007*K.film.weave,ws=Math.floor(t*12);U.wv.value.set((Math.sin(ws*12.9898)*43758.5453%1)*wa,(Math.sin(ws*78.233)*12543.1234%1)*wa*.6)}
+  if(t!==lastStep){prevVP.copy(curVP);curVP.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);if((curShot!==lastShotIdx&&!(SHOTS[curShot]&&SHOTS[curShot].flow))||t<lastStep)prevVP.copy(curVP);lastShotIdx=curShot;lastStep=t;U.fr.value=(U.fr.value+1.37)%100;var wa=.0007*K.film.weave,ws=Math.floor(t*12);U.wv.value.set((Math.sin(ws*12.9898)*43758.5453%1)*wa,(Math.sin(ws*78.233)*12543.1234%1)*wa*.6)}
   U.ip.value.copy(cam.projectionMatrixInverse);U.cw.value.copy(cam.matrixWorld);U.pvp.value.copy(prevVP);
   audioTick(t);R.setRenderTarget(RT);R.render(S,cam);R.setRenderTarget(null);R.render(QS,QC)}
 K.frame=function(t,now){frame(t,now===undefined?(clk?clk.getElapsedTime():0):now)};

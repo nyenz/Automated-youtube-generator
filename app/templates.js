@@ -25,7 +25,8 @@
 - Keep proportions true: a cup is 1/10 of a person, a door is a bit taller than a person. If an asset is more than twice too big or small, the app rescales it to the plan's size.
 
 ## PALETTE (only these colours)
-K.PAL.skin[0..3], K.PAL.hair[0..2]
+K.PAL.skin[0..8]: 0 tan, 1 brown, 2 light tan, 3 dark brown, 4 very light, 5 light, 6 medium brown, 7 deep brown, 8 very deep
+K.PAL.hair[0..7]: 0 black, 1 near-black, 2 dark brown, 3 brown, 4 blond, 5 auburn/red, 6 grey, 7 white
 cloth: K.PAL.teal, mustard, burgundy, charcoal, brown, moss
 accents: K.PAL.cream, gold, rust, ink
 night: K.PAL.night, moonlit, moonlight · wood: K.PAL.wood, woodDark
@@ -78,11 +79,13 @@ var rig = K.mascot('kato');   // or 'nia' — only for costume versions of the h
 var rig = K.human({ build, skin, hair, hairStyle, top, shirt, collar, bottom, pants, shoes, nose, lashes, glasses, earrings });
 \`\`\`
 - build: 'hero' (giant chest), 'pear' (giant belly, short), 'noodle' (very tall, long neck), 'average', 'slim', 'kid'
-- hairStyle: quiff, short, bald, tall, bob, bun, ponytail, curly, afro · top: polo, tee, dress · bottom: pants, shorts, skirt
+- hairStyle: quiff, short, bald, tall, bob, bun, ponytail, curly, afro, long, braids · top: polo, tee, dress · bottom: pants, shorts, skirt
+- beard: 'beard' | 'goatee' | 'mustache' | 'stubble' (beardColor optional, e.g. K.PAL.hair[6] for grey)
 - nose: size multiplier (1 normal; 1.3–1.8 is a good exaggeration)
 - The rig already has: root, hips, body, torso, neck, head, face, headTop, armR, armL, legR, legL, handR, handL, gripR, gripL, height. Walking, pointing, waving, holding are done by the director — you do NOT animate people.
 - Extras (hats, helmets, tools, uniforms) = paper pieces added to rig parts: rig.head, rig.torso, rig.body, rig.handR. Then set rig.kind = 'character', add the extras as named fields, return rig.
 - A one-video person must look clearly different from both mascots (different build, colours, hair).
+- REAL PEOPLE (true stories): match how the person really looks so viewers recognise them — correct skin tone from the K.PAL.skin list, hair colour and style, facial hair, glasses, typical clothes or uniform, and age (grey/white hair, slower build). Keep it respectful: exaggerate ONE harmless feature (nose, hat, build), never their ethnicity.
 
 ### World helpers (sets only)
 K.ground(p,{radius,color}), K.ridges(p,{z,colors,height}), K.paperTree(p,x,z,{scale,flip,leaves,puffs,trunk}), K.cloudSwirl(p,x,y,z,scale,colour), K.tuft(p,x,z,scale,colour), K.rock(p,x,z,scale), K.moon(p,x,y,z,radius)
@@ -191,7 +194,7 @@ SHOT('M07', {                          // example story: a mosquito finds a slee
     { word: 'scratches', who: 'sleeper', do: 'reach', to: 'mosquito', for: 1.2 }
   ],
   sfx:  [ { word: 'lands', sound: 'tick' } ],
-  text: [ { sec: 0.2, say: '3:12 AM', for: 2 } ]   // optional paper title card
+  transition: 'flow'   // 'flow' (default in the same place: the camera glides on and people keep their positions) or 'cut'
 });
 \`\`\`
 (This is only an example of the FORMAT. Your shots use YOUR video's assets, spots and words.)
@@ -202,15 +205,22 @@ SHOT('M07', {                          // example story: a mosquito finds a slee
 - for: how many seconds the move lasts.
 Sync the important actions to the words that describe them. That is what makes the video feel alive.
 
+### transition — continuous scenes
+- flow (default when the set is the same as the shot before): the camera glides from the last shot's view, characters carry on from where they ended. Use it inside a scene so it feels like one continuous take.
+- cut: a clean cut. Use it when the place or time changes, or for a sudden shock.
+- No title cards, newspaper headlines or text screens — tell everything with pictures and the narration.
+
 ### cast — key = asset name (or any name with asset: 'real-name' to use a second copy)
 - at: a spot name of the set (listed in ASSETS), another cast member's name, or [x, y, z]
 - turn: degrees (0 = facing the front) or 'left' | 'right' | 'back' | 'camera' | a cast name (face toward it)
 - face: emotion (neutral, happy, surprised, scared, annoyed, sleepy, sneaky, determined)
 - look: 'camera' or a cast name (the eyes follow it)
-- size: scale multiplier (e.g. 1.5) · y: lift above the ground · hidden: true
+- size: scale multiplier (e.g. 1.5) · y: lift above the ground · tilt: degrees (lay a thing on its side) · hidden: true
+- reset: true — in a flow shot, ignore where the character was and start them at 'at'
 
 ### camera — pick words from these lists only
 - framing: extreme (eyes/detail), close (head+shoulders), medium (waist up), full (whole body), wide (the place)
+- Balance: use mostly medium, full and wide; close only for big emotions; extreme rarely. Characters should not fill the whole frame.
 - on: the cast name (or a list ['a', 'b'] for a two-shot). Leave out for the set.
 - side (which side of the subject the camera stands): front, front-left, front-right, left, right, back-left, back-right, back
 - angle: eye, low (looks up = powerful/scary), high (looks down = small/weak), top (bird's eye), dutch (tilted = unease)
@@ -253,6 +263,8 @@ extra: function (t, A, K) { /* t = seconds into the shot; A.name = the cast obje
 - Fill the frame with intention: one subject, placed on a third (compose: auto does it). A face looking left sits on the right third.
 - Depth = foreground + subject + background. The director adds a blurred dark foreground shape; keep the subject sharp with focus.
 - Blur only to guide the eye: focus on what the narration names; pull focus when it changes. Never blur the thing being talked about.
+- Long shots (full, wide) keep everyone sharp automatically. Only blur when something nearer or farther is NOT the point.
+- Captions move away from faces by themselves; still leave the lower part of vertical frames calm.
 - Silhouettes are for mood moments (mystery, danger, awe, death, flashbacks) — 1 or 2 per minute, not every shot.
 - Keep sizes true: never use size: to make a person bigger than the plan says, unless the story needs it (a giant).
 - Change only one or two things per shot (camera move OR light change OR focus pull), so it stays easy to watch.
@@ -386,7 +398,7 @@ ${TP.STYLE}
    - name: lower-case-with-dashes. kind: character | creature | prop | set | fx.
    - difficulty: 1 = simple (a rock, a cup, a sign), 2 = medium (a set, a vehicle, a prop with moving parts, a simple person), 3 = hard (a creature, a detailed person or costume).
    - size: height in kit units (see SCALE). For sets, the width.
-   - look: 1–2 sentences: shape, colours from the palette, the ONE exaggeration.
+   - look: 1–2 sentences: shape, colours from the palette, the ONE exaggeration. For REAL people say their real skin tone, hair, facial hair, glasses, clothes/uniform and age so they are recognisable.
    - parts: named pieces shots will need (e.g. "lid", "door", "wheel"). For sets put spot names in "spots" instead.
    - moves: ONLY custom animations that the built-in moves cannot do (e.g. "flap", "open-lid", "bite", "crawl"). Built-in moves already exist for everything: walk, run, move, turn, look, point, wave, reach, nod, shake-head, talk, react, appear, vanish, float, spin, shake, jump, fall, grow, hold, drop.
    - holdable: true if a hand holds it (it then needs a grip point).
@@ -399,6 +411,8 @@ ${TP.STYLE}
    - camera: a short idea (e.g. "close, low angle, push-in"). mood: normal | warm | cold | dark | danger | silhouette | hope | flash | flashback.
    - Pace the look: mostly normal/warm/cold/dark; save silhouette, danger, flash for key moments; flashback for scenes in the past.
    - difficulty: 1 = still/simple, 2 = a few moves, 3 = complex action.
+   - transition: "flow" (same place, continuous take) or "cut" (new place/time or a shock). Group shots into scenes that flow.
+   - No title cards or newspaper/headline shots: every shot shows the story with characters, places and objects.
    - Make it cinematic: vary shot sizes, wide to set the place, close for emotion, the mascot can appear as a host reacting or explaining.
 
 ## NARRATION
@@ -414,7 +428,7 @@ ${cutText}
     { "name": "torch", "kind": "prop", "difficulty": 1, "size": 0.5, "look": "...", "parts": [], "moves": [], "holdable": true }
   ],
   "cuts": {
-${cuts.map(function (c) { return '    "' + c.id + '": [ { "id": "' + c.prefix + '01", "lines": [0, 1], "set": "tug-cabin", "cast": ["diver"], "show": "...", "camera": "...", "mood": "cold", "difficulty": 2 } ]' }).join(',\n')}
+${cuts.map(function (c) { return '    "' + c.id + '": [ { "id": "' + c.prefix + '01", "lines": [0, 1], "set": "tug-cabin", "cast": ["diver"], "show": "...", "camera": "...", "mood": "cold", "difficulty": 2, "transition": "cut" } ]' }).join(',\n')}
   }
 }
 "sky" is "night" (cool, default) or "warm" (sunset). "lines" is [first line, last line] (inclusive).`;
@@ -509,7 +523,7 @@ narration: "${ls.map(function (l) { return l.text }).join(' ')}"
 words with time from shot start: ${shotWords(cut, s, idx[id] === 0 ? 0 : t0, t1)}
 set: ${s.set} · cast: ${(s.cast || []).join(', ') || '(none)'}
 what we see: ${s.show}
-camera idea: ${s.camera || '-'} · mood: ${s.mood || 'normal'}
+camera idea: ${s.camera || '-'} · mood: ${s.mood || 'normal'} · transition: ${s.transition || (prev && prev.set === s.set ? 'flow' : 'cut')}
 before: ${prev ? prev.id + ' — ' + prev.show : '(start of video)'}${prev && ticket.ids.indexOf(prev.id) < 0 && p.shots && p.shots[cut.id] && p.shots[cut.id][prev.id] && p.shots[cut.id][prev.id].code ? '\n(the shot before is already made — keep continuity: same places and positions where it makes sense)\n' + p.shots[cut.id][prev.id].code.slice(0, 1500) : ''}
 after: ${next ? next.id + ' — ' + next.show : '(end of video)'}`;
     }).join('\n\n');

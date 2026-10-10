@@ -37,8 +37,8 @@
     flashback: { key: .62, amb: .32, back: .5, glow: .55, fg: .6, sub: .2, fog: .016, warm: .25, sat: .35, sepia: .6 }
   };
   var FRAMES = { // h = frame height as part of subject height, cy = look height as part of subject height, ap = blur strength
-    extreme: { h: .2, cy: .86, ap: .034 }, close: { h: .5, cy: .78, ap: .026 }, medium: { h: .85, cy: .62, ap: .018 },
-    full: { h: 1.3, cy: .5, ap: .011 }, wide: { h: 2.4, cy: .45, ap: .006 }
+    extreme: { h: .3, cy: .86, ap: .026 }, close: { h: .62, cy: .78, ap: .02 }, medium: { h: 1.05, cy: .62, ap: .014 },
+    full: { h: 1.6, cy: .5, ap: .007 }, wide: { h: 2.9, cy: .45, ap: .0035 }
   };
   var SIDES = { front: 0, 'front-left': 35, 'front-right': -35, left: 90, right: -90, 'back-left': 145, 'back-right': -145, back: 180 };
   var ANGLES = { eye: 4, low: -14, high: 28, top: 72, dutch: 4 };
@@ -78,7 +78,7 @@
     var p = POOL[name] || (POOL[name] = []);
     while (p.length <= n) {
       var a = K.make(name, {}); a.root.updateMatrixWorld(true);
-      var inst = { name: name, a: a, kind: a.kind || (isHuman(a) ? 'character' : 'prop'), snap: snapshot(a.root) };
+      var inst = { name: name, uid: name + '#' + p.length, a: a, kind: a.kind || (isHuman(a) ? 'character' : 'prop'), snap: snapshot(a.root) };
       var bx = new T.Box3().setFromObject(a.root); inst.size = bx.getSize(new T.Vector3()); inst.boxMin = bx.min.clone(); inst.boxMax = bx.max.clone();
       if (isHuman(a)) inst.height = a.height || inst.size.y; else inst.height = inst.size.y;
       var plan = SIZES[name], kind0 = inst.kind;
@@ -126,16 +126,26 @@
       return { id: p.id, idx: i, plan: p, from: from, spec: defs[p.id] || placeholder(p), made: !!defs[p.id] };
     });
     RUN.forEach(function (r, i) { r.to = i + 1 < RUN.length ? RUN[i + 1].from : dur; if (r.to <= r.from) { r.to = r.from + .5; warn(r.id, 'This shot has no time (its lines overlap the next shot).') } });
+    // continuous shots: same place as the shot before -> the camera glides and people carry on from where they were
+    RUN.forEach(function (r, i) { var pv = RUN[i - 1], tr = r.spec.transition; r.flow = !!pv && r.made && pv.made && tr !== 'cut' && (tr === 'flow' || (r.spec.set || 'void') === (pv.spec.set || 'void')) });
     var shots = [], lens = [], light = [], cues = [];
     RUN.forEach(function (r) {
       try { prepare(r) } catch (e) { ERRORS[r.id] = String(e && e.message || e); r.spec = placeholder(r); r.spec.text[0].say = 'SHOT ' + r.id + ' ERROR'; prepare(r) }
       var c = r.cam;
-      r.shotObj = { from: r.from, to: r.to, pos: [function () { return c.pos }], look: [function () { return c.look }], fov: c.fov, hand: c.hand, roll: c.roll, shake: c.shake, ease: 'linear' };
+      r.shotObj = { from: r.from, to: r.to, flow: r.flow, pos: [function () { return c.pos }], look: [function () { return c.look }], fov: c.fov, hand: c.hand, roll: c.roll, shake: c.shake, ease: 'linear' };
       shots.push(r.shotObj);
       r.lens.forEach(function (l) { lens.push(l) }); r.light.forEach(function (l) { light.push(l) }); r.cues.forEach(function (q) { cues.push(q) });
     });
     lens.sort(function (a, b) { return a.at - b.at }); light.sort(function (a, b) { return a.at - b.at }); cues.sort(function (a, b) { return a[0] - b[0] });
     K.shots(shots).lens(lens).light(light).cues(cues);
+    RUN.forEach(function (r, i) { // walk the video once to learn where everything ends, so the next continuous shot starts there
+      var pv = RUN[i - 1]; if (r.flow && pv) { r.startFrom = pv.endState; r.prevCam = pv.endCam }
+      var tEnd = Math.max(r.from, r.to - .02);
+      try { show(i); pose(r, tEnd, tEnd - r.from); camera(r, tEnd) } catch (e) { }
+      r.endState = {}; Object.keys(r.cast).forEach(function (k) { var a = r.cast[k].a; r.endState[r.cast[k].uid] = { pos: a.root.position.clone(), yaw: a.root.rotation.y } });
+      r.endCam = { pos: r.cam.pos.slice(), look: r.cam.look.slice(), fov: r.shotObj.fov };
+    });
+    CUR = -1;
     K.ambience({ room: .03, pad: o.sky === 'warm' ? [196, 246.9, 293.7] : [174.6, 207.7, 261.6], padVol: .012 });
     K.update(update);
     return { warnings: WARN, errors: ERRORS, shots: RUN.map(function (r) { return { id: r.id, from: r.from, to: r.to, made: r.made } }) };
@@ -170,12 +180,14 @@
     r.cam = { pos: [0, 2, 8], look: [0, 1, 0], fov: fov, hand: cm.move === 'handheld' ? .02 : 0, roll: cm.angle === 'dutch' ? .12 : 0, shake: (cm.shake ? [].concat(cm.shake) : []).map(function (e) { return [timeOf(e, r, 'camera shake'), e.amount || .06] }) };
     // focus
     var fr = FRAMES[cm.framing || 'medium'] || FRAMES.medium, onNames = [].concat(cm.on || (cm.framing === 'wide' ? [] : Object.keys(r.cast)[0]) || []);
-    var focus = s.focus && s.focus.length ? s.focus : [{ on: onNames.length ? onNames : Object.keys(r.cast)[0] }];
-    focus.forEach(function (f) { [].concat(f.on || []).forEach(function (n) { if (n && r.cast[n] && onNames.indexOf(n) < 0 && cm.framing !== 'wide') warn(id, 'focus on "' + n + '" but the camera only frames ' + (onNames.join(', ') || 'the set') + ' — add it to camera.on or it may be off screen.') }) });
+    var longShot = cm.framing === 'wide' || cm.framing === 'full';
+    // long shots keep every character sharp (deep focus); closer shots focus on the subject
+    var focus = s.focus && s.focus.length ? s.focus : [{ on: longShot && Object.keys(r.cast).length ? Object.keys(r.cast) : (onNames.length ? onNames : Object.keys(r.cast)[0]) }];
+    (s.focus || []).forEach(function (f) { [].concat(f.on || []).forEach(function (n) { if (n && r.cast[n] && onNames.indexOf(n) < 0 && cm.framing !== 'wide') warn(id, 'focus on "' + n + '" but the camera only frames ' + (onNames.join(', ') || 'the set') + ' — add it to camera.on or it may be off screen.') }) });
     r.lens = focus.map(function (f, i) {
       var objs = [].concat(f.on || []).map(function (n) { var ii = r.cast[n]; if (!ii) { if (n) warn(id, 'focus: "' + n + '" is not in the cast.'); return null } return ii.a.root }).filter(Boolean);
       if (!objs.length) objs = [r.set.a.root];
-      return { at: i === 0 ? r.from : timeOf(f, r, 'focus ' + (i + 1)), on: objs, pull: i === 0 ? 0 : (f.pull === undefined ? .4 : f.pull), ap: f.blur ? clamp(fr.ap * f.blur, .003, .06) : fr.ap, pad: (cm.framing === 'wide' ? .4 : .08) };
+      return { at: i === 0 ? r.from : timeOf(f, r, 'focus ' + (i + 1)), on: objs, pull: i === 0 ? (r.flow ? .6 : 0) : (f.pull === undefined ? .4 : f.pull), ap: f.blur ? clamp(fr.ap * f.blur, .002, .05) : fr.ap, pad: longShot ? .9 : .12 };
     });
     // light
     var ls = s.light ? [].concat(s.light) : [{ mood: 'normal' }];
@@ -183,7 +195,7 @@
     r.light = ls.map(function (l, i) {
       if (typeof l === 'string') l = { mood: l };
       var M = D.MOODS[l.mood] || (warn(id, 'light: unknown mood "' + l.mood + '"'), D.MOODS.normal);
-      return Object.assign({ at: i === 0 ? r.from : timeOf(l, r, 'light ' + (i + 1)), ease: i === 0 ? 0 : (l.ease === undefined ? .3 : l.ease) }, M);
+      return Object.assign({ at: i === 0 ? r.from : timeOf(l, r, 'light ' + (i + 1)), ease: i === 0 ? (r.flow ? 1 : 0) : (l.ease === undefined ? .3 : l.ease) }, M);
     });
     // sound
     r.cues = (s.sfx || []).map(function (q, i) {
@@ -233,7 +245,7 @@
     var L = t - r.from;
     try { pose(r, t, L) } catch (e) { var msg = String(e && e.message || e); if (ERRORS[r.id] !== msg) { ERRORS[r.id] = msg; if (D.onError) D.onError(r.id, msg) } }
     camera(r, t);
-    D.overlayText = r.text.filter(function (x) { return t >= x.t0 && t < x.t0 + x.dur });
+    D.overlayText = (D.LOOK.cards || r.spec._placeholder) ? r.text.filter(function (x) { return t >= x.t0 && t < x.t0 + x.dur }) : [];
   }
 
   function pose(r, t, L) {
@@ -241,8 +253,10 @@
     keys.forEach(function (k) {
       var inst = r.cast[k], a = inst.a, c = r.castSpec[k] || {};
       restore(inst);
-      a.root.position.copy(resolvePos(r, c.at)); if (c.y) a.root.position.y += c.y;
-      a.root.rotation.y = 0; a.root.rotation.y = resolveYaw(r, inst, c.turn);
+      var sf = r.startFrom && r.startFrom[inst.uid];
+      if (sf && !c.reset) { a.root.position.copy(sf.pos); a.root.rotation.y = sf.yaw }
+      else { a.root.position.copy(resolvePos(r, c.at)); if (c.y) a.root.position.y += c.y; a.root.rotation.y = 0; a.root.rotation.y = resolveYaw(r, inst, c.turn) }
+      if (c.tilt) a.root.rotation.z = c.tilt * DEG;
       if (c.size) a.root.scale.multiplyScalar(c.size);
       if (a.face) { a.face.show(c.face || 'neutral'); if (c.look) a.face.look(lookTarget(r, c.look)) }
       if (isHuman(a)) a.body.position.y += Math.sin(t * 2.1 + k.length) * .012; // breathing
@@ -354,6 +368,7 @@
     } else { center = new T.Vector3(0, 0, 0); H = 3; W = 4; yaw = 0 }
     if (cm.framing === 'wide' && !subj.length) H = 4;
     var frameH = Math.max(.25, H * fr.h), fovR = (r.cam.fov) * DEG, asp = K.camera.aspect || 9 / 16;
+    if (subj.length && !subj.some(function (s) { return isHuman(s.a) })) frameH = Math.max(frameH, (cm.framing === 'extreme' ? .45 : cm.framing === 'close' ? .8 : 1.25)); // small things never fill the whole screen
     var dist = frameH / (2 * Math.tan(fovR / 2)), hf = 2 * Math.atan(Math.tan(fovR / 2) * asp);
     if (subj.length > 1 || cm.framing === 'full' || cm.framing === 'wide') dist = Math.max(dist, (W * 1.15) / (2 * Math.tan(hf / 2)));
     var az = (SIDES[cm.side || 'front'] || 0) * DEG, el = (ANGLES[cm.angle || 'eye'] || 4) * DEG, lat = 0;
@@ -382,6 +397,7 @@
     if (comp === 'left') lat += third; else if (comp === 'right') lat -= third;
     else if (comp === 'auto' && subj.length === 1 && Math.abs(Math.sin(az)) > .3 && cm.framing !== 'wide') lat += -Math.sign(Math.sin(az)) * third;
     if (asp < 1 && !(one && isHuman(one)) && /extreme|close|medium/.test(fname)) look.y -= frameH * .06;
+    if (asp < 1 && /full|wide/.test(fname)) look.y -= frameH * .1; // keep the lower part of a vertical frame free for captions
     pos.addScaledVector(side, lat); look.addScaledVector(side, lat);
     if (pos.y < .12) pos.y = .12;
     var fovNow = r.cam.fov;
@@ -394,15 +410,21 @@
       if (tm < 1) { pos = look.clone().addScaledVector(d, tm); fovNow = Math.min(78, 2 * Math.atan(Math.tan(r.cam.fov * DEG / 2) / tm) / DEG) }
       pos.x = clamp(pos.x, lo.x + m, hi.x - m); pos.z = clamp(pos.z, lo.z + m, hi.z - m); pos.y = clamp(pos.y, .12, Math.max(.2, hi.y - .25));
     }
-    if (r.shotObj) r.shotObj.fov = fovNow;
     if (cm.pos) pos = v3(cm.pos); if (cm.look) look = v3(cm.look);
+    if (r.flow && r.prevCam) { // continuous shot: glide from where the last camera was
+      var fd = Math.min(1.3, (r.to - r.from) * .45), b = K.ease((t - r.from) / Math.max(.1, fd));
+      if (b < 1) { pos = v3(r.prevCam.pos).lerp(pos, b); look = v3(r.prevCam.look).lerp(look, b); fovNow = K.mix(r.prevCam.fov || fovNow, fovNow, b) }
+    }
+    if (r.shotObj) r.shotObj.fov = fovNow;
+    K.film.fog = D.LOOK.atmos * clamp(9 / Math.max(1, pos.distanceTo(look)), .25, 1); // far shots get less haze so the subject stays clear
+    safePoints(r, pos, look, fovNow, asp);
     r.cam.pos = [pos.x, pos.y, pos.z]; r.cam.look = [look.x, look.y, look.z];
     placeFG(r, pos, look, fovR, asp, frameH, lat, subj.length); placeAir(r, t, pos, look, frameH); placeShafts(r, t, pos, look, frameH);
   }
 
 
   /* ---------- LOOK: composition helpers, foreground silhouettes, air, light shafts ---------- */
-  D.LOOK = { film: .8, atmos: .8, fg: true };
+  D.LOOK = { film: .8, atmos: .8, fg: true, cards: false };
   var FG = [], AIR = null, SHAFTS = null, UP = new T.Vector3(0, 1, 0);
   function fgShapes() {
     if (FG.length) return FG;
@@ -414,6 +436,20 @@
     ];
     shapes.forEach(function (fn) { var g = new T.Group(); fn(g); g.visible = false; K.scene.add(g); FG.push(g) });
     return FG;
+  }
+  /* screen points that captions must never cover: faces and the things being shown */
+  var SCAM = new T.PerspectiveCamera(32, 1, .01, 200), SP = new T.Vector3();
+  D.important = [];
+  function safePoints(r, pos, look, fov, asp) {
+    SCAM.fov = fov; SCAM.aspect = asp; SCAM.position.copy(pos); SCAM.lookAt(look); SCAM.updateProjectionMatrix(); SCAM.updateMatrixWorld(true);
+    var pts = [];
+    Object.keys(r.cast).forEach(function (k) {
+      var inst = r.cast[k], a = inst.a; if (!a.root.visible) return;
+      a.root.updateMatrixWorld(true);
+      var list = isHuman(a) ? [a.head.getWorldPosition(new T.Vector3()), a.headTop.getWorldPosition(new T.Vector3())] : [a.root.position.clone().add(new T.Vector3(0, inst.height * a.root.scale.y * .5, 0)), a.root.position.clone().add(new T.Vector3(0, inst.height * a.root.scale.y, 0))];
+      list.forEach(function (w) { SP.copy(w).project(SCAM); if (SP.z < 1 && Math.abs(SP.x) < 1.1) pts.push((1 - SP.y) / 2) });
+    });
+    D.important = pts;
   }
   function placeFG(r, pos, look, fovR, asp, frameH, lat, nSubj) {
     // a small dark blurred shape in a bottom corner, on the side AWAY from the subject, so it frames and never covers
@@ -434,6 +470,7 @@
   }
   var AIRS = { dust: { c: 0xffd9a0, o: .32, s: .012, vy: .04 }, bubbles: { c: 0xa9dcea, o: .5, s: .02, vy: .35 }, snow: { c: 0xeef0ff, o: .55, s: .016, vy: -.18 }, embers: { c: 0xffa050, o: .75, s: .011, vy: .22 }, rain: { c: 0xb8c8e0, o: .35, s: .009, vy: -1.6 } };
   D.ENUM.air = ['dust', 'bubbles', 'snow', 'embers', 'rain', 'none'];
+  D.ENUM.transition = ['flow', 'cut'];
   function placeAir(r, t, pos, look, frameH) {
     var A = airInit(), type = r.spec.air || 'dust', P = AIRS[type];
     if (!P || D.LOOK.atmos <= 0 || r.spec._placeholder) { A.visible = false; return }
@@ -500,14 +537,20 @@
     if (!GROUPS) { GROUPS = D.captionGroups(); GROUPS._size = D.groupSize || 3 }
     var gi = -1; for (var i = 0; i < GROUPS.length; i++) { var g = GROUPS[i], s = WORDS[g[0]].s, e = WORDS[g[g.length - 1]].e + .25; if (t >= s && t < e) { gi = i; break } }
     if (gi < 0) return;
-    var cs = (opts && opts.style) || {}, land = w > h, grp = GROUPS[gi], fs = Math.round(Math.min(w, h) * (land ? .066 : .074) * (cs.size || 1)), active = grp[0];
+    var cs = (opts && opts.style) || {}, land = w > h, grp = GROUPS[gi], fs = Math.round(Math.min(w, h) * (land ? .058 : .066) * (cs.size || 1)), active = grp[0];
     grp.forEach(function (wi) { if (WORDS[wi].s <= t) active = wi });
     ctx.font = '900 ' + fs + 'px "Arial Black", "Trebuchet MS", Arial, sans-serif'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
     var parts = grp.map(function (wi) { return { i: wi, txt: WORDS[wi].w.toUpperCase().replace(/[,;:]$/, '') } });
     var space = fs * .28, widths = parts.map(function (p) { return ctx.measureText(p.txt).width });
     var lines = [[]], lw = [0], maxW = w * (land ? .7 : .86);
     parts.forEach(function (p, j) { var L = lines.length - 1; if (lw[L] + widths[j] > maxW && lines[L].length) { lines.push([]); lw.push(0); L++ } lines[L].push(j); lw[L] += widths[j] + space });
-    var y0 = h * (cs.pos || (land ? .84 : .7)) - (lines.length - 1) * fs * .6;
+    var bands = land ? [.86, .13] : [.78, .17], half = (lines.length * fs * 1.15) / h / 2 + .04;
+    if (!GROUPS._band) GROUPS._band = {};
+    if (GROUPS._band[gi] === undefined) {
+      var pick = bands.map(function (b) { return (D.important || []).filter(function (y) { return Math.abs(y - b) < half + .03 }).length });
+      GROUPS._band[gi] = pick[0] === 0 || pick[0] <= pick[1] ? bands[0] : bands[1];
+    }
+    var y0 = h * (cs.pos || GROUPS._band[gi]) - (lines.length - 1) * fs * .575;
     lines.forEach(function (ln, li) {
       var x = (w - (lw[li] - space)) / 2, y = y0 + li * fs * 1.15;
       ln.forEach(function (j) {
