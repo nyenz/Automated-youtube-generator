@@ -326,6 +326,23 @@
         s += fill(str(tf(R.capBand, H)), P.ink) + fill(str(tf(R.brim, H)), cap[1]) + fill(str(tf(R.brimTop, H)), lighten(cap[0]));
         s += '<g fill="none" stroke="' + darken(cap[1]) + '" stroke-width="1.8" stroke-linecap="round">' + ['M545,142 C552,160 552,178 548,190', 'M575,150 C582,175 582,205 578,228', 'M500,178 L502,196'].map(function (d) { return '<path d="' + str(tf(parse(d), H)) + '"/>' }).join('') + '</g>';
       }
+      // 1940s hats: fedora, fire helmet, nurse cap, operator cap
+      var hc = o.hatColor ? F.PAL[o.hatColor] : [P.charcoal[0], P.ink];
+      if (o.hat === 'fedora') {
+        s += cel(str(tf(parse('M408,186 C404,128 440,104 500,104 C566,104 604,130 600,190 C560,176 450,174 408,186Z'), H)), hc[0], hc[1], { lx: -14, ly: -4 });
+        s += fill(str(tf(parse('M452,112 C480,126 520,126 548,112 L540,124 C516,134 484,134 460,124Z'), H)), hc[1]);
+        s += fill(str(tf(parse('M410,172 C470,162 560,162 600,176 L600,192 C560,180 470,178 410,188Z'), H)), '#6b1420');
+        s += cel(str(tf(parse('M330,196 C420,170 600,166 680,196 C640,212 440,214 330,196Z'), H)), hc[0], hc[1], { lx: -10, ly: -4, rim: P.rim, rw: 4 });
+      }
+      if (o.hat === 'helmet') {
+        s += cel(str(tf(parse('M396,190 C396,120 450,96 510,98 C580,100 624,140 622,200 Z'), H)), hc[0], hc[1], { lx: -16, ly: -6, rim: P.rim, rw: 5 });
+        s += fill(str(tf(parse('M600,186 C660,196 720,226 740,262 C700,250 650,226 600,214Z'), H)), hc[1]);
+        s += fill(str(tf(parse('M370,196 C420,186 520,184 620,196 L620,206 C520,196 420,198 372,206Z'), H)), hc[1]);
+        s += cel(str(tf(parse('M440,104 L486,104 L496,176 L430,176Z'), H)), '#c8a24a', '#9c7a2c', { lx: -6, ly: -4 });
+        s += '<path d="' + str(tf(parse('M510,100 C540,130 560,160 566,196'), H)) + '" stroke="' + hc[1] + '" stroke-width="5" fill="none"/>';
+      }
+      if (o.hat === 'nurse') s += cel(str(tf(parse('M430,170 L436,130 L560,124 L580,166 C530,156 480,158 430,170Z'), H)), '#f6f1ea', '#d9cfc2', { lx: -8, ly: -4 }) + fill(str(tf(parse('M490,138 L512,136 L514,158 L492,160Z'), H)), '#d0322b');
+      if (o.hat === 'operator') s += cel(str(tf(parse('M420,170 C420,140 450,130 510,130 C570,130 600,142 600,176 C540,166 470,164 420,170Z'), H)), hc[0], hc[1], { lx: -10, ly: -4 }) + fill(str(tf(parse('M380,176 C420,168 460,166 500,170 L498,184 C460,180 420,182 384,188Z'), H)), P.ink) + fill(str(tf(parse('M460,140 L480,140 L480,160 L460,160Z'), H)), '#e0a21a');
       return s;
     }
     var api = { svg: svg, opts: o }; return api;
