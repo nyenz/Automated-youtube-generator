@@ -483,6 +483,8 @@
      ================================================================= */
   var CURSHOT = null, PLAYING = false, CAPS = true, QUALITY = +(localStorage.getItem('quality') || 540), SHOTINFO = null;
   /* ---------------- sound & captions settings (shared by Project + Watch) ---------------- */
+  function lookOf() { return Object.assign({ film: .8, atmos: .8, fg: true }, P.look || {}) }
+  function planSizes() { var o = {}; ((P.plan && P.plan.assets) || []).forEach(function (a) { if (+a.size > 0 && a.kind !== 'set') o[a.name] = +a.size }); o.kato = 2.66; o.nia = 2.64; return o }
   function mixOf() { return Object.assign({ narr: 1, sfx: 1, music: .25, duck: true }, P.mix || {}) }
   function capOf() { return Object.assign({ size: 1, pos: 0, color: '#f2c14e', group: 3 }, P.capStyle || {}) }
   function media(cid) { return Promise.all([DB.getFile(P.id + ':' + cid), DB.getFile(P.id + ':music')]).then(function (r) { return { audio: r[0] || null, music: r[1] || null } }) }
@@ -495,7 +497,15 @@
     }
     function pct(v) { return Math.round(v * 100) + '%' }
     fileIn.onchange = function () { var f = fileIn.files[0]; if (!f) return; DB.putFile(P.id + ':music', f).then(function () { P.musicName = f.name; save(true); rerender(); toast('Music saved.'); if (onChange) onChange() }) };
-    return h('div', { className: 'card g2' },
+    var LK = lookOf();
+    function setL() { P.look = LK; save(); if (onChange) onChange(true) }
+    function lslider(label, key, hint) { var val = h('span', { className: 'muted small', style: 'width:44px;display:inline-block' }, pct(LK[key])); return h('div', { className: 'row', style: 'margin:4px 0' }, h('span', { style: 'width:150px', title: hint }, label), h('input', { type: 'range', min: 0, max: 1.5, step: .05, value: LK[key], style: 'width:180px', on: { input: function () { LK[key] = +this.value; val.textContent = pct(LK[key]) }, change: setL } }), val) }
+    return h('div', null, h('div', { className: 'card' }, h('h3', null, 'Look'),
+      h('p', { className: 'muted small', style: 'margin:0 0 6px' }, 'Keep these low for a clean, calm video. 80% is the tuned default.'),
+      lslider('Film look', 'film', 'grain, gentle frame wobble, warm glow around bright lights'),
+      lslider('Atmosphere', 'atmos', 'depth haze, floating dust/bubbles/snow, soft light beams'),
+      h('label', { style: 'display:flex;gap:6px;align-items:center;color:var(--ink)' }, h('input', { type: 'checkbox', checked: LK.fg, on: { change: function () { LK.fg = this.checked; setL() } } }), 'Blurred dark shapes in the foreground (adds depth to medium and full shots)')),
+    h('div', { className: 'card g2' },
       h('div', null, h('h3', null, 'Sound'),
         h('div', { className: 'row', style: 'margin-bottom:6px' }, P.musicName ? badge('music: ' + P.musicName, 'b-ok') : badge('no music', ''),
           h('button', { className: 'ghost small', on: { click: function () { fileIn.click() } } }, P.musicName ? 'Change music' : 'Add background music'), fileIn,
@@ -507,7 +517,7 @@
         slider('Size', C, 'size', .6, 1.6, .05, pct),
         slider('Height (0 = auto)', C, 'pos', 0, .92, .01, function (v) { return v ? Math.round(v * 100) + '%' : 'auto' }),
         slider('Words at a time', C, 'group', 1, 6, 1, function (v) { return v }),
-        h('div', { className: 'row' }, h('span', { style: 'width:150px' }, 'Spoken word colour'), h('input', { type: 'color', value: C.color, on: { change: function () { C.color = this.value; set() } } }))));
+        h('div', { className: 'row' }, h('span', { style: 'width:150px' }, 'Spoken word colour'), h('input', { type: 'color', value: C.color, on: { change: function () { C.color = this.value; set() } } })))));
   }
   function planSig() { return P.cuts.map(function (c) { return c.id + ':' + (c.lines || []).map(function (l) { return l.text }).join('|') }).join('#') }
   function staleBanner() {
@@ -540,7 +550,7 @@
         P.cuts.map(function (c) { var L = P.plan.cuts[c.id] || [], ok = L.filter(function (s) { return ((P.shots[c.id] || {})[s.id] || {}).status === 'approved' }).length; return badge(c.label + ': shots ' + ok + '/' + L.length + (c.hasAudio ? ' · audio ✓' : ' · no audio') + (c.exported ? ' · exported ✓' : ''), ok === L.length && L.length ? 'b-ok' : 'b-blue') })));
   }
   function playerPayload(cid, res) {
-    return { mode: 'play', aspect: cutById(cid).aspect || '9:16', sky: sky(), name: (P.title || P.name) + ' - ' + cutById(cid).label, assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), captions: CAPS, res: res || QUALITY, mix: mixOf(), capStyle: capOf() };
+    return { mode: 'play', aspect: cutById(cid).aspect || '9:16', sky: sky(), name: (P.title || P.name) + ' - ' + cutById(cid).label, assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), captions: CAPS, res: res || QUALITY, mix: mixOf(), capStyle: capOf(), look: lookOf(), sizes: planSizes() };
   }
   function vWatch() {
     if (!P.plan) return h('div', null, h('h1', null, 'Watch & fix'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
@@ -612,7 +622,7 @@
             h('button', { className: 'ghost small', on: { click: load } }, 'Reload'))),
         list),
       h('p', { className: 'muted small' }, 'Keys: Space = play/pause · ← → = previous/next shot.'),
-      soundCard(function () { send({ type: 'style', capStyle: capOf(), mix: mixOf() }) }),
+      soundCard(function (lookChanged) { if (lookChanged) load(); else send({ type: 'style', capStyle: capOf(), mix: mixOf() }) }),
       assetFix,
       nextBtn('export', 'Next: Export →'));
   }

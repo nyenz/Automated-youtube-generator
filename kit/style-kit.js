@@ -385,17 +385,18 @@ function buildPost(){var pr=R.getPixelRatio();
  RT=new T.WebGLRenderTarget(K.view()[0]*pr,K.view()[1]*pr,{type:T.HalfFloatType,minFilter:T.LinearFilter,magFilter:T.LinearFilter,depthTexture:new T.DepthTexture(K.view()[0]*pr,K.view()[1]*pr,T.UnsignedIntType)});
  QM=new T.ShaderMaterial({depthTest:false,depthWrite:false,uniforms:{t:{value:RT.texture},d:{value:RT.depthTexture},fn:{value:9},ff:{value:10},ap:{value:.01},mx:{value:.035},asp:{value:K.view()[0]/K.view()[1]},
   n:{value:.01},f:{value:120},bl:{value:.8},ex:{value:1.05},ip:{value:new T.Matrix4()},cw:{value:new T.Matrix4()},pvp:{value:new T.Matrix4()},shut:{value:.5},ana:{value:.78},
-  sfg:{value:0},ssub:{value:0},grade:{value:.34},vig:{value:.5},grain:{value:.035},fr:{value:0}},
- vertexShader:'varying vec2 u;void main(){u=uv;gl_Position=vec4(position.xy,0.,1.);}',
+  sfg:{value:0},ssub:{value:0},grade:{value:.34},vig:{value:.5},grain:{value:.035},fr:{value:0},
+  wm:{value:0},sat:{value:1},sep:{value:0},hal:{value:.35},wv:{value:new T.Vector2()}},
+ vertexShader:'varying vec2 vu;void main(){vu=uv;gl_Position=vec4(position.xy,0.,1.);}',
  fragmentShader:[
- 'uniform sampler2D t,d;uniform float fn,ff,ap,mx,asp,n,f,bl,ex,shut,ana,sfg,ssub,grade,vig,grain,fr;uniform mat4 ip,cw,pvp;varying vec2 u;',
+ 'uniform sampler2D t,d;uniform float fn,ff,ap,mx,asp,n,f,bl,ex,shut,ana,sfg,ssub,grade,vig,grain,fr,wm,sat,sep,hal;uniform vec2 wv;uniform mat4 ip,cw,pvp;varying vec2 vu;',
  'float lin(float dz){return 2.*n*f/(f+n-(dz*2.-1.)*(f-n));}',
  'float coc(float z){float o=max(max(fn-z,z-ff),0.);float r=ap*o/max(z,.02);if(z<fn)r*=1.4;return min(r,mx);}',
  'float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}',
  'vec3 aces(vec3 x){x*=ex;return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}',
  'float hexR(float a){float s=mod(a,1.0472)-.5236;return .866/cos(s);}',
  'vec3 soft(vec3 b,vec3 l){return mix(b-(1.-2.*l)*b*(1.-b),b+(2.*l-1.)*(sqrt(b)-b),step(.5,l));}',
- 'void main(){float dz=texture2D(d,u).x;float z=lin(dz);float r=coc(z);',
+ 'void main(){vec2 u=vu+wv;float dz=texture2D(d,u).x;float z=lin(dz);float r=coc(z);',
  ' vec4 vp=ip*vec4(u*2.-1.,dz*2.-1.,1.);vp/=vp.w;vec4 pc=pvp*(cw*vp);vec2 pu=pc.xy/pc.w*.5+.5;vec2 vel=(u-pu)*shut;float vl=length(vel);if(vl>.06)vel*=.06/vl;',
  ' vel*=smoothstep(.002,.012,r);',
  ' vec2 rd=u-.5;float edge=clamp(length(rd)*1.5,0.,1.);rd=normalize(rd+1e-5);',
@@ -410,7 +411,9 @@ function buildPost(){var pr=R.getPixelRatio();
  ' col=mix(col,ink+col*.08,sfg*smoothstep(.04,.3,(fn-z)/max(fn,.05)));',
  ' float insub=1.-smoothstep(0.,.25,max(max(fn-z,z-ff),0.)/max(fn,.05));col=mix(col,ink+col*.18,ssub*insub*(1.-smoothstep(.45,.9,lum)));',
  ' vec3 b=vec3(0.);for(int i=0;i<20;i++){float a=float(i)*2.39996;float rr=sqrt((float(i)+.5)/20.)*.03;b+=max(texture2D(t,u+vec2(cos(a)/asp,sin(a))*rr).rgb-.62,0.);}',
- ' col+=b/20.*bl;col=aces(col);',
+ ' col+=b/20.*bl+b/20.*vec3(1.,.38,.24)*hal;col=aces(col);',
+ ' float gl0=dot(col,vec3(.3,.59,.11));col=mix(vec3(gl0),col,sat);col*=vec3(1.+.07*wm,1.+.012*wm,1.-.1*wm);',
+ ' col=mix(col,vec3(gl0*1.02,gl0*.86,gl0*.66)*.94+.025,sep);',
  ' float gd=dot(u-.5,normalize(vec2(1.,-1.)));vec3 gcol=mix(vec3(1.,.59,.35),vec3(.27,.35,.9),smoothstep(-.5,.5,gd));col=mix(col,soft(col,gcol),grade);',
  ' col*=1.-vig*smoothstep(.45,1.,length((u-.5)*vec2(1.15,1.))*1.35);',
  ' col+=(h(u*vec2(913.,577.)+fr)-.5)*grain;gl_FragColor=vec4(clamp(col,0.,1.),1.);}'].join('\n')});
@@ -473,7 +476,9 @@ function lensAt(t){if(!LENS.length)return {near:4,far:6,ap:.008};var i=0;while(i
  var cut=SHOTS.length?SHOTS[shotIndex(t)].from:0,s=t-cut,hunt=1+.05*Math.exp(-s*14)*Math.cos(s*30);return {near:near*hunt,far:far*hunt,ap:ap}}
 
 /* ---------- light / silhouette ---------- */
-var LKEYS=['key','amb','back','glow','fg','sub'],LDEF={key:.95,amb:.34,back:.3,glow:.35,fg:.8,sub:0};
+var LKEYS=['key','amb','back','glow','fg','sub','fog','warm','sat','sepia'],LDEF={key:.95,amb:.34,back:.3,glow:.35,fg:.8,sub:0,fog:0,warm:0,sat:1,sepia:0};
+/* K.film = {grain, weave, halation, fog} multipliers 0..1.5 (the app's 'look strength') */
+K.film={grain:1,weave:1,halation:1,fog:1};
 function lightAt(t){if(!LIGHT.length)return LDEF;var i=0;while(i+1<LIGHT.length&&t>=LIGHT[i+1].at)i++;var A=LIGHT[Math.max(0,i-1)],B=LIGHT[i],k=B.ease>0?K.seg(t,B.at,B.at+B.ease):1,o={};
  LKEYS.forEach(function(n){var a=A[n]===undefined?LDEF[n]:A[n],b=B[n]===undefined?LDEF[n]:B[n];o[n]=K.mix(a,b,k)});return o}
 var VD=new T.Vector3();
@@ -482,7 +487,9 @@ function mood(t){var L=lightAt(t);KEY.intensity=L.key;AMB.intensity=L.amb;BACK.i
  BACK.target.position.copy(FC);BACK.position.copy(FC).addScaledVector(VD,5).setY(FC.y+2.2);
  haze.position.copy(FC).addScaledVector(VD,dist*.7+1);haze.scale.set(dist*1.3+1.5,dist*.9+1,1);haze.material.opacity=.55*L.glow;
  haze2.position.copy(FC).addScaledVector(VD,dist*1.2+3);haze2.scale.set(dist*2+3,dist*1.2+2,1);haze2.material.opacity=.35*L.glow;
- QM.uniforms.sfg.value=L.fg;QM.uniforms.ssub.value=L.sub}
+ QM.uniforms.sfg.value=L.fg;QM.uniforms.ssub.value=L.sub;
+ var F=K.film,U=QM.uniforms;U.wm.value=L.warm;U.sat.value=L.sat;U.sep.value=L.sepia;U.hal.value=.35*F.halation;U.grain.value=.035*F.grain;
+ if(L.fog>0&&F.fog>0){if(!S.fog)S.fog=new T.FogExp2(new T.Color(K.sky.haze2).multiplyScalar(.18).getHex(),0);S.fog.density=L.fog*F.fog}else if(S.fog)S.fog.density=0}
 
 /* =====================================================================
    SOUND ENGINE — everything synthesised, nothing loaded
@@ -587,7 +594,7 @@ function frame(t,now){
    D2.c[1]+(((s[i*4+1]+t*D2.rise)%1)-.5)*D2.sz[1],D2.c[2]+(s[i*4+2]-.5)*D2.sz[2])}a.needsUpdate=true});
   cam.updateMatrixWorld();cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
   var fp=lensAt(t),U=QM.uniforms;U.fn.value=fp.near;U.ff.value=fp.far;U.ap.value=fp.ap;mood(t);
-  if(t!==lastStep){prevVP.copy(curVP);curVP.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);if(curShot!==lastShotIdx||t<lastStep)prevVP.copy(curVP);lastShotIdx=curShot;lastStep=t;U.fr.value=(U.fr.value+1.37)%100}
+  if(t!==lastStep){prevVP.copy(curVP);curVP.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);if(curShot!==lastShotIdx||t<lastStep)prevVP.copy(curVP);lastShotIdx=curShot;lastStep=t;U.fr.value=(U.fr.value+1.37)%100;var wa=.0007*K.film.weave,ws=Math.floor(t*12);U.wv.value.set((Math.sin(ws*12.9898)*43758.5453%1)*wa,(Math.sin(ws*78.233)*12543.1234%1)*wa*.6)}
   U.ip.value.copy(cam.projectionMatrixInverse);U.cw.value.copy(cam.matrixWorld);U.pvp.value.copy(prevVP);
   audioTick(t);R.setRenderTarget(RT);R.render(S,cam);R.setRenderTarget(null);R.render(QS,QC)}
 K.frame=function(t,now){frame(t,now===undefined?(clk?clk.getElapsedTime():0):now)};

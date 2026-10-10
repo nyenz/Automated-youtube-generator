@@ -118,7 +118,9 @@
     var ae = loadAssets(p.assets), se = loadShots(p.shots);
     D.onError = function (id, msg) { post({ type: 'shot-error', id: id, msg: msg }) };
     K.sfxVol = MIX().sfx; D.groupSize = (p.capStyle && p.capStyle.group) || 3; SPEECH = speechRegions(p.cut.words);
-    built = D.build({ cut: p.cut, sky: p.sky });
+    var LK = Object.assign({ film: .8, atmos: .8, fg: true }, p.look || {});
+    K.film = { grain: LK.film, weave: LK.film, halation: LK.film, fog: LK.atmos };
+    built = D.build({ cut: p.cut, sky: p.sky, sizes: p.sizes, look: LK });
     Object.keys(se).forEach(function (k) { built.errors[k] = se[k] });
     built.assetErrors = ae;
     if (p.music) { music = new Audio(); music.src = URL.createObjectURL(p.music); music.loop = true; music.preload = 'auto' }

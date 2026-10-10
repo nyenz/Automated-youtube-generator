@@ -22,6 +22,7 @@
 - Typical things: door 3.4 · chair seat 0.75 · table 1.2 · cup 0.25 · phone 0.25 · car 2.3 tall / 6.5 long · tree 6–10 · house 7–10 · rat 0.35 · dog 1.0 · horse 2.6
 - Origin (0,0,0) = on the ground, under the middle of the thing. Up is +y. Living things FACE +z.
 - Sets are about 12–20 units wide. Characters stand on y = 0.
+- Keep proportions true: a cup is 1/10 of a person, a door is a bit taller than a person. If an asset is more than twice too big or small, the app rescales it to the plan's size.
 
 ## PALETTE (only these colours)
 K.PAL.skin[0..3], K.PAL.hair[0..2]
@@ -215,12 +216,14 @@ Sync the important actions to the words that describe them. That is what makes t
 - angle: eye, low (looks up = powerful/scary), high (looks down = small/weak), top (bird's eye), dutch (tilted = unease)
 - move: static, drift (slow, default), push-in (tension, realisation), pull-out (reveal, loneliness), orbit-left, orbit-right (wonder), crane-up (rise/hope), crane-down (descend/arrival), truck-left, truck-right, handheld (panic, chaos)
 - lens: wide, normal, tele · shake: [ { word: 'boom', amount: 0.06 } ] · distance: 1.2 (further) / 0.8 (closer)
+- compose: auto (default: rule of thirds, room in front of the face), center (symmetry, facing camera, power), left, right
+- fg: false turns off the blurred dark foreground shapes the director adds to medium/close/full shots (they give depth)
 
 ### focus (the blur follows the story)
 List of { on: name or [names], word/sec, pull: seconds to move focus, blur: 0.5–2 }. First item = the focus at the start. Move focus to whatever the narration is talking about. Anything you focus on must also be in camera.on, or it will be off screen.
 
-### light — moods
-normal, warm, cold, dark, danger, silhouette (dark shapes against a glow — use for mystery, death, flashbacks), hope, flash (a sudden bright flash).
+### light — moods (each mood also sets the colour grade and depth haze)
+normal, warm (golden), cold (blue, tense), dark (night, fear), danger (hot shadows), silhouette (dark shapes against a glow — mystery, death, awe), hope (warm, light beams), flash (a sudden bright flash), flashback (faded sepia, for the past).
 light: 'dark' or a list [ { mood }, { word, mood, ease: seconds } ].
 
 ### moves — { who, do, word/sec, for, ... }
@@ -236,11 +239,23 @@ Built-in for everyone:
 - A face change: { word, who, face: 'scared' } (no do needed).
 Gestures (point, wave, nod, talk, react, shake, jump) play for 'for' seconds then stop. Walk, move, turn, look, hold, appear, vanish, grow, fall keep their result.
 
+### atmosphere (optional)
+- air: 'dust' (default), 'bubbles' (underwater), 'snow', 'embers' (fire), 'rain', 'none' — tiny floating specks around the subject
+- shafts: true / false — soft light beams (automatic in hope, silhouette and flashback moods)
+
 ### sfx — { word/sec, sound }
 step, rustle, whoosh, swish, scrape, clink, tada, thud, pop, tick, snore, boom, sting, riser, heartbeat. Use 1–3 per shot. Never on every word.
 
 ### extra (optional, advanced) — only if the form truly cannot do it
 extra: function (t, A, K) { /* t = seconds into the shot; A.name = the cast objects; set things ABSOLUTELY */ }
+
+### COMPOSITION, BLUR AND SILHOUETTES (keep it calm — never overload a shot)
+- Fill the frame with intention: one subject, placed on a third (compose: auto does it). A face looking left sits on the right third.
+- Depth = foreground + subject + background. The director adds a blurred dark foreground shape; keep the subject sharp with focus.
+- Blur only to guide the eye: focus on what the narration names; pull focus when it changes. Never blur the thing being talked about.
+- Silhouettes are for mood moments (mystery, danger, awe, death, flashbacks) — 1 or 2 per minute, not every shot.
+- Keep sizes true: never use size: to make a person bigger than the plan says, unless the story needs it (a giant).
+- Change only one or two things per shot (camera move OR light change OR focus pull), so it stays easy to watch.
 
 ### GOOD DIRECTION (what makes it look professional)
 - One clear idea per shot. Show what the narration says, at the word it says it.
@@ -381,7 +396,8 @@ ${TP.STYLE}
    - id = the cut's prefix + 2 digits (e.g. ${cuts[0] ? cuts[0].prefix : 'M'}01, ${cuts[0] ? cuts[0].prefix : 'M'}02 ...).
    - set: one set name (or "void"). cast: names of the assets visible (not the set).
    - show: what the viewer SEES, 1–2 sentences, concrete (who does what, where, the key moment).
-   - camera: a short idea (e.g. "close, low angle, push-in"). mood: normal | warm | cold | dark | danger | silhouette | hope | flash.
+   - camera: a short idea (e.g. "close, low angle, push-in"). mood: normal | warm | cold | dark | danger | silhouette | hope | flash | flashback.
+   - Pace the look: mostly normal/warm/cold/dark; save silhouette, danger, flash for key moments; flashback for scenes in the past.
    - difficulty: 1 = still/simple, 2 = a few moves, 3 = complex action.
    - Make it cinematic: vary shot sizes, wide to set the place, close for emotion, the mascot can appear as a host reacting or explaining.
 

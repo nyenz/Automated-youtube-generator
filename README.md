@@ -47,6 +47,11 @@ Click **Load demo** to see a finished example right away.
 - **Approve all**: approves everything that passed its check.
 - **Warning** if you change the script or timing after making the plan.
 - **Keys** in Watch & fix: Space = play/pause, ← → = previous/next shot.
+- **Look** (Project page): *Film look* (grain, gentle frame wobble, glow around lights) and *Atmosphere* (depth haze, floating dust/bubbles/snow/embers, soft light beams), plus small blurred foreground shapes for depth. They're tuned to stay subtle.
+- **Mood grading**: every light mood also sets the colour (cold blue, warm gold, faded sepia `flashback` for the past).
+- **Composition**: subjects sit on a third with room in front of the face, eyes on the upper third in vertical shots. Inside rooms the camera slides closer with a wider lens instead of hitting the walls.
+- **Proportions**: if a chat builds something more than 2.5× too big or small, the app rescales it to the plan's size.
+- **Characters**: body language follows the emotion (scared hunches, determined stands tall), small weight shifts, and `talk` moves the mouth in time with the narration's syllables.
 
 Projects and audio are saved in your browser. Use **Export project** to back up or to move to another PC.
 

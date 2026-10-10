@@ -2,7 +2,7 @@
 (function () {
   var PL = {}; window.PLAN = PL;
   var KINDS = ['character', 'creature', 'prop', 'set', 'fx'], BUILTIN = ['kato', 'nia', 'void'];
-  var MOODS = ['normal', 'warm', 'cold', 'dark', 'danger', 'silhouette', 'hope', 'flash'];
+  var MOODS = ['normal', 'warm', 'cold', 'dark', 'danger', 'silhouette', 'hope', 'flash', 'flashback'];
 
   /* take code out of ```fences``` (all of them), or the whole text */
   PL.code = function (text) {
