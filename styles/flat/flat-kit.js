@@ -13,7 +13,7 @@
     rim: '#d7959a', rimSoft: '#cf9390', mouth: '#3a0810',
     teal: ['#01848c', '#0b6676'], orange: ['#f04318', '#c8340f'], denim: ['#45788b', '#324855'],
     mustard: ['#e0a21a', '#b37d0c'], plum: ['#6b2c4f', '#4a1c37'], olive: ['#6f7a35', '#525b24'], rust: ['#b4472a', '#86321c'],
-    white: ['#f6f1ea', '#d9cfc2'], charcoal: ['#2f2c33', '#1e1c22'], khaki: ['#b49563', '#8f7449'], red: ['#d0322b', '#9e2420']
+    white: ['#f6f1ea', '#d9cfc2'], navy: ['#2b4470', '#1c2e50'], maroon: ['#7a2234', '#561524'], grey: ['#8b8580', '#6b6560'], charcoal: ['#2f2c33', '#1e1c22'], khaki: ['#b49563', '#8f7449'], red: ['#d0322b', '#9e2420']
   };
   F.SKIN = { // base, shade, nose, nose-shade, inner ear
     deep: ['#802626', '#5e0f1f', '#721c24', '#58061d'],
@@ -163,6 +163,7 @@
       }
       var LN = legAngles(near), LF = legAngles(far == null ? null : far);
       if (!walking) { LN = { th: 6, kn: 4, ft: 0 }; LF = { th: -5, kn: 4, ft: 0 } }
+      if (pose.kneel) { LN = { th: 78, kn: 82, ft: 0 }; LF = { th: -6, kn: 92, ft: -62 } }
       var breathe = Math.sin(t * 2.2) * 3, lean = walking ? 5 : 1;
       var thigh = 128, shin = 132, hipY0 = 822;
       function legPts(hip, L) {
@@ -189,6 +190,10 @@
       var arN = armPts(shN, armA, 12 + Math.max(0, armA) * .9), arF = armPts(shF, armF, 12 + Math.max(0, armF) * .9);
       if (pose.arm === 'wave') arN = armPts(shN, 150 + 18 * Math.sin(t * 10), -40);
       if (pose.arm === 'point') arN = armPts(shN, 82, 6);
+      if (pose.arm === 'reach') arN = armPts(shN, 52, 30);
+      if (pose.arm === 'hug') arN = armPts(shN, 40, 70);
+      if (pose.arms === 'up') { arN = armPts(shN, 160 + 8 * Math.sin(t * 9), -12); arF = armPts(shF, 150 + 8 * Math.sin(t * 9 + 1), -12) }
+      if (pose.arms === 'help') { arN = armPts(shN, 28, 34); arF = armPts(shF, 34, 40) }
 
       // ---------- draw (back to front) ----------
       s += fill('M' + (root[0] - 330) + ',' + (GROUND + 2) + ' C' + (root[0] - 100) + ',' + (GROUND - 6) + ' ' + (root[0] + 160) + ',' + (GROUND - 4) + ' ' + (root[0] + 330) + ',' + (GROUND + 2) + ' C' + (root[0] + 170) + ',' + (GROUND + 10) + ' ' + (root[0] - 120) + ',' + (GROUND + 12) + ' ' + (root[0] - 330) + ',' + (GROUND + 2) + 'Z', P.ground);
@@ -204,6 +209,8 @@
       s += arm(arF, true);
       // far leg then near leg
       s += leg(lgF, true) + leg(lgN, false);
+      if (o.skirt) { var sc = F.PAL[o.skirt], kx0 = Math.min(lgN.knee[0], lgF.knee[0]) - 34, kx1 = Math.max(lgN.knee[0], lgF.knee[0]) + 34, ky = Math.max(lgN.knee[1], lgF.knee[1]) + 14, w0 = TOR([430, 770]), w1 = TOR([650, 770]);
+        s += cel('M' + w0[0] + ',' + w0[1] + ' L' + w1[0] + ',' + w1[1] + ' C' + (w1[0] + 6) + ',' + (ky - 110) + ' ' + kx1 + ',' + (ky - 40) + ' ' + kx1 + ',' + ky + ' L' + kx0 + ',' + ky + ' C' + kx0 + ',' + (ky - 50) + ' ' + (w0[0] - 8) + ',' + (ky - 120) + ' ' + w0[0] + ',' + w0[1] + 'Z', sc[0], sc[1], { lx: -20, ly: -6, rim: P.rimSoft, rw: 6 }) }
       // neck + torso
       s += fill(str(tf(R.neck, TOR)), sk[1]);
       s += fill(str(tf(R.collarBack, TOR)), P.cream) + fill(str(tf(R.collarRim, TOR)), P.rimSoft);
@@ -213,10 +220,13 @@
       s += fill(str(tf(R.vneck, TOR)), P.cream) + '<path d="' + str(tf(parse('M466,412 L497,458 L540,398'), TOR)) + '" fill="none" stroke="' + P.ink + '" stroke-width="4"/>' + fill(str(tf(R.vrim, TOR)), P.rimSoft);
       if (stripes) s += fill(str(tf(R.hem1, TOR)), P.ink) + fill(str(tf(R.hem2, TOR)), P.cream);
       if (num) { var digs = String(num).split(''), x0 = 388; s += '<g fill="none" stroke="' + (o.numberColor ? F.PAL[o.numberColor][0] : P.orange[0]) + '" stroke-width="30" stroke-linejoin="miter">'; digs.forEach(function (dg, i) { var base = TOR([x0 + i * 62, 540 - i * 16]); s += '<path transform="translate(' + base[0].toFixed(1) + ',' + base[1].toFixed(1) + ') rotate(' + (-lean) + ') skewX(-7) scale(' + (i ? .92 : .62) + ',' + (i ? .9 : .84) + ')" d="' + digitPath(dg) + '"/>' }); s += '</g>' }
+      if (o.buttons) [[430, 520], [418, 600], [408, 680]].forEach(function (b) { var q = TOR(b); s += '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="9" fill="#e0a21a"/>' });
+      if (o.soot || pose.soot) [[420, 560, 40, 22], [600, 700, 50, 26], [520, 470, 30, 16]].forEach(function (b) { var q = TOR(b); s += '<ellipse cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" rx="' + b[2] + '" ry="' + b[3] + '" fill="#2a2320" opacity=".45"/>' });
       s += '<path d="' + str(tf(parse('M590,470 C580,520 560,580 528,640'), TOR)) + '" fill="none" stroke="' + top[1] + '" stroke-width="3"/>';
       // near arm over the body
       s += arm(arN, false);
       // head
+      if (pose.brace) s += cel(str(tf(parse('M458,350 L560,334 L572,420 L462,436Z'), TOR)), '#efe9e0', '#c9c0b4', { lx: -10, ly: -4 });
       s += head(HEAD, pose, t);
       return s;
     }
@@ -228,6 +238,12 @@
 
     function leg(lg, isFar) {
       var c = isFar ? pants[1] : pants[0], sh = isFar ? '#24353f' : pants[1], s = '';
+      if (o.skirt) {
+        var fk = chain(M(0, 0, lg.ft), function (q) { return [q[0] * .72 + lg.ank[0], q[1] * .72 + lg.ank[1] + 8] });
+        s += fill(limb([lg.knee, lg.ank], [52, 42]), isFar ? sk[1] : sk[0]);
+        s += fill(str(tf(SH.shoeSole, fk)), P.ink) + fill(str(tf(SH.shoeUp, fk)), isFar ? '#2a2026' : '#3a2c34');
+        return s;
+      }
       // shoe
       var f = chain(M(0, 0, lg.ft), function (q) { return [q[0] + lg.ank[0], q[1] + lg.ank[1]] });
       var up = isFar ? P.rim : shoe[0], stripe = isFar ? '#b5767c' : P.rim;
@@ -280,6 +296,7 @@
       if (hair === 'bald') s += fill(str(tf(parse('M520,170 C560,175 590,200 600,240 C580,215 555,200 520,190Z'), H)), '#ffffff', ' opacity=".18"');
       if (fc.cheek) s += '<ellipse cx="' + H([450, 300])[0] + '" cy="' + H([450, 300])[1] + '" rx="34" ry="16" fill="' + sk[1] + '" opacity=".5"/>';
       s += '</g>';
+      if (o.soot || pose.soot) [[480, 330, 26, 12], [540, 230, 20, 10]].forEach(function (b) { var q = H(b); s += '<ellipse cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" rx="' + b[2] + '" ry="' + b[3] + '" fill="#2a2320" opacity=".4"/>' });
       s += fill(str(tf(R.ear, H)), sk[0]) + fill(str(tf(R.earIn, H)), sk[1]);
       if (o.earring !== false) { var er = H([548, 322]); s += '<rect x="' + er[0].toFixed(1) + '" y="' + er[1].toFixed(1) + '" width="9" height="21" rx="3.5" fill="#f0a014"/>' }
       // mouth

@@ -95,6 +95,11 @@
     boing: function (G, t, d) { var o = G.tone('sine', t, 220, 90, .5, d, .25, .004); var l = G.ctx.createOscillator(), lg = G.ctx.createGain(); l.frequency.value = 14; lg.gain.value = 30; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + .6) },
     drip: function (G, t, d) { G.tone('sine', t, 900, 1700, .05, d, .18, .001) },
     splash: function (G, t, d) { G.noise('white', t, .5, d, 'bandpass', 1400, 600, .8, .005, .3); FX.bubble(G, t + .05, d) },
+    engine: function (G, t, d, o) { var L = (o && o.length) || 3, ctx = G.ctx, f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700; f.connect(d);
+      [82, 83.3, 124].forEach(function (hz, i) { var os = ctx.createOscillator(), e = ctx.createGain(); os.type = 'sawtooth'; os.frequency.setValueAtTime(hz * .9, t); os.frequency.linearRampToValueAtTime(hz * 1.05, t + L); e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(.05 / (i + 1), t + L * .3); e.gain.setValueAtTime(.05 / (i + 1), t + L * .8); e.gain.linearRampToValueAtTime(0, t + L); os.connect(e); e.connect(f); os.start(t); os.stop(t + L + .05) });
+      G.noise('pink', t, L, d, 'bandpass', 500, 900, .8, L * .4, .12) },
+    crack: function (G, t, d) { G.noise('white', t, .08, d, 'highpass', 1800, 0, .7, .001, .5); G.noise('pink', t + .02, .5, d, 'bandpass', 900, 300, 1.2, .002, .3); G.tone('square', t, 300, 60, .25, d, .08, .002) },
+    torch: function (G, t, d, o) { var L = (o && o.length) || 2; G.noise('white', t, L, d, 'bandpass', 2600, 2200, .9, .1, .1); G.noise('pink', t, L, d, 'lowpass', 600, 0, .7, .1, .08) },
     bell: function (G, t, d) { [1, 2.76, 5.4].forEach(function (k, i) { G.tone('sine', t, 660 * k, 0, 2.2 - i * .5, d, .1 / (i + 1), .002) }) }
   };
   SND.FX = Object.keys(FX);

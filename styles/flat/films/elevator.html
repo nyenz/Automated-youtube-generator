@@ -1,0 +1,112 @@
+<title>The Longest Fall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Instrument+Sans:wght@400;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a 9:16 film in the middle of a quiet sand-dark frame, controls under it, the story facts after. */
+:root {
+  --bg: #e8ddcf; --panel: #f3ece2; --ink: #2a211c; --muted: #6d5f55; --line: #cdbfae; --accent: #e5461c;
+  --display: "Archivo Black", "Arial Black", Impact, sans-serif;
+  --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #171310; --panel: #221c18; --ink: #efe4d6; --muted: #b3a393; --line: #3d342d; --accent: #ff6a3d; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #171310; --panel: #221c18; --ink: #efe4d6; --muted: #b3a393; --line: #3d342d; --accent: #ff6a3d; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; padding: 24px 16px 56px; }
+.wrap { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 32px; align-items: start; }
+.film { display: grid; gap: 10px; }
+.screen { position: relative; aspect-ratio: 9 / 16; max-width: 100%; max-height: 82vh; background: #000; border-radius: 10px; overflow: hidden; }
+.screen svg { width: 100%; height: 100%; display: block; }
+.bigplay { position: absolute; inset: 0; display: grid; place-items: center; background: transparent; border: 0; cursor: pointer; color: #f6f1ea; }
+.bigplay span { font: 400 20px var(--display); background: rgba(28, 20, 16, .72); padding: 14px 26px; border-radius: 999px; }
+.bar { display: flex; gap: 10px; align-items: center; }
+button { font: 600 13px var(--body); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#seek { flex: 1; accent-color: var(--accent); min-width: 0; }
+.time { font: 500 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.opts { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.opts label { display: flex; gap: 6px; align-items: center; }
+.status { font: 500 12px var(--mono); color: var(--muted); min-height: 1.5em; }
+.side { display: grid; gap: 18px; min-width: 0; }
+.tag { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 400 clamp(30px, 4.6vw, 48px)/1 var(--display); margin: 4px 0 0; text-wrap: balance; }
+.side p { margin: 0; max-width: 60ch; }
+.script { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; max-height: 52vh; overflow-y: auto; border-top: 1px solid var(--line); padding-top: 10px; }
+.script li { display: grid; grid-template-columns: 48px 1fr; gap: 10px; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+.script li .ts { font: 500 12px var(--mono); color: var(--muted); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.script li.on { background: var(--panel); }
+.script li.on .ts { color: var(--accent); }
+.facts { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+.facts a { color: inherit; }
+@media (max-width: 760px) { .wrap { grid-template-columns: 1fr; } .screen { max-height: none; } .script { max-height: none; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto } }
+</style>
+
+<div class="wrap">
+  <div class="film">
+    <div class="screen">
+      <svg id="v" viewBox="0 0 1080 1920" role="img" aria-label="Animated film: The Longest Fall"></svg>
+      <button class="bigplay" id="big" type="button" aria-label="Play the film"><span>▶ Play · 2:00</span></button>
+    </div>
+    <div class="bar">
+      <button id="play" type="button">Play</button>
+      <input id="seek" type="range" min="0" max="120" step="0.05" value="0" aria-label="Position in the film">
+      <span class="time" id="time">0:00 / 2:00</span>
+    </div>
+    <div class="opts">
+      <label><input type="checkbox" id="cap" checked> Captions</label>
+      <label><input type="checkbox" id="voice"> Read aloud (browser voice)</label>
+    </div>
+    <div class="status" id="status">Building the soundtrack…</div>
+  </div>
+  <div class="side">
+    <div>
+      <div class="tag">Flat cartoon · style 02 · true story</div>
+      <h1>The Longest Fall</h1>
+    </div>
+    <p>How Betty Lou Oliver survived a 75-floor elevator fall in the Empire State Building in 1945. Captions follow a timed narration; the real voice would come from Google AI Studio in the app. Click any line to jump to it.</p>
+    <ol class="script" id="script"></ol>
+    <div class="facts">Facts: 28 July 1945, a B-25 bomber hit the 79th floor in fog; 14 people died. Betty, 20, fell about 75 floors and survived with a broken pelvis, back and neck, and went back to work five months later. Source: <a href="https://migflug.com/jetflights/b-25-empire-state-building-crash-1945-betty-lou-oliver/" target="_blank" rel="noopener">MigFlug, "The Bomber That Hit the Empire State"</a>. Piano: Salamander Grand Piano (CC-BY 3.0).</div>
+  </div>
+</div>
+
+<script id="film-src" src="film-bundle.js"></script>
+<script>
+(function () {
+  var FM = window.FILM, v = document.getElementById('v'), seek = document.getElementById('seek'), tm = document.getElementById('time'), st = document.getElementById('status');
+  var playBtn = document.getElementById('play'), big = document.getElementById('big'), capBox = document.getElementById('cap'), voiceBox = document.getElementById('voice');
+  var poster = true, T = 0, playing = false, last = null, shown = -1, ac = null, src = null, buf = null, lastLine = -1;
+  seek.max = FM.DUR;
+  function fmt(x) { x = Math.max(0, x); return Math.floor(x / 60) + ':' + String(Math.floor(x % 60)).padStart(2, '0') }
+  function draw() { if (poster) return; var f = Math.floor(T * 12); if (f === shown) return; shown = f; v.innerHTML = FM.frame(f / 12, { captions: capBox.checked }); seek.value = T; tm.textContent = fmt(T) + ' / ' + fmt(FM.DUR); mark() }
+  // script list
+  var ul = document.getElementById('script');
+  FM.LINES.forEach(function (l, i) { var li = document.createElement('li'); li.innerHTML = '<span class="ts">' + fmt(FM.LT[i].s) + '</span><span></span>'; li.lastChild.textContent = l; li.addEventListener('click', function () { go(FM.LT[i].s) }); ul.appendChild(li) });
+  function lineAt(x) { var k = -1; FM.LT.forEach(function (l, i) { if (x >= l.s - .05) k = i }); return k }
+  function mark() { var k = lineAt(T); [].forEach.call(ul.children, function (li, i) { li.classList.toggle('on', i === k) }); if (playing && voiceBox.checked && k !== lastLine && k >= 0 && window.speechSynthesis) { try { speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(FM.LINES[k]); u.rate = 1.02; speechSynthesis.speak(u) } catch (e) { } } lastLine = k }
+  // sound
+  function startAudio() { stopAudio(); if (!buf || !ac || !playing) return; src = ac.createBufferSource(); src.buffer = buf; src.connect(ac.destination); try { src.start(0, T) } catch (e) { } }
+  function stopAudio() { if (src) { try { src.stop() } catch (e) { } src = null } }
+  try {
+    KIT.SND.render(FM.soundPlan()).then(function (b) { buf = b; st.textContent = 'Sound ready.'; if (playing) startAudio() }, function () { st.textContent = 'Sound could not be built in this browser; the film plays silent.' });
+  } catch (e) { st.textContent = 'Sound could not be built in this browser; the film plays silent.' }
+  function play() {
+    if (T >= FM.DUR - .05) T = 0;
+    poster = false; playing = true; big.hidden = true; playBtn.textContent = 'Pause'; last = null;
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume() } catch (e) { }
+    lastLine = -2; startAudio();
+  }
+  function pause() { playing = false; playBtn.textContent = 'Play'; stopAudio(); if (window.speechSynthesis) speechSynthesis.cancel() }
+  function go(x) { poster = false; T = Math.max(0, Math.min(FM.DUR, x)); shown = -1; draw(); if (playing) { lastLine = -2; startAudio() } }
+  playBtn.addEventListener('click', function () { playing ? pause() : play() });
+  big.addEventListener('click', play);
+  seek.addEventListener('input', function () { go(+seek.value) });
+  capBox.addEventListener('change', function () { shown = -1; draw() });
+  function loop(now) {
+    if (playing) { if (last != null) T += Math.min(.1, (now - last) / 1000); if (T >= FM.DUR) { T = FM.DUR; pause(); big.hidden = false } }
+    last = now; draw(); requestAnimationFrame(loop);
+  }
+  v.innerHTML = FM.frame(5.5, { captions: false });
+  requestAnimationFrame(loop);
+  window.PLAYER = { go: go, frame: function (x) { T = x; shown = -1; draw() } };
+})();
+</script>
