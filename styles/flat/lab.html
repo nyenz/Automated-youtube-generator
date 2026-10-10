@@ -1,0 +1,208 @@
+<title>Flat Cartoon Model Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Instrument+Sans:wght@400;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a printed animation model sheet. One live scene at the top, then numbered sheets (drawings, faces, cast, rules) on a sand board. */
+:root {
+  --board: #e8ddcf; --sheet: #f3ece2; --ink: #2a211c; --muted: #6d5f55; --line: #cdbfae;
+  --art: #b99f84; --accent: #e5461c; --teal: #0b6f78;
+  --display: "Archivo Black", "Arial Black", Impact, sans-serif;
+  --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --board: #1c1714; --sheet: #26201b; --ink: #efe4d6; --muted: #b3a393; --line: #3d342d; --art: #b99f84; --accent: #ff6a3d; --teal: #35a6ad; color-scheme: dark } }
+:root[data-theme="dark"] { --board: #1c1714; --sheet: #26201b; --ink: #efe4d6; --muted: #b3a393; --line: #3d342d; --art: #b99f84; --accent: #ff6a3d; --teal: #35a6ad; color-scheme: dark }
+body { background: var(--board); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; padding: 28px 16px 64px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 28px; }
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px 24px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 5vw, 54px); line-height: 1; margin: 0; letter-spacing: -.5px; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--accent); }
+.tag { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lede { max-width: 62ch; margin: 6px 0 0; color: var(--muted); }
+.sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.sheet h2 { font-family: var(--display); font-weight: 400; font-size: 22px; margin: 0; display: flex; gap: 12px; align-items: baseline; text-wrap: balance; }
+.sheet h2 .n { font-family: var(--mono); font-size: 12px; color: var(--accent); letter-spacing: .06em; }
+.sheet p { margin: 0; max-width: 70ch; color: var(--muted); }
+.art { background: var(--art); border-radius: 4px; display: block; width: 100%; height: auto; }
+.stage { position: relative; }
+.stage svg { aspect-ratio: 16 / 9; }
+.ctrl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: 600 13px var(--body); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.grid { display: grid; gap: 10px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.cell { display: grid; gap: 4px; min-width: 0; }
+.cap { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+.strip { overflow-x: auto; }
+.strip .row { display: grid; grid-template-columns: repeat(12, 92px); gap: 6px; }
+.rules { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.rules ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.rules li::marker { font-family: var(--mono); color: var(--accent); }
+.sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.sw div { border-radius: 4px; overflow: hidden; border: 1px solid var(--line); font-family: var(--mono); font-size: 10.5px; }
+.sw i { display: block; height: 38px; }
+.sw span { display: block; padding: 4px 6px; color: var(--muted); }
+.cmp .cell svg { aspect-ratio: 3 / 4; }
+@media (max-width: 760px) { .g6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rules { grid-template-columns: 1fr; } }
+@media (max-width: 420px) { .g2 { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="tag">Paper Cinema Studio · style 02</div>
+      <h1>Flat Cartoon <em>Model Sheet</em></h1>
+      <p class="lede">Your reference drawing, rebuilt as a rig the app can pose and animate: same flat look, now with real arms and hands, a walk, eight faces and any skin tone, hair or outfit.</p>
+    </div>
+    <div class="ctrl" role="group" aria-label="Animation">
+      <button id="play" aria-pressed="true" type="button">Pause</button>
+      <span class="tag">12 drawings / sec</span>
+    </div>
+  </header>
+
+  <section class="sheet stage" aria-label="Scene">
+    <h2><span class="n">SCENE</span>Walking past friends</h2>
+    <svg id="scene" class="art" viewBox="0 0 1920 1080" role="img" aria-label="Animated street scene: a character walks past two friends talking by a bench"></svg>
+  </section>
+
+  <section class="sheet cmp">
+    <h2><span class="n">A</span>Before and after</h2>
+    <p>Left is your drawing. Right is the same character built by the kit. The arm and hand are real now, every part takes its shadow from the same light, and every piece can move.</p>
+    <div class="grid g2">
+      <div class="cell"><svg id="before" class="art" viewBox="120 100 780 1100" role="img" aria-label="Original drawing"></svg><span class="cap">REFERENCE · hand drawn</span></div>
+      <div class="cell"><svg id="after" class="art" viewBox="120 100 780 1100" role="img" aria-label="Kit version"></svg><span class="cap">KIT · rigged, animated</span></div>
+    </div>
+  </section>
+
+  <section class="sheet">
+    <h2><span class="n">B</span>Walk cycle</h2>
+    <p>Twelve drawings per step pair, held for two frames each (animators call this "on twos"). Heel strike, squash, passing, push off. The lowest foot always stays on the ground, so the body bobs by itself. The dreads swing a moment after the head.</p>
+    <div class="strip"><div class="row" id="walk"></div></div>
+  </section>
+
+  <section class="sheet">
+    <h2><span class="n">C</span>Faces</h2>
+    <p>The same eight emotions as style 01, so shot forms work in both styles. Brows, lids, pupils and mouth change; the head shape never does.</p>
+    <div class="grid g4" id="faces"></div>
+  </section>
+
+  <section class="sheet">
+    <h2><span class="n">D</span>Cast from one builder</h2>
+    <p>Five skin tones, five hair types (dreads, short, bun, afro, bald), cap or no cap, outfit colours, jersey number, body width and nose size. Real people in true stories can be matched by skin, hair and clothes.</p>
+    <div class="grid g6" id="cast"></div>
+  </section>
+
+  <section class="sheet">
+    <h2><span class="n">E</span>Rules of the style</h2>
+    <div class="rules">
+      <ol>
+        <li>Flat shapes only. No outlines, no gradients.</li>
+        <li>Light comes from the front left. Each part gets one shadow shape on its back and bottom edge.</li>
+        <li>A thin dusty-pink rim light sits on the back edge of big shapes. It is the signature of the style.</li>
+        <li>Black is for hair, stripes, soles, pupils and brows, never for outlines.</li>
+        <li>Big head, big nose, big shoes, short legs, loose clothes.</li>
+        <li>Things further from the camera are darker (far arm, far leg, far shoe in pink).</li>
+        <li>One warm sand background. Props are simpler and flatter than the characters.</li>
+        <li>A light grain over everything, and movement on twos (12 drawings a second).</li>
+      </ol>
+      <div class="sw" id="swatches"></div>
+    </div>
+  </section>
+</div>
+
+<script id="kit-src" src="flat-kit.js"></script>
+<script>
+(function () {
+  var F = window.FLAT, P = F.PAL, NS = 'http://www.w3.org/2000/svg';
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var playing = !reduce;
+  var grainDef = '<defs>' + F.grain('gr', .12) + '</defs>';
+  var grain = '<rect width="4000" height="4000" x="-1000" y="-1000" filter="url(#gr)" style="mix-blend-mode:multiply"/>';
+  function set(el, html) { el.innerHTML = html }
+  function place(c, t, pose, x, ground, s, mirror) {
+    return '<g transform="translate(' + x.toFixed(1) + ',' + (ground - 1131 * s).toFixed(1) + ') scale(' + (mirror ? -s : s) + ',' + s + ') translate(-545,0)">' + c.svg(t, pose) + '</g>';
+  }
+
+  // ---------- cast ----------
+  var hero = F.character({});
+  var friendA = F.character({ skin: 'light', hair: 'bun', cap: false, top: 'plum', number: '', stripes: false, pants: 'denim' });
+  var friendB = F.character({ skin: 'brown', hair: 'short', cap: false, top: 'mustard', number: '7', numberColor: 'teal', pants: 'khaki', shoes: 'dark', earring: false });
+  var CAST = [
+    [hero, 'deep · dreads · cap'],
+    [friendB, 'brown · short'],
+    [friendA, 'light · bun'],
+    [F.character({ skin: 'tan', hair: 'bald', cap: false, top: 'white', number: '', stripes: false, pants: 'charcoal', build: 1.25, nose: 1.2, earring: false }), 'tan · bald · wide'],
+    [F.character({ skin: 'pale', hair: 'afro', cap: 'teal', top: 'red', number: '10', numberColor: 'white', pants: 'olive' }), 'pale · afro · cap'],
+    [F.character({ skin: 'deep', hair: 'dreads', cap: 'mustard', top: 'olive', number: '21', numberColor: 'mustard', pants: 'charcoal', build: .85 }), 'deep · slim']
+  ];
+
+  // walking speed that matches the planted foot (no foot sliding)
+  hero.svg(0, { walk: .06 }); var a1 = hero.last.ankN[0]; hero.svg(0, { walk: .40 }); var a2 = hero.last.ankN[0];
+  var CYCLE = 1.0, SPEED = (a2 - a1) / .34 / CYCLE; // character units per second
+
+  // ---------- scene ----------
+  var GROUND = 930, S = .6, BENCH = 1360;
+  function backdrop() {
+    var s = '<rect width="1920" height="1080" fill="' + P.bg + '"/>';
+    s += '<rect y="690" width="1920" height="240" fill="' + P.bgDeep + '"/><rect y="686" width="1920" height="8" fill="#9c8066"/>';
+    s += F.props.window(120, 210, 260, 330) + F.props.window(980, 210, 260, 330) + F.props.window(1600, 210, 260, 330);
+    s += F.props.door(560, GROUND, 190, 470);
+    s += '<rect y="' + GROUND + '" width="1920" height="150" fill="#a2876c"/><rect y="' + GROUND + '" width="1920" height="6" fill="' + P.ground + '" opacity=".55"/>';
+    s += F.props.lamp(820, GROUND) + F.props.bench(BENCH, GROUND);
+    return s;
+  }
+  var BACK = backdrop();
+  var span = 1920 + 700, LOOP = span / (SPEED * S);
+  function scene(t) {
+    var lt = t % LOOP, hx = 2250 - lt * SPEED * S, near = Math.abs(hx - BENCH) < 360;
+    var s = grainDef + BACK;
+    var aPose = { face: near ? 'happy' : 'happy', talk: !near && (lt % 4) < 2.4, arm: near && hx < BENCH + 260 ? 'wave' : null, look: near ? 0 : -1 };
+    var bPose = { face: (lt % 4) >= 2.4 && !near ? 'happy' : 'neutral', talk: !near && (lt % 4) >= 2.4, look: near ? -2 : 0 };
+    s += place(friendA, t, aPose, BENCH - 170, GROUND, S * .97, true);
+    s += place(friendB, t + 1.3, bPose, BENCH + 170, GROUND, S, false);
+    s += place(hero, t, { walk: (t / CYCLE) % 1, face: near ? 'happy' : 'neutral', look: near ? 1.5 : 0 }, hx, GROUND + 18, S * 1.04, false);
+    s += F.props.plant(1780, GROUND + 120) + F.props.plant(140, GROUND + 130);
+    return s + grain;
+  }
+
+  // ---------- static sheets ----------
+  var ORIG = document.getElementById('ref-svg');
+  document.getElementById('before').innerHTML = ORIG ? ORIG.content.firstElementChild.innerHTML : '';
+  function cellSvg(vb, inner, label) { return '<div class="cell"><svg class="art" viewBox="' + vb + '">' + inner + '</svg><span class="cap">' + label + '</span></div>' }
+  var walkEl = document.getElementById('walk'), wh = '';
+  for (var i = 0; i < 12; i++) wh += cellSvg('140 90 780 1100', grainDef + '<rect x="0" y="0" width="1100" height="1400" fill="' + P.bg + '"/>' + hero.svg(1, { walk: i / 12 }) + grain, String(i + 1).padStart(2, '0') + (i === 0 ? ' · heel' : i === 3 ? ' · pass' : i === 5 ? ' · push' : ''));
+  walkEl.innerHTML = wh;
+  var fh = '';
+  F.FACES.forEach(function (f) { fh += cellSvg('270 110 400 330', '<rect x="0" y="0" width="1100" height="1400" fill="' + P.bg + '"/>' + hero.svg(1, { face: f, blink: 0 }), f.toUpperCase()) });
+  document.getElementById('faces').innerHTML = fh;
+  var castEl = document.getElementById('cast');
+  castEl.innerHTML = CAST.map(function (c, i) { return '<div class="cell"><svg class="art" id="c' + i + '" viewBox="160 60 740 1110"></svg><span class="cap">' + c[1] + '</span></div>' }).join('');
+  var sw = [['sand', P.bg], ['ground', P.ground], ['ink', P.ink], ['cream', P.cream], ['rim pink', P.rim], ['teal', P.teal[0]], ['orange', P.orange[0]], ['denim', P.denim[0]], ['mustard', P.mustard[0]], ['plum', P.plum[0]]];
+  Object.keys(F.SKIN).forEach(function (k) { sw.push(['skin ' + k, F.SKIN[k][0]]) });
+  document.getElementById('swatches').innerHTML = sw.map(function (c) { return '<div><i style="background:' + c[1] + '"></i><span>' + c[0] + '<br>' + c[1] + '</span></div>' }).join('');
+
+  // ---------- live loop, on twos ----------
+  var sceneEl = document.getElementById('scene'), afterEl = document.getElementById('after'), castSvgs = CAST.map(function (c, i) { return document.getElementById('c' + i) });
+  var t = 0, last = null, shown = -1;
+  function draw(tt) {
+    sceneEl.innerHTML = scene(tt);
+    afterEl.innerHTML = grainDef + '<rect x="0" y="0" width="1100" height="1400" fill="' + P.bg + '"/>' + hero.svg(tt, { walk: (tt / CYCLE) % 1 }) + grain;
+    castSvgs.forEach(function (el, i) { el.innerHTML = '<rect x="0" y="0" width="1100" height="1400" fill="' + P.bg + '"/>' + CAST[i][0].svg(tt + i * .9, { face: i === 1 ? 'happy' : i === 4 ? 'sneaky' : 'neutral' }) });
+  }
+  function frame(now) {
+    if (last != null && playing) t += Math.min(.1, (now - last) / 1000);
+    last = now;
+    var f = Math.floor(t * 12);
+    if (f !== shown) { shown = f; draw(f / 12) }
+    requestAnimationFrame(frame);
+  }
+  draw(reduce ? 3.2 : 0);
+  if (!reduce) requestAnimationFrame(frame);
+  var btn = document.getElementById('play');
+  btn.setAttribute('aria-pressed', String(playing)); btn.textContent = playing ? 'Pause' : 'Play';
+  btn.addEventListener('click', function () { playing = !playing; btn.setAttribute('aria-pressed', String(playing)); btn.textContent = playing ? 'Pause' : 'Play'; if (playing && reduce) { reduce = false; requestAnimationFrame(frame) } });
+})();
+</script>
