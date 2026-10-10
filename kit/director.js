@@ -20,9 +20,12 @@
     lens: ['wide', 'normal', 'tele'],
     mood: ['normal', 'warm', 'cold', 'dark', 'danger', 'silhouette', 'hope', 'flash', 'flashback'],
     compose: ['auto', 'center', 'left', 'right'],
-    sound: ['step', 'rustle', 'whoosh', 'swish', 'scrape', 'clink', 'tada', 'thud', 'pop', 'tick', 'snore', 'boom', 'sting', 'riser', 'heartbeat'],
+    sound: ['step', 'sneak', 'rustle', 'cloth', 'whoosh', 'swish', 'scrape', 'clink', 'tada', 'thud', 'pop', 'poof', 'tick', 'snore', 'boom', 'sting', 'riser', 'heartbeat', 'dirt', 'bubble', 'boing', 'drip', 'splash', 'bell'],
+    ambience: ['night', 'day', 'rain', 'underwater', 'room', 'fire', 'none'],
+    music: ['calm', 'playful', 'mystery', 'tension', 'hope', 'sad', 'flashback', 'none'],
     emotion: Object.keys(K.EMO),
-    moves: ['walk', 'run', 'move', 'turn', 'look', 'point', 'wave', 'reach', 'nod', 'shake-head', 'talk', 'react', 'appear', 'vanish', 'float', 'spin', 'shake', 'jump', 'fall', 'grow', 'hold', 'drop']
+    moves: ['walk', 'run', 'sneak', 'move', 'turn', 'look', 'point', 'wave', 'reach', 'nod', 'shake-head', 'talk', 'react', 'appear', 'vanish', 'float', 'spin', 'shake', 'jump', 'fall', 'grow', 'hold', 'drop',
+      'crouch', 'hide', 'peek', 'sit', 'sleep', 'yawn', 'cheer', 'cower', 'shiver', 'stomp', 'emerge', 'burrow']
   };
   D.MOODS = {
     // light levels + film grade: fog = depth haze, warm = colour temperature (-1 cold … +1 warm), sat = colour strength, sepia = old-photo look
@@ -43,7 +46,8 @@
   var SIDES = { front: 0, 'front-left': 35, 'front-right': -35, left: 90, right: -90, 'back-left': 145, 'back-right': -145, back: 180 };
   var ANGLES = { eye: 4, low: -14, high: 28, top: 72, dutch: 4 };
   var LENSES = { wide: 44, normal: 32, tele: 22 };
-  var GESTURE = { point: 1.6, wave: 1.6, reach: 1.4, nod: .8, 'shake-head': .9, talk: 2, react: .6, shake: .6, jump: .7 };
+  var GESTURE = { point: 1.6, wave: 1.6, reach: 1.4, nod: .8, 'shake-head': .9, talk: 2, react: .6, shake: .6, jump: .7, peek: 1.3, yawn: 1.8, cheer: 1.4, shiver: 1.2, stomp: .5, emerge: 1.4, burrow: 1.2 };
+  var PERSIST = { crouch: 1, hide: 1, sit: 1, sleep: 1, cower: 1, emerge: 1, burrow: 1 };
 
   /* ---------- built-in assets ---------- */
   function builtins() {
@@ -118,7 +122,7 @@
 
   /* ---------- build ---------- */
   D.build = function (o) {
-    builtins(); SIZES = o.sizes || {}; if (o.look) Object.assign(D.LOOK, o.look); CUT = o.cut; WORDS = (CUT.words || []).map(function (w) { return { w: w[0], s: w[1], e: w[2] } });
+    builtins(); D.sky = o.sky; SIZES = o.sizes || {}; if (o.look) Object.assign(D.LOOK, o.look); CUT = o.cut; WORDS = (CUT.words || []).map(function (w) { return { w: w[0], s: w[1], e: w[2] } });
     var lines = CUT.lines || [], plan = CUT.shots || [], dur = CUT.duration;
     var defs = D.defs;
     RUN = plan.map(function (p, i) {
@@ -169,11 +173,13 @@
       if (!r.cast[m.who]) warn(id, 'move ' + (i + 1) + ': "' + m.who + '" is not in the cast.');
       if (m.do && D.ENUM.moves.indexOf(m.do) < 0) { var a = r.cast[m.who] && r.cast[m.who].a; if (!(a && a.do && typeof a.do[m.do] === 'function')) warn(id, 'move ' + (i + 1) + ': "' + m.do + '" is not a built-in move and "' + m.who + '" has no do.' + m.do + '().') }
       if (m.face && !K.EMO[m.face]) warn(id, 'move ' + (i + 1) + ': unknown face "' + m.face + '".');
-      mm.dur = m.for || GESTURE[m.do] || (m.do === 'walk' || m.do === 'run' || m.do === 'move' ? 2 : .5);
+      mm.dur = m.for || GESTURE[m.do] || (m.do === 'walk' || m.do === 'run' || m.do === 'move' || m.do === 'sneak' ? 2 : .5);
       return mm;
     }).sort(function (a, b) { return a.t0 - b.t0 || a.i - b.i });
     // camera
     var cm = s.camera || {}; r.camSpec = cm;
+    if (s.ambience && D.ENUM.ambience.indexOf(s.ambience) < 0) warn(id, 'ambience "' + s.ambience + '" is not allowed. Use: ' + D.ENUM.ambience.join(', '));
+    if (s.music && s.music !== false && D.ENUM.music.indexOf(s.music) < 0) warn(id, 'music "' + s.music + '" is not allowed. Use: ' + D.ENUM.music.join(', '));
     if (s.air && D.ENUM.air.indexOf(s.air) < 0) warn(id, 'air "' + s.air + '" is not allowed. Use: ' + D.ENUM.air.join(', '));
     ['framing', 'angle', 'side', 'move', 'lens', 'compose'].forEach(function (k) { if (cm[k] && D.ENUM[k].indexOf(cm[k]) < 0) warn(id, 'camera.' + k + ' "' + cm[k] + '" is not allowed. Use: ' + D.ENUM[k].join(', ')) });
     var fov = LENSES[cm.lens] || (cm.framing === 'wide' ? 42 : 32);
@@ -195,11 +201,12 @@
     r.light = ls.map(function (l, i) {
       if (typeof l === 'string') l = { mood: l };
       var M = D.MOODS[l.mood] || (warn(id, 'light: unknown mood "' + l.mood + '"'), D.MOODS.normal);
-      return Object.assign({ at: i === 0 ? r.from : timeOf(l, r, 'light ' + (i + 1)), ease: i === 0 ? (r.flow ? 1 : 0) : (l.ease === undefined ? .3 : l.ease) }, M);
+      return Object.assign({ mood: D.MOODS[l.mood] ? l.mood : 'normal', at: i === 0 ? r.from : timeOf(l, r, 'light ' + (i + 1)), ease: i === 0 ? (r.flow ? 1 : 0) : (l.ease === undefined ? .3 : l.ease) }, M);
     });
     // sound
     r.cues = (s.sfx || []).map(function (q, i) {
       if (D.ENUM.sound.indexOf(q.sound) < 0) warn(id, 'sfx ' + (i + 1) + ': unknown sound "' + q.sound + '"');
+      
       return [timeOf(q, r, 'sfx ' + (i + 1)), q.sound, q.length];
     });
     // text cards
@@ -212,7 +219,7 @@
   D.shotAt = function (t) { var i = shotAt(t); return RUN[i] };
 
   function show(i) {
-    ALL.forEach(function (x) { x.a.root.visible = false });
+    ALL.forEach(function (x) { x.a.root.visible = false }); Object.keys(MOUNDS).forEach(function (u) { MOUNDS[u].visible = false }); DIRT.forEach(function (m) { m.visible = false });
     var r = RUN[i]; if (!r) return; r.set.a.root.visible = true;
     Object.keys(r.cast).forEach(function (k) { r.cast[k].a.root.visible = true });
   }
@@ -267,7 +274,7 @@
     r.moves.forEach(function (m) {
       var inst = r.cast[m.who]; if (!inst) return;
       var before = t < m.t0;
-      if (before && m.do !== 'appear') return;
+      if (before && m.do !== 'appear' && m.do !== 'emerge') return;
       var local = Math.max(0, t - m.t0), k = clamp(local / m.dur, 0, 1);
       if (m.face && !before) inst.a.face && inst.a.face.show(m.face);
       if (m.do) doMove(r, inst, m, k, local, before, holds, t);
@@ -282,6 +289,24 @@
       var off = new T.Vector3(); if (ia.grip) { off = ia.grip.getWorldPosition(new T.Vector3()).sub(ia.root.position) }
       ia.root.position.copy(gp).sub(off);
     });
+    // logical reactions: people look at whoever is talking, or at what someone points at
+    var talker = null, pointed = null, lookers = {};
+    r.moves.forEach(function (m) { if (t < m.t0 || t > m.t0 + m.dur) return; if (m.do === 'talk' && r.cast[m.who]) talker = r.cast[m.who]; if (m.do === 'point' && m.to) pointed = { by: r.cast[m.who], to: m.to }; if (m.do === 'look' || m.do === 'hide' || m.do === 'peek') lookers[m.who] = 1 });
+    keys.forEach(function (k) {
+      var inst = r.cast[k], a = inst.a; if (!isHuman(a) || lookers[k] || (r.castSpec[k] || {}).look || r.castSpec[k] && r.castSpec[k].still) return;
+      var tg = null; if (talker && talker !== inst) tg = talker.a.head; else if (pointed && pointed.by !== inst) tg = lookTarget(r, pointed.to);
+      if (!tg) return; a.face && a.face.look(tg, .9);
+      var tp = tg.isObject3D ? tg.getWorldPosition(new T.Vector3()) : tg, dd = angDiff(a.root.rotation.y, yawTo(a.root.position, tp)); a.head.rotation.y += clamp(dd, -.7, .7) * .55;
+    });
+    // contact shadows for things that are not people
+    Object.keys(BLOBS).forEach(function (u) { BLOBS[u].visible = false });
+    keys.forEach(function (k) {
+      var inst = r.cast[k], a = inst.a; if (isHuman(a) || inst.kind === 'set' || inst.kind === 'fx' || !a.root.visible) return;
+      var b = blobFor(inst), sc = a.root.scale.x, hgt = Math.max(0, a.root.position.y);
+      b.visible = a.root.position.y > -.05 * inst.height; b.position.set(a.root.position.x, .012, a.root.position.z);
+      b.scale.set(Math.max(.08, inst.size.x * .55 * sc), Math.max(.08, inst.size.z * .55 * sc), 1); b.material.opacity = .3 * clamp(1 - hgt / 1.6, 0, 1);
+    });
+    r._spot = r.spec.spotlight === false ? null : spotlightActor(r, t);
     if (r.spec.extra) r.spec.extra.call(null, t - r.from, castView(r), K, { t: t, from: r.from, to: r.to });
   }
   function castView(r) { var o = {}; Object.keys(r.cast).forEach(function (k) { o[k] = r.cast[k].a }); o.set = r.set.a; return o }
@@ -295,16 +320,17 @@
   function doMove(r, inst, m, k, local, before, holds, t) {
     var a = inst.a, root = a.root, H = isHuman(a), e = K.ease(k);
     switch (m.do) {
-      case 'walk': case 'run': case 'move': {
+      case 'walk': case 'run': case 'move': case 'sneak': {
         var from = root.position.clone(), to = resolvePos(r, m.to, from); if (m.to == null) warn(r.id, m.do + ' for "' + m.who + '" needs to:');
-        var kk = m.do === 'move' ? e : k * k * (3 - 2 * k) * .25 + k * .75;
+        var kk = m.do === 'move' ? e : K.ease(k) * .55 + k * .45; // walks start and settle gently
         root.position.lerpVectors(from, to, kk);
         if (m.arc) root.position.y += Math.sin(Math.PI * k) * m.arc;
         if (from.distanceTo(to) > .05 && m.face_dir !== false) root.rotation.y = yawTo(from, to);
-        if (k < 1 && H) walkCycle(a, local, m.do === 'run' ? 2 : 1);
+        if (k < 1 && H) walkCycle(a, local, m.do === 'run' ? 2 : m.do === 'sneak' ? .6 : 1);
+        if (H && m.do === 'sneak') crouchPose(a, Math.min(1, local * 3));
         if (k < 1 && a.do && a.do.walk && !H) a.do.walk(k, local, m);
         break }
-      case 'turn': { var y0 = root.rotation.y, y1 = resolveYaw(r, inst, m.to); root.rotation.y = y0 + angDiff(y0, y1) * e; break }
+      case 'turn': { var y0 = root.rotation.y, y1 = resolveYaw(r, inst, m.to), dd = angDiff(y0, y1); root.rotation.y = y0 + dd * e; if (a.head && k < 1) a.head.rotation.y += clamp(dd * (1 - e) * .7, -.8, .8); break } // the head leads the turn
       case 'look': { if (a.face) a.face.look(m.to == null || m.to === 'none' ? null : lookTarget(r, m.to)); if (H && m.to && m.to !== 'none') { var tp = (lookTarget(r, m.to).isObject3D ? lookTarget(r, m.to).getWorldPosition(new T.Vector3()) : lookTarget(r, m.to)); var d = angDiff(root.rotation.y, yawTo(root.position, tp)); a.head.rotation.y += clamp(d, -.6, .6) * e } break }
       case 'point': case 'reach': if (H && k < 1) armAim(r, a, m, k, local); break;
       case 'wave': if (H && k < 1) { var arm = m.hand === 'L' ? a.armL : a.armR, w = Math.sin(Math.PI * Math.min(1, k * 4)) > 0 ? Math.min(1, k * 5, (1 - k) * 5) : 0; arm.shoulder.rotation.z = arm.side * (.25 + 2.3 * w); arm.elbow.rotation.z = arm.side * Math.sin(local * 14) * .45 * w } break;
@@ -322,6 +348,18 @@
       case 'grow': { var g1 = m.size || 1.5; root.scale.multiplyScalar(K.mix(1, g1, e)); break }
       case 'hold': if (m.item) { holds[m.item] = { who: m.who, hand: m.hand }; if (H) { var ar = m.hand === 'L' ? a.armL : a.armR; ar.shoulder.rotation.x = -.5; ar.elbow.rotation.x = -.9 } } break;
       case 'drop': if (m.item && holds[m.item]) delete holds[m.item]; break;
+      case 'crouch': if (H) crouchPose(a, K.ease(Math.min(1, local / Math.min(m.dur, .6)))); break;
+      case 'hide': if (H) { crouchPose(a, K.ease(Math.min(1, local / .45))); var cyc = (local % 3.2) / 3.2, pk = k < 1 && cyc > .45 && cyc < .85 ? Math.sin(Math.PI * (cyc - .45) / .4) : 0, sd = m.side === 'left' ? 1 : -1; leanPose(a, sd, pk * e); if (a.face && m.to) a.face.look(lookTarget(r, m.to), .3 + .7 * pk) } break;
+      case 'peek': if (H && k < 1) { var pw = Math.sin(Math.PI * k); leanPose(a, m.side === 'left' ? 1 : -1, pw); if (a.face && m.to) a.face.look(lookTarget(r, m.to), pw) } break;
+      case 'sit': if (H) { a.legs.forEach(function (lg) { lg.hip.rotation.x = -1.45 * e }); root.position.y -= Math.max(0, (a.hipHeight || .7) - .14) * e; a.hips.rotation.x -= .08 * e } break;
+      case 'sleep': if (H) { a.head.rotation.x += .38 * e; a.hips.rotation.x += .14 * e; a.body.position.y += Math.sin(local * 1.3) * .02 * e; if (a.face) a.face.show('sleepy') } else if (a.face) a.face.show('sleepy'); break;
+      case 'yawn': if (H && k < 1) { var yw = Math.sin(Math.PI * k); a.arms.forEach(function (ar) { ar.shoulder.rotation.z = ar.side * (.2 + 2.5 * yw) }); a.head.rotation.x -= .25 * yw; if (a.face) { a.face.show(yw > .3 ? 'surprised' : 'sleepy') } } break;
+      case 'cheer': if (k < 1) { var cw = Math.min(1, k * 5, (1 - k) * 5); if (H) a.arms.forEach(function (ar) { ar.shoulder.rotation.z = ar.side * (.2 + 2.7 * cw) + Math.sin(local * 12) * .1 * ar.side }); root.position.y += Math.abs(Math.sin(local * 7)) * .12 * cw } break;
+      case 'cower': if (H) { crouchPose(a, e); a.arms.forEach(function (ar) { ar.shoulder.rotation.x = -2.1 * e; ar.elbow.rotation.x = -1.3 * e }); if (a.face) a.face.show('scared') } break;
+      case 'shiver': if (k < 1 || m.keep) root.rotation.z += Math.sin(local * 70) * .025; break;
+      case 'stomp': if (H && k < 1) { var lg2 = m.leg === 'L' ? a.legL : a.legR; lg2.hip.rotation.x = -.9 * Math.sin(Math.PI * Math.min(1, k * 1.4)); if (k > .7) reactPose(root, local - m.dur * .7, 'land') } break;
+      case 'emerge': { var dep = Math.max(.2, inst.height * root.scale.y) * (m.depth || 1.05); root.position.y -= dep * (1 - e); root.rotation.z += Math.sin(local * 14) * .06 * (1 - k); mound(inst, before ? 0 : Math.min(1, local / .3)); if (!before && local < 1.1) dirtBurst(root, local, m.t0); break }
+      case 'burrow': { var dep2 = Math.max(.2, inst.height * root.scale.y) * 1.05; root.position.y -= dep2 * e; root.rotation.z += Math.sin(local * 14) * .06 * Math.min(1, k * 3); mound(inst, 1); if (local < 1.1) dirtBurst(root, local, m.t0); break }
       default:
         if (a.do && typeof a.do[m.do] === 'function') a.do[m.do].call(a, k, local, m);
     }
@@ -331,7 +369,7 @@
     a.legs.forEach(function (lg, i) { lg.hip.rotation.x = Math.sin(ph + i * Math.PI) * amp });
     a.arms.forEach(function (ar, i) { ar.shoulder.rotation.x = Math.sin(ph + i * Math.PI + Math.PI) * amp * .8 });
     a.body.position.y += Math.abs(Math.sin(ph)) * .05 * speed;
-    a.hips.rotation.x = speed > 1 ? .15 : .04;
+    a.hips.rotation.x = speed > 1 ? .16 : .07; a.body.rotation.z += Math.sin(ph) * .035; a.head.rotation.z -= Math.sin(ph) * .02;
   }
   var DOWN = new T.Vector3(0, -1, 0);
   function armAim(r, a, m, k, local) {
@@ -418,13 +456,22 @@
     if (r.shotObj) r.shotObj.fov = fovNow;
     K.film.fog = D.LOOK.atmos * clamp(9 / Math.max(1, pos.distanceTo(look)), .25, 1); // far shots get less haze so the subject stays clear
     safePoints(r, pos, look, fovNow, asp);
+    var spt = r._spot, nVis = Object.keys(r.cast).length;
+    if (spt && spt.inst.a.root.visible && D.LOOK.focus > 0) {
+      var A2 = spt.inst.a, c1, c2; A2.root.updateMatrixWorld(true);
+      if (isHuman(A2)) { c1 = A2.head.getWorldPosition(new T.Vector3()); c2 = A2.root.position.clone().add(new T.Vector3(0, spt.inst.height * A2.root.scale.y * .45, 0)) }
+      else { c1 = A2.root.position.clone().add(new T.Vector3(0, spt.inst.height * A2.root.scale.y * .55, 0)); c2 = A2.root.position.clone() }
+      var p1 = c1.clone().project(SCAM), p2 = c2.clone().project(SCAM);
+      var ux = (p1.x + 1) / 2, uy = (p1.y + 1) / 2, rad = clamp(Math.abs(p1.y - p2.y) / 2 * 1.5, .1, .42);
+      K.spot = { x: ux, y: uy, r: rad, s: spt.w * D.LOOK.focus * (nVis > 1 ? .75 : .3) };
+    } else K.spot = { x: .5, y: .5, r: .4, s: 0 };
     r.cam.pos = [pos.x, pos.y, pos.z]; r.cam.look = [look.x, look.y, look.z];
     placeFG(r, pos, look, fovR, asp, frameH, lat, subj.length); placeAir(r, t, pos, look, frameH); placeShafts(r, t, pos, look, frameH);
   }
 
 
   /* ---------- LOOK: composition helpers, foreground silhouettes, air, light shafts ---------- */
-  D.LOOK = { film: .8, atmos: .8, fg: true, cards: false };
+  D.LOOK = { film: .8, atmos: .8, fg: true, cards: false, focus: .8 };
   var FG = [], AIR = null, SHAFTS = null, UP = new T.Vector3(0, 1, 0);
   function fgShapes() {
     if (FG.length) return FG;
@@ -518,6 +565,84 @@
     for (var i = 0; i < WORDS.length; i++) { var w = WORDS[i]; if (t >= w.s && t < w.e) { var ph = (t - w.s) / Math.max(.05, w.e - w.s); return .35 + .95 * Math.abs(Math.sin(ph * Math.PI * syllables(w.w))) } if (w.s > t) break }
     return .3;
   }
+
+
+  /* ---------- natural movement helpers ---------- */
+  function crouchPose(a, w) { a.root.scale.y *= 1 - .2 * w; a.hips.rotation.x += .38 * w; a.head.rotation.x -= .22 * w; a.arms.forEach(function (ar) { ar.shoulder.rotation.x -= .35 * w; ar.elbow.rotation.x -= .6 * w }) }
+  function leanPose(a, side, w) { a.body.rotation.z += side * .32 * w; a.head.rotation.z += side * .12 * w; a.root.position.x += 0 }
+  var DIRT = [], MOUNDS = {};
+  function dirtBurst(root, local, seed) {
+    if (!DIRT.length) for (var i = 0; i < 14; i++) { var m = K.M(K.BOX, i % 3 ? 0x3a2416 : 0x2e1d14, null, 0, 0, 0, .07, .05, .06, 'thin'); m.visible = false; K.scene.add(m); DIRT.push(m) }
+    var r = rnd2(seed); DIRT.forEach(function (m, i) {
+      var vx = (r() - .5) * 1.6, vz = (r() - .5) * 1.6, vy = 1.4 + r() * 1.6, l = local - r() * .15;
+      if (l < 0 || l > .95) { m.visible = false; return }
+      var y = vy * l - 4.9 * l * l; if (y < 0) { m.visible = false; return }
+      m.visible = true; m.position.set(root.position.x + vx * l, y, root.position.z + vz * l); m.rotation.set(l * 9 + i, l * 7, 0);
+    });
+  }
+  function rnd2(seed) { var s = Math.floor(seed * 1000) + 7; return function () { s = (s * 16807) % 2147483647; return s / 2147483647 } }
+  function mound(inst, k) {
+    var m = MOUNDS[inst.uid]; if (!m) { m = K.M(K.SPH, 0x2e1d14, null, 0, 0, 0, 1, 1, 1); K.scene.add(m); MOUNDS[inst.uid] = m }
+    var w = Math.max(.15, Math.max(inst.size.x, inst.size.z) * inst.a.root.scale.x * .5); m.visible = k > 0;
+    m.position.set(inst.a.root.position.x, 0, inst.a.root.position.z); m.scale.set(w * K.ease(Math.min(1, k * 2)), w * .25 * K.ease(Math.min(1, k * 2)), w * K.ease(Math.min(1, k * 2)));
+    return m;
+  }
+  var BLOBS = {};
+  function blobFor(inst) {
+    var b = BLOBS[inst.uid]; if (b) return b;
+    b = new T.Mesh(new T.CircleGeometry(1, 32), new T.MeshBasicMaterial({ color: 0, transparent: true, opacity: .3, depthWrite: false })); b.rotation.x = -Math.PI / 2; K.scene.add(b); BLOBS[inst.uid] = b; return b;
+  }
+  /* who should the audience look at right now? talkers first, then whoever is acting */
+  var ACT = { point: 1, wave: 1, reach: 1, cheer: 1, react: 1, emerge: 1, jump: 1, peek: 1, yawn: 1, stomp: 1, nod: 1, 'shake-head': 1 };
+  function spotlightActor(r, t) {
+    var best = null;
+    (r.spec.spot ? [].concat(r.spec.spot) : []).forEach(function (sp) { var t0 = timeOf(sp, r, 'spot'), d = sp.for || 2; if (t >= t0 && t < t0 + d && r.cast[sp.on]) best = { inst: r.cast[sp.on], w: Math.min(1, (t - t0) / .35, (t0 + d - t) / .35), pri: 3 } });
+    if (best) return best;
+    r.moves.forEach(function (m) {
+      var inst = r.cast[m.who]; if (!inst || t < m.t0) return; var l = t - m.t0; if (l > m.dur) return;
+      var pri = m.do === 'talk' ? 2 : (ACT[m.do] || (m.do && inst.a.do && inst.a.do[m.do])) ? 1 : 0; if (!pri) return;
+      var w = Math.min(1, l / .35, (m.dur - l) / .35); if (!best || pri > best.pri || (pri === best.pri && w > best.w)) best = { inst: inst, w: w, pri: pri, m: m };
+    });
+    return best;
+  }
+
+
+  /* ---------- SOUNDTRACK PLAN: effects + automatic foley + ambience + music, all from the shots ---------- */
+  var MOOD2MUSIC = { normal: 'calm', warm: 'playful', cold: 'mystery', dark: 'mystery', danger: 'tension', silhouette: 'mystery', hope: 'hope', flash: 'tension', flashback: 'flashback' };
+  var FOLEY = { appear: ['pop', .5], vanish: ['poof', .6], point: ['cloth', .45], wave: ['cloth', .5], reach: ['cloth', .45], hold: ['cloth', .4], crouch: ['cloth', .5], hide: ['rustle', .5], peek: ['cloth', .35],
+    cheer: ['cloth', .6], cower: ['cloth', .5], yawn: ['cloth', .35], sit: ['cloth', .5], react: ['swish', .35], emerge: ['dirt', .9], burrow: ['dirt', .8], spin: ['whoosh', .4] };
+  D.soundPlan = function () {
+    var ev = [], beds = [], mus = [];
+    function where(r, inst) {
+      if (!inst || !r.endCam) return { pan: 0, g: 1 };
+      var es = r.endState && r.endState[inst.uid], p = es ? es.pos : inst.a.root.position, cp = v3(r.endCam.pos), lk = v3(r.endCam.look);
+      var f = lk.clone().sub(cp).normalize(), right = new T.Vector3().crossVectors(f, UP).normalize(), rel = p.clone().sub(cp), dist = Math.max(.5, rel.length());
+      return { pan: clamp(rel.dot(right) / dist * 1.6, -.75, .75), g: clamp(6 / dist, .35, 1) };
+    }
+    RUN.forEach(function (r) {
+      if (!r.made) return;
+      r.cues.forEach(function (q) { ev.push({ t: q[0], type: q[1], length: q[2], pan: 0, gain: 1 }) });
+      r.moves.forEach(function (m) {
+        var inst = r.cast[m.who]; if (!inst) return; var w = where(r, inst);
+        if (m.do === 'walk' || m.do === 'run' || m.do === 'sneak') {
+          var rate = m.do === 'run' ? 6.4 : m.do === 'sneak' ? 1.9 : 3.2; if (!isHuman(inst.a)) return;
+          for (var i = 0; i < m.dur * rate - .5; i++) ev.push({ t: m.t0 + i / rate, type: m.do === 'sneak' ? 'sneak' : 'step', pan: w.pan + (i % 2 ? .08 : -.08), gain: w.g * (m.do === 'run' ? 1 : .8) });
+          return;
+        }
+        if (m.do === 'jump') { ev.push({ t: m.t0, type: 'swish', pan: w.pan, gain: .4 * w.g }); ev.push({ t: m.t0 + m.dur * .95, type: 'thud', pan: w.pan, gain: .6 * w.g }); return }
+        if (m.do === 'stomp') { ev.push({ t: m.t0 + m.dur * .7, type: 'thud', pan: w.pan, gain: .9 * w.g }); return }
+        if (m.do === 'fall') { ev.push({ t: m.t0 + m.dur * .9, type: 'thud', pan: w.pan, gain: .8 * w.g }); return }
+        var f = FOLEY[m.do]; if (f) ev.push({ t: m.t0, type: f[0], length: m.do === 'emerge' || m.do === 'burrow' ? Math.min(1.2, m.dur) : undefined, pan: w.pan, gain: f[1] * w.g });
+      });
+      var air = r.spec.air, mood = (r.light[0] && r.light[0].mood) || 'normal';
+      var bedKind = r.spec.ambience || (air === 'rain' ? 'rain' : air === 'bubbles' ? 'underwater' : air === 'embers' ? 'fire' : (mood === 'warm' || mood === 'hope') ? 'day' : 'night');
+      var L = beds[beds.length - 1]; if (L && L.kind === bedKind && Math.abs(L.to - r.from) < .05) L.to = r.to; else beds.push({ kind: bedKind, from: r.from, to: r.to });
+      var style = r.spec.music === false ? 'none' : (r.spec.music || MOOD2MUSIC[mood] || 'calm');
+      var M = mus[mus.length - 1]; if (M && M.style === style && Math.abs(M.to - r.from) < .05) M.to = r.to; else mus.push({ style: style, from: r.from, to: r.to });
+    });
+    var speech = [], cur = null; WORDS.forEach(function (w) { if (cur && w.s - cur[1] < .6) cur[1] = w.e; else { cur = [w.s, w.e]; speech.push(cur) } });
+    return { duration: CUT.duration, events: ev.sort(function (a, b) { return a.t - b.t }), beds: beds, music: mus.filter(function (m) { return m.style !== 'none' }), speech: speech };
+  };
 
   /* ---------- captions + text cards (drawn on an overlay canvas) ---------- */
   D.captionGroups = function () {

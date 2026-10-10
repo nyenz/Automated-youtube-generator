@@ -483,7 +483,7 @@
      ================================================================= */
   var CURSHOT = null, PLAYING = false, CAPS = true, QUALITY = +(localStorage.getItem('quality') || 540), SHOTINFO = null;
   /* ---------------- sound & captions settings (shared by Project + Watch) ---------------- */
-  function lookOf() { return Object.assign({ film: .8, atmos: .8, fg: true }, P.look || {}) }
+  function lookOf() { return Object.assign({ film: .8, atmos: .8, fg: true, focus: .8 }, P.look || {}) }
   function planSizes() { var o = {}; ((P.plan && P.plan.assets) || []).forEach(function (a) { if (+a.size > 0 && a.kind !== 'set') o[a.name] = +a.size }); o.kato = 2.66; o.nia = 2.64; return o }
   function mixOf() { return Object.assign({ narr: 1, sfx: 1, music: .25, duck: true }, P.mix || {}) }
   function capOf() { return Object.assign({ size: 1, pos: 0, color: '#f2c14e', group: 3 }, P.capStyle || {}) }
@@ -504,6 +504,7 @@
       h('p', { className: 'muted small', style: 'margin:0 0 6px' }, 'Keep these low for a clean, calm video. 80% is the tuned default.'),
       lslider('Film look', 'film', 'grain, gentle frame wobble, warm glow around bright lights'),
       lslider('Atmosphere', 'atmos', 'depth haze, floating dust/bubbles/snow, soft light beams'),
+      lslider('Attention focus', 'focus', 'softly darkens and blurs everything around whoever is talking or acting, so viewers look at the right thing'),
       h('label', { style: 'display:flex;gap:6px;align-items:center;color:var(--ink)' }, h('input', { type: 'checkbox', checked: LK.fg, on: { change: function () { LK.fg = this.checked; setL() } } }), 'Blurred dark shapes in the foreground (adds depth to medium and full shots)')),
     h('div', { className: 'card g2' },
       h('div', null, h('h3', null, 'Sound'),
@@ -629,7 +630,7 @@
 
   /* ---------------- standalone video HTML (for the AI or to share) ---------------- */
   function exportVideoHtml(cid) {
-    var files = ['kit/style-kit.js', 'kit/director.js', 'kit/stage.js'];
+    var files = ['kit/style-kit.js', 'kit/director.js', 'kit/piano.js', 'kit/sound.js', 'kit/stage.js'];
     Promise.all(files.map(function (f) { return fetch(f).then(function (r) { return r.text() }) })).then(function (src) {
       var pl = playerPayload(cid, 720); delete pl.assets; delete pl.shots; pl.standalone = true;
       var A = assetCodes(), S = shotCodes(cid);

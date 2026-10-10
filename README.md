@@ -57,6 +57,9 @@ Click **Load demo** to see a finished example right away.
 - **No title cards**: the story is told with pictures and narration only.
 - **Real people**: 9 skin tones, 8 hair colours (including grey and white), beards, mustaches and stubble, long hair and braids, so people in true stories are recognisable.
 - **Characters**: body language follows the emotion (scared hunches, determined stands tall), small weight shifts, and `talk` moves the mouth in time with the narration's syllables.
+- **Natural action**: sneak, crouch, hide (ducks behind cover and peeks out), peek, sit, sleep, yawn, cheer, cower, shiver, stomp, and `emerge`/`burrow` for things coming out of or going into the ground (dirt burst and mound). Listeners look at whoever is talking or at what is pointed at by themselves.
+- **Attention focus** (Look card): while someone talks or acts, everything around them gets slightly darker, greyer and softer, so the viewer's eye goes to the right place. It fades in and out by itself; `spot` points it at anything, `spotlight: false` turns it off.
+- **Soundtrack**: rendered in one pass, the same in preview and export. A piano-led score that follows the mood (calm, playful, mystery, tension, hope, sad, flashback) and dips under the narration; ambience (night, day, rain, underwater, room, fire); automatic footsteps and action sounds placed left/right by where things are on screen. The final mix is levelled to YouTube loudness so it doesn't sound quiet on phones. Your own music track replaces the score.
 
 Projects and audio are saved in your browser. Use **Export project** to back up or to move to another PC.
 
@@ -67,12 +70,17 @@ stage.html          the 3D stage (player, checks, asset sheet), runs inside the 
 app/                app code: templates (all prompts), timing (Whisper + alignment), plan checks, trends
 kit/style-kit.js    LOCKED look: paper materials, face kit, people, lens, light, sound, recorder
 kit/director.js     LOCKED: turns SHOT forms into camera, focus, light, moves, captions
+kit/sound.js        LOCKED: offline soundtrack (score, ambience, effects, mix)
+kit/piano.js        piano samples for the score
 kit/stage.js        runs the stage modes (play, checks, sheet, export)
 kit/vendor/         MP4 / WebM muxers (offline video export)
 examples/demo.js    demo 1 ("A Hand in the Dark")
-examples/demo2.js   demo 2 ("The Missing Milk", 1:30 test video)
+examples/demo2.js   demo 2 ("The Missing Milk", 2:00 test video)
 examples/the-missing-milk.html  demo 2 as a standalone playable page
 ```
 
 ## Running it locally (optional)
 Double-clicking `index.html` mostly works. For everything to work (Whisper, video HTML export), run a small local server in this folder, for example `npx serve` or `python -m http.server`. Then open the address it prints.
+
+## Credits
+Piano samples: Salamander Grand Piano by Alexander Holm (CC-BY 3.0), via the Tone.js audio collection.

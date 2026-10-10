@@ -110,7 +110,7 @@ do: {
 - Set rotations/positions ABSOLUTELY (wing.rotation.z = ...), never with += (the director resets the pose every frame).
 - For fast flutter use Math.floor(t*12)%2. The rest pose (before any move) must look good.
 - idle(t) (optional, creatures): small life motion like breathing or tail sway, also absolute.
-- The director already has these moves for EVERY asset, so never write them yourself: walk, run, move, turn, look, point, wave, reach, nod, shake-head, talk, react, appear, vanish, float, spin, shake, jump, fall, grow, hold, drop.`;
+- The director already has these moves for EVERY asset, so never write them yourself: walk, run, sneak, move, turn, look, point, wave, reach, nod, shake-head, talk, react, appear, vanish, float, spin, shake, jump, fall, grow, hold, drop, crouch, hide, peek, sit, sleep, yawn, cheer, cower, shiver, stomp, emerge, burrow.`;
 
   /* example (one of each kind) */
   TP.EXAMPLE = `\`\`\`js
@@ -245,16 +245,31 @@ Built-in for everyone:
 - react { type: 'take' (surprise jump) | 'land' | 'twitch' | 'shake' }
 - appear (pops in; hidden before) · vanish · float { height } · spin { turns } · shake · jump { height } · fall { to: 'back' } · grow { size }
 - hold { item: cast name, hand: 'R' | 'L' } (the item follows the hand) · drop { item }
+- People, natural body moves: sneak { to } (crouched, quiet steps) · crouch · hide { to: what they watch, side: 'left'|'right', for } (ducks down behind cover and peeks out now and then, then stays down) · peek { to, side } (one lean out from cover) · sit · sleep · yawn · cheer (arms up, bounce) · cower (shields head, scared) · shiver · stomp
+- Coming out of / going into the ground: emerge (hidden underground before; rises with a dirt burst and a mound — worms, moles, plants, monsters) · burrow (sinks back with dirt)
 - Custom moves: only the ones listed for that asset in ASSETS (e.g. do: 'reach' on the hand).
 - A face change: { word, who, face: 'scared' } (no do needed).
-Gestures (point, wave, nod, talk, react, shake, jump) play for 'for' seconds then stop. Walk, move, turn, look, hold, appear, vanish, grow, fall keep their result.
+Gestures (point, wave, nod, talk, react, shake, jump, peek, yawn, cheer, shiver, stomp) play for 'for' seconds then stop. Walk, move, turn, look, hold, appear, vanish, grow, fall, crouch, hide, sit, sleep, cower, emerge, burrow keep their result.
+
+### logical, natural action (this is what makes it believable)
+- Show how a thing really happens. Someone HIDING: sneak to real cover (a bush, wall, rock), hide behind it, and put the camera on the far side so the cover is between us and them. Something coming OUT OF THE SOIL: emerge at the spot, with a 'dirt' or 'rustle' sound.
+- Listeners react by themselves: people look at whoever talks and at what someone points at. You only add faces and big reactions.
+- Let actions overlap a little (turn while starting to walk, nod while talking). Give walks enough time (about 1 s per 1.5 m).
+
+### spotlight — the audience's eye (automatic)
+While someone talks (talk) or does an action, the director gently darkens, greys and blurs everything around them — other people included — so the eye goes to the right place. It adapts to the situation and fades in and out.
+- spot: [ { word, on: name, for: seconds } ] — point it at a person, an object or part of a process yourself.
+- spotlight: false — turn it off (wide crowd shots where everyone matters).
 
 ### atmosphere (optional)
 - air: 'dust' (default), 'bubbles' (underwater), 'snow', 'embers' (fire), 'rain', 'none' — tiny floating specks around the subject
 - shafts: true / false — soft light beams (automatic in hope, silhouette and flashback moods)
 
-### sfx — { word/sec, sound }
-step, rustle, whoosh, swish, scrape, clink, tada, thud, pop, tick, snore, boom, sting, riser, heartbeat. Use 1–3 per shot. Never on every word.
+### sound — sfx, ambience, music
+The director already adds footsteps for walk/run/sneak and small sounds for actions (cloth for gestures, dirt for emerge, thud for stomp/fall), placed left/right by where things are on screen. You only add story sounds.
+- sfx: [ { word/sec, sound, length } ] — step, sneak, rustle, cloth, whoosh, swish, scrape, clink, tada, thud, pop, poof, tick, snore, boom, sting, riser, heartbeat, dirt, bubble, boing, drip, splash, bell. Use 1–3 per shot. Never on every word.
+- ambience (optional; automatic from air and light): night, day, rain, underwater, room, fire, none
+- music (optional; automatic from the light mood): calm, playful, mystery, tension, hope, sad, flashback, none. Keep the same music for a whole scene; change it only when the feeling changes.
 
 ### extra (optional, advanced) — only if the form truly cannot do it
 extra: function (t, A, K) { /* t = seconds into the shot; A.name = the cast objects; set things ABSOLUTELY */ }
@@ -400,9 +415,10 @@ ${TP.STYLE}
    - size: height in kit units (see SCALE). For sets, the width.
    - look: 1–2 sentences: shape, colours from the palette, the ONE exaggeration. For REAL people say their real skin tone, hair, facial hair, glasses, clothes/uniform and age so they are recognisable.
    - parts: named pieces shots will need (e.g. "lid", "door", "wheel"). For sets put spot names in "spots" instead.
-   - moves: ONLY custom animations that the built-in moves cannot do (e.g. "flap", "open-lid", "bite", "crawl"). Built-in moves already exist for everything: walk, run, move, turn, look, point, wave, reach, nod, shake-head, talk, react, appear, vanish, float, spin, shake, jump, fall, grow, hold, drop.
+   - moves: ONLY custom animations that the built-in moves cannot do (e.g. "flap", "open-lid", "bite", "crawl"). Built-in moves already exist for everything: walk, run, sneak, move, turn, look, point, wave, reach, nod, shake-head, talk, react, appear, vanish, float, spin, shake, jump, fall, grow, hold, drop, crouch, hide, peek, sit, sleep, yawn, cheer, cower, shiver, stomp, emerge, burrow.
    - holdable: true if a hand holds it (it then needs a grip point).
    - spots (sets only): named places where things stand: e.g. ["door", "bed", "window", "center"].
+   - Plan for believable action: if someone hides, the set needs real cover (a bush, wall, crate) and a spot behind it; if something comes out of the ground, give the set a spot for it.
 2. SHOTS — for each cut, split the numbered lines into shots.
    - Each shot = 1 to 3 consecutive lines, about 2–6 seconds. Every line belongs to exactly one shot, in order, no gaps, no overlaps.
    - id = the cut's prefix + 2 digits (e.g. ${cuts[0] ? cuts[0].prefix : 'M'}01, ${cuts[0] ? cuts[0].prefix : 'M'}02 ...).

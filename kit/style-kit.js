@@ -372,12 +372,13 @@ K.init=function(o){cfg=o=o||{};K.duration=o.duration||10;
  R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
  S=new T.Scene();cam=new T.PerspectiveCamera(32,vs[0]/vs[1],.01,120);K.scene=S;K.camera=cam;K.renderer=R;
  var sky=SKIES[o.sky||'warm'];K.sky=sky;
- dome=new T.Mesh(new T.SphereGeometry(60,32,16),new T.ShaderMaterial({side:T.BackSide,depthWrite:false,uniforms:{lo:{value:new T.Vector3().fromArray(sky.lo)},hz:{value:new T.Vector3().fromArray(sky.hz)},hi:{value:new T.Vector3().fromArray(sky.hi)},gc:{value:new T.Vector3().fromArray(sky.gc)}},
+ dome=new T.Mesh(new T.SphereGeometry(60,32,16),new T.ShaderMaterial({side:T.BackSide,depthWrite:false,uniforms:{st:{value:(o.sky||'warm')==='night'?1:0},lo:{value:new T.Vector3().fromArray(sky.lo)},hz:{value:new T.Vector3().fromArray(sky.hz)},hi:{value:new T.Vector3().fromArray(sky.hi)},gc:{value:new T.Vector3().fromArray(sky.gc)}},
   vertexShader:'varying vec3 p;void main(){p=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-  fragmentShader:'uniform vec3 lo,hz,hi,gc;varying vec3 p;void main(){vec3 c=mix(hz,hi,smoothstep(0.,.55,p.y));c=mix(lo,c,smoothstep(-.2,.02,p.y));float g=pow(max(dot(p,normalize(vec3(-.6,.15,-.8))),0.),6.);c+=gc*g*.6;gl_FragColor=vec4(c,1.);}'}));
+  fragmentShader:'uniform vec3 lo,hz,hi,gc;uniform float st;varying vec3 p;float hh(vec3 q){return fract(sin(dot(q,vec3(12.9898,78.233,45.164)))*43758.5453);}void main(){vec3 c=mix(hz,hi,smoothstep(0.,.55,p.y));c=mix(lo,c,smoothstep(-.2,.02,p.y));float g=pow(max(dot(p,normalize(vec3(-.6,.15,-.8))),0.),6.);c+=gc*g*.6;vec3 q=floor(p*220.);float sv=step(.9965,hh(q))*smoothstep(.12,.45,p.y)*st;c+=vec3(.75,.78,.9)*sv*(.5+.5*hh(q+1.));gl_FragColor=vec4(c,1.);}'}));
  S.add(dome);
  var kd=(o.key&&o.key.dir)||[3,5,6],area=o.shadowArea||8;
  AMB=new T.AmbientLight(0xfff2e0,.34);S.add(AMB);
+ K.lights_hemi=new T.HemisphereLight(o.sky==='warm'?0xffc9a0:0x7f98c8,0x3a2430,.32);S.add(K.lights_hemi);
  KEY=new T.DirectionalLight((o.key&&o.key.color)||0xffe6c8,.95);KEY.position.set(kd[0],kd[1],kd[2]);KEY.castShadow=true;KEY.shadow.mapSize.set(2048,2048);
  var kc=KEY.shadow.camera;kc.left=kc.bottom=-area;kc.right=kc.top=area;kc.near=.2;kc.far=40;KEY.shadow.bias=-.0006;KEY.shadow.radius=3;S.add(KEY);S.add(KEY.target);
  RIM=new T.DirectionalLight(0x8fb0c8,.35);RIM.position.set(-4,3,-3);S.add(RIM);
@@ -398,17 +399,17 @@ function buildPost(){var pr=R.getPixelRatio();
  QM=new T.ShaderMaterial({depthTest:false,depthWrite:false,uniforms:{t:{value:RT.texture},d:{value:RT.depthTexture},fn:{value:9},ff:{value:10},ap:{value:.01},mx:{value:.035},asp:{value:K.view()[0]/K.view()[1]},
   n:{value:.01},f:{value:120},bl:{value:.8},ex:{value:1.05},ip:{value:new T.Matrix4()},cw:{value:new T.Matrix4()},pvp:{value:new T.Matrix4()},shut:{value:.5},ana:{value:.78},
   sfg:{value:0},ssub:{value:0},grade:{value:.34},vig:{value:.5},grain:{value:.035},fr:{value:0},
-  wm:{value:0},sat:{value:1},sep:{value:0},hal:{value:.35},wv:{value:new T.Vector2()}},
+  wm:{value:0},sat:{value:1},sep:{value:0},hal:{value:.35},wv:{value:new T.Vector2()},spc:{value:new T.Vector2(.5,.5)},spr:{value:.4},sps:{value:0}},
  vertexShader:'varying vec2 vu;void main(){vu=uv;gl_Position=vec4(position.xy,0.,1.);}',
  fragmentShader:[
- 'uniform sampler2D t,d;uniform float fn,ff,ap,mx,asp,n,f,bl,ex,shut,ana,sfg,ssub,grade,vig,grain,fr,wm,sat,sep,hal;uniform vec2 wv;uniform mat4 ip,cw,pvp;varying vec2 vu;',
+ 'uniform sampler2D t,d;uniform float fn,ff,ap,mx,asp,n,f,bl,ex,shut,ana,sfg,ssub,grade,vig,grain,fr,wm,sat,sep,hal,spr,sps;uniform vec2 wv,spc;uniform mat4 ip,cw,pvp;varying vec2 vu;',
  'float lin(float dz){return 2.*n*f/(f+n-(dz*2.-1.)*(f-n));}',
  'float coc(float z){float o=max(max(fn-z,z-ff),0.);float r=ap*o/max(z,.02);if(z<fn)r*=1.4;return min(r,mx);}',
  'float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}',
  'vec3 aces(vec3 x){x*=ex;return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}',
  'float hexR(float a){float s=mod(a,1.0472)-.5236;return .866/cos(s);}',
  'vec3 soft(vec3 b,vec3 l){return mix(b-(1.-2.*l)*b*(1.-b),b+(2.*l-1.)*(sqrt(b)-b),step(.5,l));}',
- 'void main(){vec2 u=vu+wv;float dz=texture2D(d,u).x;float z=lin(dz);float r=coc(z);',
+ 'void main(){vec2 u=vu+wv;float dz=texture2D(d,u).x;float z=lin(dz);vec2 sdv=(u-spc)*vec2(asp,1.);float sm=smoothstep(spr,spr*2.4,length(sdv))*sps;float r=max(coc(z),sm*.016);',
  ' vec4 vp=ip*vec4(u*2.-1.,dz*2.-1.,1.);vp/=vp.w;vec4 pc=pvp*(cw*vp);vec2 pu=pc.xy/pc.w*.5+.5;vec2 vel=(u-pu)*shut;float vl=length(vel);if(vl>.06)vel*=.06/vl;',
  ' vel*=smoothstep(.002,.012,r);',
  ' vec2 rd=u-.5;float edge=clamp(length(rd)*1.5,0.,1.);rd=normalize(rd+1e-5);',
@@ -426,6 +427,7 @@ function buildPost(){var pr=R.getPixelRatio();
  ' col+=b/20.*bl+b/20.*vec3(1.,.38,.24)*hal;col=aces(col);',
  ' float gl0=dot(col,vec3(.3,.59,.11));col=mix(vec3(gl0),col,sat);col*=vec3(1.+.07*wm,1.+.012*wm,1.-.1*wm);',
  ' col=mix(col,vec3(gl0*1.02,gl0*.86,gl0*.66)*.94+.025,sep);',
+ ' float sgl=dot(col,vec3(.3,.59,.11));col=mix(col,mix(vec3(sgl),col,.45)*.42,sm);',
  ' float gd=dot(u-.5,normalize(vec2(1.,-1.)));vec3 gcol=mix(vec3(1.,.59,.35),vec3(.27,.35,.9),smoothstep(-.5,.5,gd));col=mix(col,soft(col,gcol),grade);',
  ' col*=1.-vig*smoothstep(.45,1.,length((u-.5)*vec2(1.15,1.))*1.35);',
  ' col+=(h(u*vec2(913.,577.)+fr)-.5)*grain;gl_FragColor=vec4(clamp(col,0.,1.),1.);}'].join('\n')});
@@ -500,6 +502,8 @@ function mood(t){var L=lightAt(t);KEY.intensity=L.key;AMB.intensity=L.amb;BACK.i
  haze.position.copy(FC).addScaledVector(VD,dist*.7+1);haze.scale.set(dist*1.3+1.5,dist*.9+1,1);haze.material.opacity=.55*L.glow;
  haze2.position.copy(FC).addScaledVector(VD,dist*1.2+3);haze2.scale.set(dist*2+3,dist*1.2+2,1);haze2.material.opacity=.35*L.glow;
  QM.uniforms.sfg.value=L.fg;QM.uniforms.ssub.value=L.sub;
+ KEY.color.setRGB(1,.9+.04*L.warm,.78-.16*L.warm);if(K.lights_hemi)K.lights_hemi.intensity=.18+.16*L.amb/.34*.5;
+ var SP=K.spot||{x:.5,y:.5,r:.4,s:0};QM.uniforms.spc.value.set(SP.x,SP.y);QM.uniforms.spr.value=SP.r;QM.uniforms.sps.value+=(SP.s-QM.uniforms.sps.value)*.35;
  var F=K.film,U=QM.uniforms;U.wm.value=L.warm;U.sat.value=L.sat;U.sep.value=L.sepia;U.hal.value=.35*F.halation;U.grain.value=.035*F.grain;
  if(L.fog>0&&F.fog>0){if(!S.fog)S.fog=new T.FogExp2(new T.Color(K.sky.haze2).multiplyScalar(.18).getHex(),0);S.fog.density=L.fog*F.fog}else if(S.fog)S.fog.density=0}
 
@@ -512,7 +516,7 @@ var AC=null,MST=null,NB=null,DEST=null,soundOn=false,loopNodes=[],padG=[];
 function audioInit(){if(AC)return;AC=new (window.AudioContext||window.webkitAudioContext)();MST=AC.createGain();MST.gain.value=0;MST.connect(AC.destination);
  DEST=AC.createMediaStreamDestination();MST.connect(DEST);
  NB=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);var d=NB.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;
- var A=AMBI||{room:.04};
+ var A=K.noLiveSound?{}:(AMBI||{room:.04});
  if(A.room){var s=AC.createBufferSource();s.buffer=NB;s.loop=true;var lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=320;var g=AC.createGain();g.gain.value=A.room;s.connect(lp);lp.connect(g);g.connect(MST);s.start()}
  if(A.hum){var hu=AC.createOscillator();hu.frequency.value=110;var hg=AC.createGain();hg.gain.value=A.hum;hu.connect(hg);hg.connect(MST);hu.start()}
  (A.pad||[]).forEach(function(fq,i){var o=AC.createOscillator();o.type='triangle';o.frequency.value=fq;o.detune.value=i*4-4;var lf=AC.createBiquadFilter();lf.type='lowpass';lf.frequency.value=900;
@@ -555,7 +559,7 @@ K.SFX={
 K.renderAudio=function(dur,narr,mo){mo=mo||{};var SR=48000,off=new OfflineAudioContext(2,Math.ceil(dur*SR),SR);
  var keep=[AC,MST,NB];AC=off;MST=off.createGain();MST.gain.value=.9*(mo.sfx===undefined?1:mo.sfx);MST.connect(off.destination);
  NB=off.createBuffer(1,SR*2,SR);var d=NB.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;
- var A=AMBI||{room:.04};
+ var A=K.noLiveSound?{}:(AMBI||{room:.04});
  if(A.room){var s=off.createBufferSource();s.buffer=NB;s.loop=true;var lp=off.createBiquadFilter();lp.type='lowpass';lp.frequency.value=320;var g=off.createGain();g.gain.value=A.room;s.connect(lp);lp.connect(g);g.connect(MST);s.start(0)}
  (A.pad||[]).forEach(function(fq,i){var o=off.createOscillator();o.type='triangle';o.frequency.value=fq;o.detune.value=i*4-4;var lf=off.createBiquadFilter();lf.type='lowpass';lf.frequency.value=900;
   var pg=off.createGain(),pv=A.padVol||.02;pg.gain.setValueAtTime(0,0);pg.gain.linearRampToValueAtTime(pv,1.5);pg.gain.setValueAtTime(pv,Math.max(1.6,dur-.6));pg.gain.linearRampToValueAtTime(0,dur);o.connect(lf);lf.connect(pg);pg.connect(MST);o.start(0)});
@@ -571,7 +575,7 @@ var lastT=-1;
 K.audioInit=function(){audioInit();if(AC.state==='suspended')AC.resume();return K.audio()};
 K.audio=function(){return {ctx:AC,master:MST,dest:DEST}};
 K.sfxVol=1;K.sound=function(on){audioInit();if(AC.state==='suspended')AC.resume();soundOn=!!on;MST.gain.setTargetAtTime(on?.9*K.sfxVol:0,AC.currentTime,.05)};
-function audioTick(t){if(!AC||!soundOn)return;if(t<lastT||t-lastT>.35)lastT=t;
+function audioTick(t){if(!AC||!soundOn||K.noLiveSound)return;if(t<lastT||t-lastT>.35)lastT=t;
  CUES.forEach(function(c){if(lastT<c[0]&&t>=c[0]&&K.SFX[c[1]])K.SFX[c[1]](c[2])});
  LOOPS.forEach(function(L,i){var n=loopNodes[i];if(!n)return;var on=t>=(L.from||0)&&t<(L.to===undefined?1e9:L.to);
   var v=on?(typeof L.vol==='function'?L.vol(t):(L.vol===undefined?.1:L.vol)):0,p=typeof L.pitch==='function'?L.pitch(t):(L.pitch||1);
