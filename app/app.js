@@ -781,16 +781,21 @@
     }).catch(function (e) { toast('Import failed: ' + e.message, 5000) });
   };
   document.getElementById('demoBtn').onclick = function () {
-    var D = window.DEMO; P = newProject('Demo — ' + D.title); P.settings.topic = D.title; P.title = D.title; syncCuts();
+    modal('Load a demo', h('div', { className: 'grid' },
+      [window.DEMO, window.DEMO2].filter(Boolean).map(function (D) { return h('div', { className: 'card' }, h('h3', null, D.title), h('p', { className: 'muted small' }, D.script.slice(0, 120) + '…'), h('button', { on: { click: function () { document.getElementById('mclose').click(); loadDemo(D) } } }, 'Load')) })));
+  };
+  function loadDemo(D) {
+    P = newProject('Demo — ' + D.title); P.settings.topic = D.title; P.title = D.title; syncCuts();
     var c = P.cuts[0], r = TIMING.estimate(D.script); c.text = D.script; c.words = r.words; c.duration = r.duration; c.lines = TIMING.lines(r.words); c.timing = 'estimate (no audio)';
     var plan = JSON.parse(JSON.stringify(D.plan)); plan.cuts = { main: plan.cuts.main.map(function (s) { s.id = s.id.replace(/^S/, 'M'); return s }) };
+    if (plan.sky) P.settings.sky = plan.sky;
     PLAN.validate(plan, P.cuts); applyPlan(plan);
     Object.keys(D.assets).forEach(function (n) { P.assets[n] = { code: D.assets[n], versions: [], status: 'approved' } });
     P.assetTickets.forEach(function (t) { t.status = 'checked' });
     P.shots.main = {}; Object.keys(D.shots).forEach(function (id) { var nid = id.replace(/^S/, 'M'); P.shots.main[nid] = { code: D.shots[id].replace("SHOT('" + id + "'", "SHOT('" + nid + "'"), versions: [], status: 'approved' } });
     P.shotTickets.main.forEach(function (t) { t.status = 'checked' });
     STEP = 'watch'; save(true); localStorage.setItem('lastProject', P.id); render(); toast('Demo loaded — press Play.');
-  };
+  }
 
   refreshProjects().then(function () {
     var last = localStorage.getItem('lastProject');

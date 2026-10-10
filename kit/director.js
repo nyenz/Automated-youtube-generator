@@ -169,8 +169,8 @@
     var fov = LENSES[cm.lens] || (cm.framing === 'wide' ? 42 : 32);
     r.cam = { pos: [0, 2, 8], look: [0, 1, 0], fov: fov, hand: cm.move === 'handheld' ? .02 : 0, roll: cm.angle === 'dutch' ? .12 : 0, shake: (cm.shake ? [].concat(cm.shake) : []).map(function (e) { return [timeOf(e, r, 'camera shake'), e.amount || .06] }) };
     // focus
-    var fr = FRAMES[cm.framing || 'medium'] || FRAMES.medium, onNames = [].concat(cm.on || Object.keys(r.cast)[0] || []);
-    var focus = s.focus && s.focus.length ? s.focus : [{ on: cm.on || Object.keys(r.cast)[0] }];
+    var fr = FRAMES[cm.framing || 'medium'] || FRAMES.medium, onNames = [].concat(cm.on || (cm.framing === 'wide' ? [] : Object.keys(r.cast)[0]) || []);
+    var focus = s.focus && s.focus.length ? s.focus : [{ on: onNames.length ? onNames : Object.keys(r.cast)[0] }];
     focus.forEach(function (f) { [].concat(f.on || []).forEach(function (n) { if (n && r.cast[n] && onNames.indexOf(n) < 0 && cm.framing !== 'wide') warn(id, 'focus on "' + n + '" but the camera only frames ' + (onNames.join(', ') || 'the set') + ' — add it to camera.on or it may be off screen.') }) });
     r.lens = focus.map(function (f, i) {
       var objs = [].concat(f.on || []).map(function (n) { var ii = r.cast[n]; if (!ii) { if (n) warn(id, 'focus: "' + n + '" is not in the cast.'); return null } return ii.a.root }).filter(Boolean);
@@ -369,14 +369,19 @@
       case 'truck-right': lat = K.mix(-.35, .35, ke) * frameH; break;
     }
     if (cm.distance) dist *= cm.distance;
-    var look = center.clone(); look.y += H * fr.cy; if (cm.height) look.y += cm.height;
+    var look = center.clone(), fname = cm.framing || 'medium', one = subj.length === 1 ? subj[0].a : null;
+    if (one && isHuman(one) && /extreme|close|medium/.test(fname)) { // frame from the top of the head: same headroom for every body type
+      one.root.updateMatrixWorld(true); var top = one.headTop.getWorldPosition(new T.Vector3()).y;
+      look.y = fname === 'extreme' ? top - frameH * .42 : top + frameH * (fname === 'close' ? .08 : .1) - frameH * .5;
+    } else look.y += H * (subj.length && !subj.some(function (s) { return isHuman(s.a) }) && fname !== 'wide' && fname !== 'full' ? .55 : fr.cy);
+    if (cm.height) look.y += cm.height;
     var a = yaw + az, dir = new T.Vector3(Math.sin(a) * Math.cos(el), Math.sin(el), Math.cos(a) * Math.cos(el));
     var pos = look.clone().addScaledVector(dir, dist), side = new T.Vector3(Math.cos(a), 0, -Math.sin(a));
     // composition: rule of thirds + room in front of the face (lead room); eyes on the upper third in vertical frames
     var frameW = frameH * asp, comp = cm.compose || 'auto', third = frameW * .16;
     if (comp === 'left') lat += third; else if (comp === 'right') lat -= third;
     else if (comp === 'auto' && subj.length === 1 && Math.abs(Math.sin(az)) > .3 && cm.framing !== 'wide') lat += -Math.sign(Math.sin(az)) * third;
-    if (asp < 1 && /extreme|close|medium/.test(cm.framing || 'medium')) look.y -= frameH * .09;
+    if (asp < 1 && !(one && isHuman(one)) && /extreme|close|medium/.test(fname)) look.y -= frameH * .06;
     pos.addScaledVector(side, lat); look.addScaledVector(side, lat);
     if (pos.y < .12) pos.y = .12;
     var fovNow = r.cam.fov;
