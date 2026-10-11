@@ -1,0 +1,129 @@
+<title>Clean Style Test 02</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Instrument+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: a model sheet on one flat khaki board. Each sheet can flip between your original and the clean vector version. Single deliberate look (no dark theme). */
+:root { --board: #AE9675; --ink: #2a211c; --muted: #4E4236; --card: #B8A07E; --accent: #E13B07;
+  --hand: "Permanent Marker", "Comic Sans MS", cursive; --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif; color-scheme: light; }
+body { background: var(--board); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; padding: 24px 16px 56px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 30px; }
+h1, h2 { font-family: var(--hand); font-weight: 400; margin: 0; text-transform: uppercase; letter-spacing: .02em; text-wrap: balance; border-bottom: 2px solid var(--ink); display: inline-block; padding-bottom: 2px; }
+h1 { font-size: clamp(26px, 4vw, 40px); }
+h2 { font-size: 20px; }
+p { margin: 6px 0 0; max-width: 72ch; color: var(--muted); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+button { font: 600 13px var(--body); color: var(--ink); background: transparent; border: 2px solid var(--ink); border-radius: 999px; padding: 5px 14px; cursor: pointer; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--board); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sheet { width: 100%; height: auto; display: block; max-width: 100%; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.pair figure { margin: 0; display: grid; gap: 4px; min-width: 0; }
+.pair figcaption { font-family: var(--hand); text-transform: uppercase; font-size: 14px; text-align: center; }
+ol { margin: 6px 0 0; padding-left: 20px; color: var(--muted); max-width: 72ch; display: grid; gap: 4px; }
+@media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Clean style · test 02</h1>
+    <p>New method. Instead of drawing shapes by hand in code, the app reads a style image like yours and rebuilds it as clean flat vector shapes. It uses one colour per shape and removes the noise and smudges, so you get exactly your style, only cleaner. The people below are alive: heads and upper bodies move on their own.</p>
+  </header>
+
+  <section>
+    <h2>Cast · clean vector, moving</h2>
+    <div class="bar" role="group" aria-label="Cast view">
+      <button type="button" data-sheet="cast" data-show="clean" aria-pressed="true">Clean vector</button>
+      <button type="button" data-sheet="cast" data-show="orig" aria-pressed="false">Your original</button>
+      <button type="button" id="pause" aria-pressed="false">Pause</button>
+    </div>
+    <svg id="cast" class="sheet" viewBox="0 40 1536 960" role="img" aria-label="Fifteen characters in the clean style, gently moving"></svg>
+  </section>
+
+  <section>
+    <h2>Up close</h2>
+    <div class="pair">
+      <figure><svg id="closeO" class="sheet" viewBox="0 50 230 450" role="img" aria-label="Original close-up"></svg><figcaption>Your original</figcaption></figure>
+      <figure><svg id="closeC" class="sheet" viewBox="0 50 230 450" role="img" aria-label="Clean vector close-up"></svg><figcaption>Clean vector</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Props</h2>
+    <p>The prop sheet is rougher in the original (scratches and specks), so its clean version keeps a little of that texture. Props drawn clean from the start will come out as clean as the people.</p>
+    <div class="bar" role="group" aria-label="Props view">
+      <button type="button" data-sheet="props" data-show="clean" aria-pressed="true">Clean vector</button>
+      <button type="button" data-sheet="props" data-show="orig" aria-pressed="false">Your original</button>
+    </div>
+    <svg id="props" class="sheet" viewBox="0 40 1536 984" role="img" aria-label="Props in the clean style"></svg>
+  </section>
+
+  <section>
+    <h2>What this means</h2>
+    <ol>
+      <li>The look comes from images in your style (made once, with any image AI), and the app turns them into clean vector shapes automatically.</li>
+      <li>Vector means every part can move: heads turn, bodies breathe, arms and legs can be posed. That is how the videos get made.</li>
+      <li>Bigger sources give cleaner results. Characters around 1000 pixels tall trace much better than the small headshots on your sheets.</li>
+      <li>Real brand logos (the swooshes) are removed before anything goes into a video.</li>
+    </ol>
+  </section>
+</div>
+
+<template id="castSvg">__CAST__</template>
+<template id="propsSvg">__PROPS__</template>
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  var REF = { cast: '__CASTREF__', props: '__PROPSREF__' };
+  function inner(id) { var t = document.getElementById(id).innerHTML; return t.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '') }
+  var castIn = inner('castSvg'), propsIn = inner('propsSvg');
+
+  // ---- cast: every figure gets three parts (legs, torso, head) cut by clip lines and moved a little ----
+  var cast = document.getElementById('cast');
+  cast.innerHTML = '<image href="' + REF.cast + '" x="0" y="0" width="1536" height="1024" visibility="hidden" id="castRef"/><g id="castClean"><defs id="cdefs"></defs></g>';
+  var tmp = document.createElementNS(NS, 'svg'); tmp.innerHTML = castIn;
+  var figs = [].slice.call(tmp.querySelectorAll('g[data-box]')), defs = document.getElementById('cdefs'), root = document.getElementById('castClean');
+  var maxH = Math.max.apply(null, figs.map(function (g) { return +g.dataset.box.split(',')[3] }));
+  var parts = [];
+  figs.forEach(function (g, i) {
+    var b = g.dataset.box.split(',').map(Number), x = b[0], y = b[1], w = b[2], h = b[3];
+    g.id = 'fig' + i; defs.appendChild(g);
+    var neck = y + h * (h < maxH * .75 ? .3 : .205), hip = y + h * .5, cx = x + w * .5;
+    function clip(id, y0, y1) { return '<clipPath id="' + id + '"><rect x="' + (x - 40) + '" y="' + y0 + '" width="' + (w + 80) + '" height="' + (y1 - y0) + '"/></clipPath>' }
+    defs.insertAdjacentHTML('beforeend', clip('cl' + i, hip, y + h + 30) + clip('ct' + i, neck, hip + 4) + clip('ch' + i, y - 60, neck + 7));
+    root.insertAdjacentHTML('beforeend', '<g clip-path="url(#cl' + i + ')"><use href="#fig' + i + '"/></g><g clip-path="url(#ct' + i + ')"><g id="t' + i + '"><use href="#fig' + i + '"/></g></g><g clip-path="url(#ch' + i + ')"><g id="h' + i + '"><use href="#fig' + i + '"/></g></g>');
+    parts.push({ t: document.getElementById('t' + i), h: document.getElementById('h' + i), cx: cx, neck: neck, hip: hip, ph: i * 1.7, sp: .8 + (i % 4) * .12 });
+  });
+  var playing = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches), t0 = performance.now(), shown = -1;
+  function tick(now) {
+    var t = (now - t0) / 1000, f = Math.floor(t * 12);
+    if (playing && f !== shown) { shown = f; var tt = f / 12;
+      parts.forEach(function (p) {
+        var a = Math.sin(tt * p.sp * 1.6 + p.ph), b = Math.sin(tt * p.sp + p.ph * .7);
+        p.t.setAttribute('transform', 'rotate(' + (b * .6).toFixed(2) + ' ' + p.cx + ' ' + p.hip + ')');
+        p.h.setAttribute('transform', 'rotate(' + (b * .6 + a * 2.2).toFixed(2) + ' ' + p.cx + ' ' + p.neck + ') translate(0,' + (Math.max(0, Math.sin(tt * 2.2 + p.ph)) * -1.2).toFixed(2) + ')');
+      });
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  var pb = document.getElementById('pause');
+  pb.textContent = playing ? 'Pause' : 'Play';
+  pb.addEventListener('click', function () { playing = !playing; pb.textContent = playing ? 'Pause' : 'Play'; pb.setAttribute('aria-pressed', String(!playing)) });
+
+  // ---- close-up and props ----
+  document.getElementById('closeO').innerHTML = '<image href="' + REF.cast + '" x="0" y="0" width="1536" height="1024"/>';
+  document.getElementById('closeC').innerHTML = '<rect x="0" y="0" width="1536" height="1024" fill="#AE9675"/>' + castIn;
+  var props = document.getElementById('props');
+  props.innerHTML = '<image href="' + REF.props + '" x="0" y="0" width="1536" height="1024" visibility="hidden" id="propsRef"/><g id="propsClean"><rect x="0" y="0" width="1536" height="1024" fill="#AE9675"/>' + propsIn + '</g>';
+
+  // ---- original / clean toggles ----
+  [].forEach.call(document.querySelectorAll('button[data-sheet]'), function (btn) {
+    btn.addEventListener('click', function () {
+      var s = btn.dataset.sheet, orig = btn.dataset.show === 'orig';
+      document.getElementById(s + 'Ref').setAttribute('visibility', orig ? 'visible' : 'hidden');
+      document.getElementById(s + 'Clean').setAttribute('visibility', orig ? 'hidden' : 'visible');
+      [].forEach.call(document.querySelectorAll('button[data-sheet="' + s + '"]'), function (b) { b.setAttribute('aria-pressed', String(b === btn)) });
+    });
+  });
+})();
+</script>
