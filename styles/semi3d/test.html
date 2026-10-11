@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Semi-3D Test</title>
+<style>html,body{margin:0;background:#AE9675}canvas{display:block}</style></head><body>
+<script src="../../kit/three.min.js"></script>
+<script src="semi3d.js"></script>
+<script>
+(function () {
+  var W = +(new URLSearchParams(location.search).get('w') || 540), H = W * 16 / 9;
+  var r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setPixelRatio(1); r.setSize(W, H); document.body.appendChild(r.domElement);
+  var sc = new THREE.Scene(); sc.background = new THREE.Color('#AE9675');
+  var cam = new THREE.PerspectiveCamera(30, W / H, .1, 50);
+  var g = SEMI.guy93(); sc.add(g.root);
+  var sh = new THREE.Mesh(new THREE.CircleGeometry(.55, 40), new THREE.MeshBasicMaterial({ color: '#4E4236', transparent: true, opacity: .55 })); sh.rotation.x = -Math.PI / 2; sh.scale.set(1, .45, 1); sh.position.set(.08, .002, .05); sc.add(sh);
+  window.DUR = 8;
+  window.FRAME = function (t) {
+    var walk = t < 5.6;
+    SEMI.pose(g, t, walk);
+    var talk = t > 6.1 && t < 7.6 ? Math.abs(Math.sin(t * 11)) : 0, blink = (t % 2.9) < .12;
+    g.setFace({ lid: blink ? 1 : (t > 5.6 ? .18 : .3), look: t > 5.6 ? -.2 : .5, talk: talk });
+    if (!walk) { g.neck.rotation.y = Math.min(1, (t - 5.6) / .6) * .2; g.head.rotation.x = talk ? Math.sin(t * 7) * .03 : 0 }
+    var e = Math.min(1, t / 5.6), ee = e * e * (3 - 2 * e), late = Math.max(0, Math.min(1, (t - 5.6) / 1.4)), le = late * late * (3 - 2 * late), a = .95 - 1.7 * ee + .55 * le, rad = 4.3 - 2.4 * le, y = 1.1 + .32 * le;
+    cam.position.set(Math.sin(a) * rad, y, Math.cos(a) * rad); cam.lookAt(0, .92 + .7 * le, 0);
+    r.render(sc, cam);
+  };
+  var t0 = performance.now();
+  if (!window.NOLOOP) (function loop() { FRAME(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop) })();
+})();
+</script></body></html>
