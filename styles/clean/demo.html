@@ -1,0 +1,72 @@
+<title>Clean Style Test 01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Instrument+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: a model sheet on one flat khaki board — reference next to the rebuild, then faces, then the palette. One look, so no dark theme. */
+:root { --board: #AE9675; --ink: #2a211c; --muted: #4E4236; --line: #9c8466; --card: #B8A07E;
+  --hand: "Permanent Marker", "Comic Sans MS", cursive; --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif; color-scheme: light; }
+body { background: var(--board); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; padding: 24px 16px 56px; }
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2 { font-family: var(--hand); font-weight: 400; margin: 0; letter-spacing: .02em; text-transform: uppercase; text-wrap: balance; }
+h1 { font-size: clamp(26px, 4vw, 40px); border-bottom: 2px solid var(--ink); padding-bottom: 4px; display: inline-block; }
+h2 { font-size: 20px; border-bottom: 2px solid var(--ink); display: inline-block; padding-bottom: 2px; }
+p { margin: 6px 0 0; max-width: 70ch; color: var(--muted); }
+.row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: end; }
+.cell { display: grid; gap: 6px; justify-items: center; min-width: 0; }
+.cell img, .cell svg { width: 100%; height: auto; max-width: 100%; display: block; }
+.cap { font-family: var(--hand); font-size: 14px; text-transform: uppercase; text-align: center; }
+.faces { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.sw div { background: var(--card); border-radius: 4px; overflow: hidden; font-size: 11px; }
+.sw i { display: block; height: 34px; }
+.sw span { display: block; padding: 3px 6px; color: var(--ink); }
+ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+@media (max-width: 720px) { .row { grid-template-columns: 1fr 1fr; } .faces { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Clean style · test 01</h1>
+    <p>One character rebuilt from scratch to the style rules taken from your sheets: flat shapes, one shadow tone per colour, no outlines, no edge light, no grain, warm khaki world, three-quarter view, hands in pockets.</p>
+  </header>
+
+  <section>
+    <h2>Reference vs rebuild</h2>
+    <div class="row" style="margin-top:12px">
+      <div class="cell"><img src="ref-93.png" alt="Reference character from your sheet"><span class="cap">Your reference</span></div>
+      <div class="cell"><svg id="full" viewBox="80 60 480 1200" role="img" aria-label="Rebuilt character, full body"></svg><span class="cap">Rebuild · full body</span></div>
+      <div class="cell"><svg id="head" viewBox="140 80 320 320" role="img" aria-label="Rebuilt character, head close-up"></svg><span class="cap">Rebuild · head</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Faces</h2>
+    <p>Only the lids, pupils, brows and the tiny mouth change, like the headshot rows in your sheet.</p>
+    <div class="faces" id="faces" style="margin-top:12px"></div>
+  </section>
+
+  <section>
+    <h2>Colours used</h2>
+    <div class="sw" id="sw" style="margin-top:12px"></div>
+    <ul>
+      <li>Two blacks: ink for hair, pupils and soles; a softer black for black clothes.</li>
+      <li>Cream instead of white. Shadows change hue as well as getting darker.</li>
+      <li>On the jeans the shadow covers more area than the lit part, like the reference.</li>
+    </ul>
+  </section>
+</div>
+
+<script src="clean-kit.js"></script>
+<script>
+(function () {
+  var C = window.CLEAN, K = C.PAL;
+  document.getElementById('full').innerHTML = C.guy93({});
+  document.getElementById('head').innerHTML = C.guy93({});
+  document.getElementById('faces').innerHTML = Object.keys(C.FACES).map(function (f) {
+    return '<div class="cell"><svg viewBox="150 110 300 290" role="img" aria-label="' + f + ' face">' + C.guy93({ face: f }) + '</svg><span class="cap">' + f + '</span></div>';
+  }).join('');
+  var sw = [['background', K.bg], ['ground shadow', K.groundShadow], ['ink', K.ink], ['soft black', K.softBlack[0]], ['cream', K.cream[0]], ['cream shadow', K.cream[1]],
+    ['skin deep', K.skin.deep[0]], ['skin deep shadow', K.skin.deep[1]], ['teal', K.teal[0]], ['teal shadow', K.teal[1]], ['denim', K.denim[0]], ['denim shadow', K.denim[1]], ['orange', K.orange[0]], ['orange shadow', K.orange[1]], ['gold', K.gold]];
+  document.getElementById('sw').innerHTML = sw.map(function (c) { return '<div><i style="background:' + c[1] + '"></i><span>' + c[0] + '<br>' + c[1] + '</span></div>' }).join('');
+})();
+</script>
