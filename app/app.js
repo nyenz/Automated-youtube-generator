@@ -48,7 +48,7 @@
   function newProject(name) {
     return {
       id: 'p' + Date.now().toString(36), name: name || 'New video', created: Date.now(),
-      settings: { topic: '', category: 'survival', type: 'short', minutes: 2.5, shorts: 2, shortMinutes: 1, mascot: 'both', voice: 'male', sky: 'auto', refChannel: '' },
+      settings: { topic: '', category: 'survival', type: 'short', minutes: 2.5, shorts: 2, shortMinutes: 1, mascot: 'both', voice: 'male', sky: 'auto', style: 'lowpoly', refChannel: '' },
       research: '', styleRef: '', topicAnswer: '', scriptRaw: '', title: '', voiceStyle: '', sources: '',
       cuts: [], plan: null, planRaw: '', assets: {}, assetInfo: {}, assetTickets: [], shots: {}, shotTickets: {},
       ptsAsset: 3, ptsShot: 4, claudeShots: false
@@ -56,6 +56,7 @@
   }
   function syncCuts() {
     var s = P.settings, want = [];
+    if (!s.style) s.style = 'paper';            // projects made before the Low-Poly style existed stay Dark Paper
     if (s.type === 'long') {
       want.push({ id: 'long', label: 'Long video', prefix: 'L', minutes: +s.minutes, aspect: s.longAspect || '16:9' });
       for (var i = 1; i <= (+s.shorts || 0); i++) want.push({ id: 'short' + i, label: 'Short ' + i, prefix: 'ABCDEFG'[i - 1], minutes: +s.shortMinutes, aspect: '9:16' });
@@ -67,6 +68,8 @@
   function cutById(id) { return P.cuts.filter(function (c) { return c.id === id })[0] }
   var saveT = null;
   function save(now) { clearTimeout(saveT); saveT = setTimeout(function () { DB.put(P).then(refreshProjects) }, now ? 0 : 400) }
+  function styleOf() { return (P && P.settings && P.settings.style) || 'paper' }
+  function stagePage() { return styleOf() === 'lowpoly' ? 'stage-lp.html' : 'stage.html' }
   function sky() { return P.settings.sky !== 'auto' ? P.settings.sky : ((P.plan && P.plan.sky) || 'night') }
 
   /* ---------------- status per step ---------------- */
@@ -129,10 +132,12 @@
         s.type === 'long' ? field('Long video shape', sel('longAspect', [['16:9', '16:9 landscape (normal YouTube video)'], ['9:16', '9:16 vertical']])) : null,
         s.type === 'long' ? field('How many shorts from it', sel('shorts', [0, 1, 2, 3, 4])) : null,
         s.type === 'long' ? field('Each short (minutes)', sel('shortMinutes', [.75, 1, 1.5, 2, 2.5, 3])) : null,
+        field('Visual style', sel('style', (TPL.styleList || []).map(function (x) { return [x.id, x.name + ' — ' + x.note] }))),
         field('Mascot on screen', sel('mascot', [['both', 'Both (kato + nia)'], ['kato', 'kato (male)'], ['nia', 'nia (female)'], ['none', 'None']])),
         field('Narration voice', sel('voice', [['male', 'Male'], ['female', 'Female']])),
         field('Sky / colour mood', sel('sky', [['auto', 'Let the plan choose'], ['night', 'Night (cool)'], ['warm', 'Warm (sunset)']]))
       ),
+      (P.plan || Object.keys(P.assets || {}).length) ? h('p', { className: 'muted small' }, 'Changing the style after the plan or assets exist means the assets must be made again in the new style (shots can stay).') : null,
       h('div', { className: 'card' }, h('h3', null, 'This project makes:'), P.cuts.map(function (c) { return h('div', null, '• ' + c.label + ' (' + c.aspect + ') — ' + c.minutes + ' min (~' + Math.round(c.minutes * 150) + ' words), shot ids ' + c.prefix + '01, ' + c.prefix + '02…') }),
         s.type === 'long' ? h('p', { className: 'muted small' }, 'The shorts reuse the long video\'s assets, so they only need new shots. Each short gets its own script and its own audio.') : null),
       progressCard(), soundCard(),
@@ -321,7 +326,7 @@
   /* ---------------- run the stage in a hidden iframe ---------------- */
   function stage(payload, wantType, visibleIn) {
     return new Promise(function (res, rej) {
-      var f = h('iframe', { src: 'stage.html', className: visibleIn ? '' : 'hidden-stage' });
+      var f = h('iframe', { src: stagePage(), className: visibleIn ? '' : 'hidden-stage' });
       var timer = setTimeout(function () { done(); rej(new Error('The check took too long.')) }, 90000);
       function done() { clearTimeout(timer); window.removeEventListener('message', on); if (!visibleIn) f.remove() }
       function on(e) {
@@ -562,7 +567,7 @@
     function send(m) { if (PLAYER && PLAYER.contentWindow) PLAYER.contentWindow.postMessage(m, '*') }
     function load() {
       if (PLAYER) PLAYER.remove(); PLAYING = false;
-      PLAYER = h('iframe', { src: 'stage.html', style: 'width:100%;height:100%;border:0' }); frameBox.innerHTML = ''; frameBox.appendChild(PLAYER);
+      PLAYER = h('iframe', { src: stagePage(), style: 'width:100%;height:100%;border:0' }); frameBox.innerHTML = ''; frameBox.appendChild(PLAYER);
       media(CUT).then(function (md) { var pl = playerPayload(CUT); pl.audio = md.audio; pl.music = md.music; PLAYER.payload = pl });
     }
     window.onmessage = function (e) {
@@ -630,17 +635,17 @@
 
   /* ---------------- standalone video HTML (for the AI or to share) ---------------- */
   function exportVideoHtml(cid) {
-    var files = ['kit/style-kit.js', 'kit/director.js', 'kit/piano.js', 'kit/sound.js', 'kit/stage.js'];
+    var LPS = styleOf() === 'lowpoly', files = LPS ? ['kit/lp/engine.js', 'kit/lp/rig.js', 'kit/lp/people.js', 'kit/lp/render.js', 'kit/lp/director.js', 'kit/lp/check.js', 'kit/piano.js', 'kit/sound.js', 'kit/stage.js'] : ['kit/style-kit.js', 'kit/director.js', 'kit/piano.js', 'kit/sound.js', 'kit/stage.js'];
     Promise.all(files.map(function (f) { return fetch(f).then(function (r) { return r.text() }) })).then(function (src) {
       var pl = playerPayload(cid, 720); delete pl.assets; delete pl.shots; pl.standalone = true;
       var A = assetCodes(), S = shotCodes(cid);
       function block(type, name, code) { return '<script type="text/x-' + type + '" data-name="' + esc(name) + '">\n' + String(code).replace(/<\/script/gi, '<\\/script') + '\n</script>' }
       var html = '<!doctype html>\n<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(pl.name) + '</title></head>\n<body style="margin:0;background:#0d0b10"><div id="msg" style="color:#e9dfc8;font:14px sans-serif;padding:20px">Loading…</div>\n' +
-        '<!-- ============ VIDEO: ' + esc(pl.name) + ' ============\n  This file is a whole video made with the "Dark Paper Cinema" kit.\n  READ: the ASSETS (KIT.asset blocks), the SHOTS (SHOT blocks) and the TIMING (words with seconds).\n  The LOCKED KIT at the bottom draws everything — do not edit or re-explain it.\n  Audio is not included; open the file in Chrome and press Play to watch it silently with captions.\n-->\n' +
+        '<!-- ============ VIDEO: ' + esc(pl.name) + ' ============\n  This file is a whole video made with the "' + (LPS ? 'Low-Poly Paper' : 'Dark Paper Cinema') + '" kit.\n  READ: the ASSETS (KIT.asset blocks), the SHOTS (SHOT blocks) and the TIMING (words with seconds).\n  The LOCKED KIT at the bottom draws everything — do not edit or re-explain it.\n  Audio is not included; open the file in Chrome and press Play to watch it silently with captions.\n-->\n' +
         '<!-- ============ ASSETS ============ -->\n' + Object.keys(A).map(function (n) { return block('asset', n, A[n]) }).join('\n') + '\n' +
         '<!-- ============ SHOTS (in order) ============ -->\n' + (P.plan.cuts[cid] || []).filter(function (s) { return S[s.id] }).map(function (s) { return block('shot', s.id, S[s.id]) }).join('\n') + '\n' +
         '<!-- ============ TIMING + SHOT LIST ============ -->\n<script>window.STAGE_PAYLOAD = ' + JSON.stringify(pl) + ';\nwindow.STAGE_PAYLOAD.assets = {}; window.STAGE_PAYLOAD.shots = {};\n[].forEach.call(document.querySelectorAll(\'script[type="text/x-asset"]\'), function (s) { STAGE_PAYLOAD.assets[s.dataset.name] = s.textContent });\n[].forEach.call(document.querySelectorAll(\'script[type="text/x-shot"]\'), function (s) { STAGE_PAYLOAD.shots[s.dataset.name] = s.textContent });</script>\n' +
-        '<!-- ============ LOCKED KIT (do not edit) ============ -->\n<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>\n' +
+        '<!-- ============ LOCKED KIT (do not edit) ============ -->\n' + (LPS ? '' : '<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>') + '\n' +
         src.map(function (s) { return '<script>\n' + s + '\n</script>' }).join('\n') + '\n</body></html>';
       download(slug(pl.name) + '.html', new Blob([html], { type: 'text/html' }));
       toast('Video HTML downloaded. Attach it in the chat together with the fix prompt.', 4500);
@@ -653,7 +658,7 @@
      ================================================================= */
   function stageModal(title, payload, handlers, size) {
     var box = h('div', { style: 'height:100%;display:flex;flex-direction:column;align-items:center;gap:10px' }), info = h('div', { style: 'font-weight:700' }, 'Preparing…');
-    var wh = size || [360, 640], fr = h('div', { style: 'width:' + wh[0] + 'px;height:' + wh[1] + 'px;flex:none' }), f = h('iframe', { src: 'stage.html', style: 'width:100%;height:100%;border:0;border-radius:8px' });
+    var wh = size || [360, 640], fr = h('div', { style: 'width:' + wh[0] + 'px;height:' + wh[1] + 'px;flex:none' }), f = h('iframe', { src: stagePage(), style: 'width:100%;height:100%;border:0;border-radius:8px' });
     box.append(info, fr); fr.appendChild(f);
     function on(e) {
       if (e.source !== f.contentWindow) return; var m = e.data || {};
@@ -783,10 +788,10 @@
   };
   document.getElementById('demoBtn').onclick = function () {
     modal('Load a demo', h('div', { className: 'grid' },
-      [window.DEMO, window.DEMO2].filter(Boolean).map(function (D) { return h('div', { className: 'card' }, h('h3', null, D.title), h('p', { className: 'muted small' }, D.script.slice(0, 120) + '…'), h('button', { on: { click: function () { document.getElementById('mclose').click(); loadDemo(D) } } }, 'Load')) })));
+      [window.DEMO_LP, window.DEMO, window.DEMO2].filter(Boolean).map(function (D) { return h('div', { className: 'card' }, h('h3', null, D.title), h('p', { className: 'muted small' }, D.script.slice(0, 120) + '…'), h('button', { on: { click: function () { document.getElementById('mclose').click(); loadDemo(D) } } }, 'Load')) })));
   };
   function loadDemo(D) {
-    P = newProject('Demo — ' + D.title); P.settings.topic = D.title; P.title = D.title; syncCuts();
+    P = newProject('Demo — ' + D.title); P.settings.style = D.style || 'paper'; P.settings.topic = D.title; P.title = D.title; syncCuts();
     var c = P.cuts[0], r = TIMING.estimate(D.script); c.text = D.script; c.words = r.words; c.duration = r.duration; c.lines = TIMING.lines(r.words); c.timing = 'estimate (no audio)';
     var plan = JSON.parse(JSON.stringify(D.plan)); plan.cuts = { main: plan.cuts.main.map(function (s) { s.id = s.id.replace(/^S/, 'M'); return s }) };
     if (plan.sky) P.settings.sky = plan.sky;

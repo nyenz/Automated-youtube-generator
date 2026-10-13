@@ -33,6 +33,7 @@
 
   /* ---------- CHECK ASSETS ---------- */
   function checkAssets(p) {
+    if (K.checkAssets) return K.checkAssets(p, { runCode: runCode, lineInfo: lineInfo, post: post, say: say });
     K.init({ duration: 4, sky: p.sky || 'night', aspect: '9:16' });
     wrapColours();
     TRACK = {}; ['kato', 'nia'].forEach(function (n) { K.mascot(n) });
