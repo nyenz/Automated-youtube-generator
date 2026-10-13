@@ -293,6 +293,14 @@ extra: function (t, A, K) { /* t = seconds into the shot; A.name = the cast obje
 - Light tells the mood: danger/silhouette for tension, hope/warm for relief.
 - Keep cast small (1–3 things) so it reads on a phone.`;
 
+  /* the style bible, tools, example and shot rules depend on the project's style (settings.style: 'paper' | 'lowpoly') */
+  TP.styles = { paper: { STYLE: TP.STYLE, TOOLS: TP.TOOLS, EXAMPLE: TP.EXAMPLE, SHOTRULES: TP.SHOTRULES, NAME: '3D paper cut-out', TITLE: 'dark paper cut-out animation' } };
+  TP.use = function (p) {
+    var k = (p && p.settings && p.settings.style) || 'paper', st = TP.styles[k] || TP.styles.paper;
+    ['STYLE', 'TOOLS', 'EXAMPLE', 'SHOTRULES', 'NAME', 'TITLE'].forEach(function (x) { TP[x] = st[x] });
+    return k;
+  };
+
   /* =================================================================
      helpers
      ================================================================= */
@@ -396,10 +404,11 @@ ${parts}`;
      3) PLAN (assets + shots for every cut) — JSON
      ================================================================= */
   TP.plan = function (p) {
+    TP.use(p);
     var s = p.settings, cuts = p.cuts || [];
     var cutText = cuts.map(function (c) { return 'CUT "' + c.id + '" (' + c.label + ', ' + (c.aspect || '9:16') + ', ' + (c.duration ? c.duration.toFixed(1) + ' s' : '') + ', shot ids start with ' + c.prefix + '):\n' + cutLinesText(c) }).join('\n\n');
     var mascots = s.mascot === 'both' ? 'kato and nia' : (s.mascot && s.mascot !== 'none' ? s.mascot : 'none (do not use the mascots)');
-    return `You are the director and art director of a narrated explainer video made with a code-only 3D paper cut-out style. Read the narration (already recorded and timed, split into numbered lines) and plan EVERYTHING the video needs. Other AI chats will build each asset and each shot from your plan, so be exact.
+    return `You are the director and art director of a narrated explainer video made with a code-only ${TP.NAME} style. Read the narration (already recorded and timed, split into numbered lines) and plan EVERYTHING the video needs. Other AI chats will build each asset and each shot from your plan, so be exact.
 
 TITLE: ${p.title || s.topic || ''}
 MASCOTS available: ${mascots}
@@ -458,6 +467,7 @@ ${cuts.map(function (c) { return '    "' + c.id + '": [ { "id": "' + c.prefix + 
      4) ASSET TICKET
      ================================================================= */
   TP.assetTicket = function (p, ticket) {
+    TP.use(p);
     var A = (p.plan.assets || []).filter(function (a) { return ticket.names.indexOf(a.name) >= 0 });
     var spec = A.map(function (a, i) {
       return `### ${i + 1}. '${a.name}' — kind: ${a.kind}
@@ -467,7 +477,7 @@ ${a.kind === 'set' ? '- spots (must ALL exist): ' + (a.spots || []).join(', ') :
 - used in: ${usedIn(p, a.name)}`;
     }).join('\n\n');
     var others = (p.plan.assets || []).filter(function (a) { return ticket.names.indexOf(a.name) < 0 }).map(function (a) { return '- ' + a.name + ' (' + a.kind + ', ~' + a.size + '): ' + a.look }).join('\n');
-    return `You are one of several artists building 3D paper cut-out assets for ONE video, at the same time, in different chats. Your pieces must match the others perfectly, so follow these rules EXACTLY. Do not add your own style.
+    return `You are one of several artists building ${TP.NAME} assets for ONE video, at the same time, in different chats. Your pieces must match the others perfectly, so follow these rules EXACTLY. Do not add your own style.
 
 VIDEO: ${p.title || p.settings.topic || ''}
 
@@ -503,8 +513,9 @@ ${spec}
   }
 
   TP.assetFix = function (p, name, code, problems, note) {
+    TP.use(p);
     var a = ((p.plan && p.plan.assets) || []).filter(function (x) { return x.name === name })[0] || { name: name };
-    return `Fix this 3D paper cut-out asset. Keep the same style rules.
+    return `Fix this ${TP.NAME} asset. Keep the same style rules.
 
 ${TP.STYLE}
 
@@ -529,6 +540,7 @@ Reply with ONE code block: the full corrected KIT.asset('${name}', ...) call. No
      5) SHOT TICKET
      ================================================================= */
   TP.shotTicket = function (p, cut, ticket) {
+    TP.use(p);
     var plan = (p.plan.cuts[cut.id] || []), idx = {};
     plan.forEach(function (s, i) { idx[s.id] = i });
     var body = ticket.ids.map(function (id) {
@@ -543,7 +555,7 @@ camera idea: ${s.camera || '-'} · mood: ${s.mood || 'normal'} · transition: ${
 before: ${prev ? prev.id + ' — ' + prev.show : '(start of video)'}${prev && ticket.ids.indexOf(prev.id) < 0 && p.shots && p.shots[cut.id] && p.shots[cut.id][prev.id] && p.shots[cut.id][prev.id].code ? '\n(the shot before is already made — keep continuity: same places and positions where it makes sense)\n' + p.shots[cut.id][prev.id].code.slice(0, 1500) : ''}
 after: ${next ? next.id + ' — ' + next.show : '(end of video)'}`;
     }).join('\n\n');
-    return `You are the shot director of a narrated ${cut.aspect === '16:9' ? 'landscape (16:9)' : 'vertical (9:16)'} video in a locked 3D paper cut-out style. You write each shot as a simple FORM. Other chats write the other shots, so follow the rules EXACTLY.
+    return `You are the shot director of a narrated ${cut.aspect === '16:9' ? 'landscape (16:9)' : 'vertical (9:16)'} video in a locked ${TP.NAME} style. You write each shot as a simple FORM. Other chats write the other shots, so follow the rules EXACTLY.
 
 VIDEO: ${p.title || ''}  ·  cut: ${cut.label}
 
@@ -571,9 +583,10 @@ ${body}
   }
 
   TP.shotFix = function (p, cut, shotId, code, problems, note, hasHtml) {
+    TP.use(p);
     var plan = (p.plan.cuts[cut.id] || []), s = plan.filter(function (x) { return x.id === shotId })[0] || {}, i = plan.indexOf(s);
     var ls = s.lines ? cut.lines.slice(s.lines[0], s.lines[1] + 1) : [], t0 = i === 0 ? 0 : (ls[0] ? ls[0].s : 0), nx = plan[i + 1], t1 = nx && cut.lines[nx.lines[0]] ? cut.lines[nx.lines[0]].s : cut.duration;
-    return `Fix one shot of a narrated vertical video made in a locked 3D paper cut-out style.${hasHtml ? ' I attached the video as an HTML file: open/read it to see the other shots; the shot to fix plays from ' + t0.toFixed(1) + ' s to ' + t1.toFixed(1) + ' s.' : ''}
+    return `Fix one shot of a narrated vertical video made in a locked ${TP.NAME} style.${hasHtml ? ' I attached the video as an HTML file: open/read it to see the other shots; the shot to fix plays from ' + t0.toFixed(1) + ' s to ' + t1.toFixed(1) + ' s.' : ''}
 
 ${TP.SHOTRULES}
 
@@ -602,8 +615,9 @@ Reply with ONE code block: the full corrected SHOT('${shotId}', {...}) only. Cha
      7) PUBLISH
      ================================================================= */
   TP.publish = function (p, cut, chapters) {
+    TP.use(p);
     var land = cut.aspect === '16:9';
-    return `Write the YouTube upload text for this video. Channel style: narrated true stories and facts (like Zack D. Films), dark paper cut-out animation.
+    return `Write the YouTube upload text for this video. Channel style: narrated true stories and facts (like Zack D. Films), ${TP.TITLE}.
 
 VIDEO: ${p.title || p.settings.topic} · ${cut.label} · ${land ? 'long video' : 'YouTube Short'} · ${Math.round(cut.duration || 0)} seconds
 

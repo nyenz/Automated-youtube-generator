@@ -1,6 +1,6 @@
 # Paper Cinema Studio
 
-A free app that makes narrated YouTube videos (vertical shorts, and long videos with shorts cut from them) in a **dark paper cut-out 3D style**. All the visuals are code. You don't need an API, a paid service or video editing skills.
+A free app that makes narrated YouTube videos (vertical shorts, and long videos with shorts cut from them) in one of two locked styles: **Low-Poly Paper** (flat faceted cut-outs in a 2.5D world, the default) or **Dark Paper Cinema** (dark 3D paper cut-outs). All the visuals are code. You don't need an API, a paid service or video editing skills.
 
 **Open the app:** https://nyenz.github.io/Automated-youtube-generator/ (use Chrome on a PC). First time only: in GitHub, open the repo → **Settings** → **Pages** → Source: **Deploy from a branch** → Branch: **main**, folder **/ (root)** → **Save**. Wait 1–2 minutes.
 
@@ -10,7 +10,7 @@ Click **Load demo** to see a finished example right away.
 
 | Step | Who does it | Cost |
 |---|---|---|
-| 1. Project: topic, type, length, mascot, voice | you | free |
+| 1. Project: topic, type, length, **visual style**, mascot, voice | you | free |
 | 2. Topic ideas from what's trending (Wikipedia, YouTube, Hacker News) | Claude or any chat | free |
 | 3. Script: research, fact-check, human tone, ready for TTS | **Claude** (your subscription) | — |
 | 4. Voice: Google AI Studio text-to-speech, upload the audio here | Google AI Studio | free |
@@ -22,8 +22,14 @@ Click **Load demo** to see a finished example right away.
 | 10. Export: frame-perfect MP4 (1080 × 1920, or 1920 × 1080 for long videos) with narration, sound effects and captions | the app | free |
 | 11. Publish: thumbnail from your video + title, description, tags, chapters | the app + Claude | free |
 
+## Two visual styles
+Pick the style on the Project page. New projects start in **Low-Poly Paper**; projects made before it stay in Dark Paper Cinema.
+- **Low-Poly Paper**: people, props and sets are painted as flat faceted pictures (one light, no outlines). Everything is a cut-out, so the AI only draws pictures and the kit does the rest: jointed people with live faces (12 emotions), walking, waving, pointing, holding things, sitting. The camera is a real camera in a 2.5D world: parallax, depth-of-field blur and focus pulls, fog, floating dust, light shafts, blurred foreground shapes, film grain / gate weave / halation, mood grading, attention spotlight, flow continuity between shots, composition with room in front of the face, captions that move away from faces. Same SHOT forms, same sound, same export.
+- **Dark Paper Cinema**: the original dark 3D paper cut-out look.
+Changing the style after assets exist means the assets must be made again (the shots can stay, but check them in Watch & fix).
+
 ## Why different chats still match
-- The **look is locked** in `kit/style-kit.js`: paper texture, ink edges, lighting, lens blur, colour grade. AI chats can only build shapes with its tools.
+- The **look is locked** in the kit (`kit/style-kit.js` for Dark Paper, `kit/lp/` for Low-Poly): materials, lighting, lens blur, colour grade. AI chats can only build shapes with its tools.
 - Every ticket carries the **same style bible**: scale table, palette, mascots, rules and examples.
 - The plan gives every asset a **contract**: its exact name, size, parts, moves and set spots. Shots only use those names, so pieces made in different chats fit together.
 - The app **checks every answer** for wrong names, missing parts, wrong size, colours outside the palette, crashes, and words that aren't spoken in the shot. If something fails, it writes the fix prompt for you.
@@ -66,15 +72,23 @@ Projects and audio are saved in your browser. Use **Export project** to back up 
 ## Files
 ```
 index.html          the app
-stage.html          the 3D stage (player, checks, asset sheet), runs inside the app
+stage.html          the 3D stage (Dark Paper): player, checks, asset sheet, runs inside the app
+stage-lp.html       the Low-Poly stage (same modes)
 app/                app code: templates (all prompts), timing (Whisper + alignment), plan checks, trends
-kit/style-kit.js    LOCKED look: paper materials, face kit, people, lens, light, sound, recorder
+kit/style-kit.js    LOCKED look (Dark Paper): paper materials, face kit, people, lens, light, sound, recorder
+kit/lp/engine.js    LOCKED (Low-Poly): the faceted drawing engine
+kit/lp/rig.js       LOCKED (Low-Poly): jointed rigs, props, sets, asset registry
+kit/lp/people.js    LOCKED (Low-Poly): K.person, live faces, the two mascots
+kit/lp/render.js    LOCKED (Low-Poly): 2.5D camera, blur, fog, grade, grain, glow
+kit/lp/director.js  LOCKED (Low-Poly): SHOT forms to camera, focus, light, moves, captions
+kit/lp/check.js    Low-Poly asset checks, sheet and preview
 kit/director.js     LOCKED: turns SHOT forms into camera, focus, light, moves, captions
 kit/sound.js        LOCKED: offline soundtrack (score, ambience, effects, mix)
 kit/piano.js        piano samples for the score
 kit/stage.js        runs the stage modes (play, checks, sheet, export)
 kit/vendor/         MP4 / WebM muxers (offline video export)
-examples/demo.js    demo 1 ("A Hand in the Dark")
+examples/demo.js    demo 1 ("A Hand in the Dark", Dark Paper)
+examples/demo-lp.js demo ("The Lantern", Low-Poly)
 examples/demo2.js   demo 2 ("The Missing Milk", 2:00 test video)
 examples/the-missing-milk.html  demo 2 as a standalone playable page
 ```
