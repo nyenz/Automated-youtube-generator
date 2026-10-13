@@ -219,10 +219,12 @@
     // audio first (kept in memory, interleaved with video later)
     var aq = [], aerr = null, aenc = new AudioEncoder({ output: function (c, m) { aq.push([c, m]) }, error: function (e) { aerr = e } });
     aenc.configure(pick.acfg);
+    // optional part export (p.range = [from, to] seconds): long videos can be rendered in pieces and joined
+    var RG = p.range || [0, dur], F0 = Math.max(0, Math.floor(RG[0] * FPS)), F1 = Math.min(N, Math.ceil(RG[1] * FPS)), A0 = Math.round(F0 / FPS * 48000), A1 = Math.min(mix.length, Math.round(F1 / FPS * 48000));
     var L = mix.getChannelData(0), R = mix.numberOfChannels > 1 ? mix.getChannelData(1) : L, step = 4800;
-    for (var i = 0; i < mix.length; i += step) {
-      var n = Math.min(step, mix.length - i), buf = new Float32Array(n * 2); buf.set(L.subarray(i, i + n), 0); buf.set(R.subarray(i, i + n), n);
-      var ad = new AudioData({ format: 'f32-planar', sampleRate: 48000, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round(i / 48000 * 1e6), data: buf });
+    for (var i = A0; i < A1; i += step) {
+      var n = Math.min(step, A1 - i), buf = new Float32Array(n * 2); buf.set(L.subarray(i, i + n), 0); buf.set(R.subarray(i, i + n), n);
+      var ad = new AudioData({ format: 'f32-planar', sampleRate: 48000, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((i - A0) / 48000 * 1e6), data: buf });
       aenc.encode(ad); ad.close();
     }
     await aenc.flush(); if (aerr) throw aerr;
@@ -232,16 +234,16 @@
     venc.configure(pick.vcfg);
     K.sound(false); fitOverlay();
     var comp = document.createElement('canvas'); comp.width = W; comp.height = H; var cx = comp.getContext('2d'), t0 = performance.now();
-    for (var f = 0; f < N; f++) {
+    for (var f = F0; f < F1; f++) {
       if (CANCEL) { post({ type: 'export-cancelled' }); return }
       var t = f / FPS, tq = Math.floor(t * 12) / 12;
       K.frame(tq, t); fitOverlay(); D.drawOverlay(octx, overlay.width, overlay.height, t, { captions: P.captions !== false, style: P.capStyle });
       cx.drawImage(K.renderer.domElement, 0, 0, W, H); cx.drawImage(overlay, 0, 0, W, H);
-      var vf = new VideoFrame(comp, { timestamp: Math.round(f * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
-      venc.encode(vf, { keyFrame: f % (FPS * 2) === 0 }); vf.close();
+      var vf = new VideoFrame(comp, { timestamp: Math.round((f - F0) * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      venc.encode(vf, { keyFrame: (f - F0) % (FPS * 2) === 0 }); vf.close();
       if (verr) throw verr;
       while (venc.encodeQueueSize > 6) await new Promise(function (r) { setTimeout(r, 4) });
-      if (f % 10 === 0) { var el = (performance.now() - t0) / 1000; post({ type: 'export-progress', stage: 'video', done: f / N, eta: f ? el / f * (N - f) : 0 }); await new Promise(function (r) { setTimeout(r, 0) }) }
+      if (f % 10 === 0) { var el = (performance.now() - t0) / 1000; var dn = f - F0, tot = F1 - F0; post({ type: 'export-progress', stage: 'video', done: dn / tot, eta: dn ? el / dn * (tot - dn) : 0 }); await new Promise(function (r) { setTimeout(r, 0) }) }
     }
     await venc.flush(); if (verr) throw verr; flushAudio(1e15);
     muxer.finalize();
