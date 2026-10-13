@@ -788,7 +788,7 @@
   };
   document.getElementById('demoBtn').onclick = function () {
     modal('Load a demo', h('div', { className: 'grid' },
-      [window.DEMO_LP, window.DEMO, window.DEMO2].filter(Boolean).map(function (D) { return h('div', { className: 'card' }, h('h3', null, D.title), h('p', { className: 'muted small' }, D.script.slice(0, 120) + '…'), h('button', { on: { click: function () { document.getElementById('mclose').click(); loadDemo(D) } } }, 'Load')) })));
+      [window.DEMO_LP, window.DEMO_ICE_LP, window.DEMO, window.DEMO2].filter(Boolean).map(function (D) { return h('div', { className: 'card' }, h('h3', null, D.title), h('p', { className: 'muted small' }, D.script.slice(0, 120) + '…'), h('button', { on: { click: function () { document.getElementById('mclose').click(); loadDemo(D) } } }, 'Load')) })));
   };
   function loadDemo(D) {
     P = newProject('Demo — ' + D.title); P.settings.style = D.style || 'paper'; P.settings.topic = D.title; P.title = D.title; syncCuts();

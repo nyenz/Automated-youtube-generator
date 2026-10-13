@@ -78,7 +78,7 @@
       var inst = { name: name, uid: name + '#' + p.length, a: a, kind: kind, held: [], held_by: null };
       var w = a.width || (a.size && a.size.x) || 1, h = a.height || 1, sc = a.root.scale;
       if (a.isSet) { inst.size = a.size.clone(); inst.boxMin = a.boxMin.clone(); inst.boxMax = a.boxMax.clone(); inst.height = a.height }
-      else { w *= sc.x; h *= sc.y; inst.size = new V3(w, h, w * .5); inst.boxMin = new V3(-w / 2, 0, -w * .25); inst.boxMax = new V3(w / 2, h, w * .25); inst.height = h }
+      else { w *= sc.x; if (!a.human) h *= sc.y; inst.size = new V3(w, h, w * .5); inst.boxMin = new V3(-w / 2, 0, -w * .25); inst.boxMax = new V3(w / 2, h, w * .25); inst.height = h }
       inst.snap = snapshot(a);
       var plan = SIZES[name], measured = isHuman(a) ? inst.height : Math.max(inst.size.x, inst.size.y);
       if (plan > 0 && kind !== 'set' && kind !== 'fx' && measured > 0) { // keep proportions true to the plan if a chat built it far too big/small
