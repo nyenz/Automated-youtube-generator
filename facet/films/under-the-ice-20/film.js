@@ -8,7 +8,7 @@
   const W = 1080, H = 1920;
 
   /* ---------------- colours ---------------- */
-  const NIGHT = '#4b6782', DEEP = '#22384b', WARD = '#2f6f6f';
+  const NIGHT = '#4b6782', DEEP = '#22384b', WARD = '#3a6e64';   // the hospital is a little warmer: hope
   const ICE = '#b9cad3', SNOW = '#dfe4e3', BARK = '#5b4a42', ACC = '#cc5321';
 
   /* ---------------- props (each a normal kit asset: draw(F) in a 1080 canvas) ---------------- */
@@ -72,6 +72,38 @@
     F.part([[0, 700], [520, 640], [1080, 600], [1080, 620], [520, 662], [0, 722]], '#b0482a', { contrast: .16, step: 300 });
     F.part([[0, 760], [560, 720], [1080, 690], [1080, 708], [560, 740], [0, 780]], '#9a3a22', { contrast: .16, step: 300 });
     return F.render('tubes');
+  }
+
+  function breath(F) {               // a puff of breath in the cold
+    F.begin({ width: 1080, height: 1080, seed: 40 });
+    F.flat(F.disc(540, 540, 90, 60, 9), '#eef2f3', .7); F.flat(F.disc(620, 510, 70, 50, 8), '#eef2f3', .6); F.flat(F.disc(470, 520, 55, 40, 8), '#eef2f3', .5);
+    return F.render('breath');
+  }
+  function drop(F) {
+    F.begin({ width: 1080, height: 1080, seed: 41 });
+    F.flat([[540, 470], [575, 560], [540, 600], [505, 560]], '#a9c0cc');
+    return F.render('drip');
+  }
+  function puddle(F) {
+    F.begin({ width: 1080, height: 1080, seed: 42 });
+    F.flat([[60, 980], [300, 955], [700, 960], [1020, 975], [900, 1010], [400, 1015], [120, 1005]], '#8ea6b3', .85);
+    return F.render('wet ice');
+  }
+  function ambulance(F) {            // far away on the bank, small and simple
+    F.begin({ width: 1080, height: 1080, seed: 43 });
+    F.part([[180, 560], [700, 560], [720, 900], [160, 900]], '#e6ded1', { ridge: [[230, 570], [220, 890]], contrast: .18, step: 200 });
+    F.part([[700, 660], [860, 680], [900, 780], [900, 900], [720, 900]], '#e6ded1', { ridge: [[730, 670]], contrast: .18, step: 160 });
+    F.flat([[730, 690], [845, 704], [872, 780], [730, 780]], '#2b3b48');
+    F.flat([[160, 760], [900, 760], [900, 800], [160, 800]], '#b0482a');
+    [[300, 905], [780, 905]].forEach(([x, y]) => F.part(F.disc(x, y, 62, 62, 8), '#2e2622', { contrast: .2, step: 60 }));
+    F.flat([[380, 520], [500, 520], [500, 560], [380, 560]], '#3e3f42');
+    return F.render('ambulance');
+  }
+  function lampRed(F) { F.begin({ width: 1080, height: 1080, seed: 44 }); F.flat([[380, 520], [440, 520], [440, 556], [380, 556]], '#e0503c'); return F.render('red light'); }
+  function lampBlue(F) { F.begin({ width: 1080, height: 1080, seed: 45 }); F.flat([[440, 520], [500, 520], [500, 556], [440, 556]], '#4f86d8'); return F.render('blue light'); }
+  function tint(colour) {            // the warning lights colour the snow on the bank (flat, see-through — no glow)
+    return function (F) { F.begin({ width: 1080, height: 1080, seed: 46 });
+      F.flat([[-400, 1300], [-400, 1120], [180, 1080], [420, 1110], [700, 1060], [960, 1100], [1480, 1070], [1480, 1300]], colour, .14); return F.render('light on snow'); };
   }
 
   /* ---------------- sets: (F, W, H) → a whole-frame drawing ----------------
@@ -155,6 +187,12 @@
     F.begin({ width: W, height: H, bg: WARD, seed: 33 });
     F.part([[-400, 2700], [-400, 1420], [1480, 1420], [1480, 2700]], '#4f8079', { ridge: [[200, 1430], [200, 1900]], contrast: .12, step: 320 });
     F.flat([[-400, 1420], [1480, 1420], [1480, 1434], [-400, 1434]], '#3c625d');
+    F.flat([[120, 1440], [540, 1440], [700, 1700], [180, 1700]], '#77a497', .45);        // moonlight from the window on the floor
+    // the ceiling lamp: same shape and screen spot as the hole in the ice (the match cut)
+    F.flat([[337, -400], [343, -400], [343, 470], [337, 470]], '#2c4f49');
+    F.part([[250, 470], [430, 470], [470, 540], [210, 540]], '#d3ccbd', { contrast: .18, step: 120 });
+    const hole = [[420, 250], [540, 200], [680, 220], [740, 300], [670, 380], [520, 395], [430, 340]], k = .84 * 1.6 / 1.9;
+    F.flat(hole.map(([x, y]) => [340 + (x - 573) * k, 560 + (y - 298) * k]), '#f3f0e6');
     F.part([[938, 700], [952, 700], [952, 1420], [938, 1420]], '#6c6052', { contrast: .2, step: 200 });
     F.part([[860, 620], [1030, 620], [1030, 760], [860, 760]], '#3e3f42', { contrast: .2, step: 120 });
     F.flat([[878, 638], [1012, 638], [1012, 742], [878, 742]], '#24312f');
@@ -175,6 +213,7 @@
     top: '#3c4660', vest: '#2f3850', bottom: { type: 'trousers', colour: '#2e3340' }, shoes: '#2e2622' };
   const boy = { view: 'side', build: 'child', skin: '#ece3d6', eyes: 'slits', hair: { style: 'tuft', colour: '#8a5a3a' },
     top: '#6c6052', bottom: { type: 'trousers', colour: '#3c4660' }, shoes: '#5a3124' };
+  const wetBoy = Object.assign({}, boy, { top: '#4c443a', bottom: { type: 'trousers', colour: '#283044' }, shoes: '#3c2418', hair: { style: 'tuft', colour: '#5a3a24' } });
   const doctor = { build: 'adult', skin: '#ece3d6', hair: { style: 'cap', colour: '#9a948c' }, glasses: '#5e3326',
     top: '#3c4660', vest: '#e6ded1', tie: null, bottom: { type: 'trousers', colour: '#3e3f42' }, shoes: '#3a2a24' };
 
@@ -185,7 +224,7 @@
 
   window.ICE20 = {
     title: 'Under the Ice', width: W, height: H, duration: 22.4,
-    captions: { words: window.ICE_WORDS, y: 330, size: 80 },
+    captions: { words: window.ICE_WORDS, y: 330, size: 80, keys: ['7', 'degrees', 'celsius', '8-year-old', 'pulse', 'two', 'hours', 'folklore', 'case', 'report', 'longest', 'record'] },
     shots: [
       { id: 'pond', from: 0, to: 11.0, bg: NIGHT, far: pondFar, set: pond, front: pondFront, handheld: 3,
         camera: [
@@ -195,11 +234,22 @@
         ],
         cast: [
           { id: 'board', draw: backboard, origin: [540, 1000], x: 700, ground: 1500, scale: .56, z: 1490 },
-          { id: 'boy', person: boy, height: 420, x: 520, ground: 1484, lying: 'right', seed: 7, z: 1495,
+          { id: 'puddle', draw: puddle, origin: [540, 990], x: 690, ground: 1512, scale: .62, z: 1480 },
+          { id: 'drip1', draw: drop, origin: [540, 540], x: 600, ground: 1500, scale: .07, z: 1491, cycle: { period: 1.4, dy: 30, fall: true, fade: [1, 0] } },
+          { id: 'drip2', draw: drop, origin: [540, 540], x: 760, ground: 1502, scale: .06, z: 1491, cycle: { period: 1.7, phase: .6, dy: 26, fall: true, fade: [1, 0] } },
+          { id: 'drip3', draw: drop, origin: [540, 540], x: 900, ground: 1500, scale: .07, z: 1491, cycle: { period: 1.2, phase: .3, dy: 30, fall: true, fade: [1, 0] } },
+          { id: 'amb', layer: 'far', draw: ambulance, origin: [540, 960], x: 860, ground: 1102, scale: .2, z: 1 },
+          { id: 'ambR', layer: 'far', draw: lampRed, origin: [540, 960], x: 860, ground: 1102, scale: .2, z: 2, blink: { period: .8, on: .5 } },
+          { id: 'ambB', layer: 'far', draw: lampBlue, origin: [540, 960], x: 860, ground: 1102, scale: .2, z: 2, blink: { period: .8, on: .5, phase: .4 } },
+          { id: 'tintR', layer: 'far', draw: tint('#e0503c'), origin: [0, 0], x: 0, ground: 0, z: 0, blink: { period: .8, on: .5 } },
+          { id: 'tintB', layer: 'far', draw: tint('#4f86d8'), origin: [0, 0], x: 0, ground: 0, z: 0, blink: { period: .8, on: .5, phase: .4 } },
+          { id: 'breath1', draw: breath, origin: [440, 540], x: 482, ground: 1200, scale: .13, z: 1510, cycle: { period: 2.6, grow: [.4, 1.6], fade: [.8, 0], dx: 46, dy: -40 } },
+          { id: 'breath2', draw: breath, origin: [440, 540], x: 482, ground: 1200, scale: .13, z: 1510, cycle: { period: 2.6, phase: 1.3, grow: [.4, 1.6], fade: [.8, 0], dx: 46, dy: -40 } },
+          { id: 'boy', person: wetBoy, height: 420, x: 520, ground: 1484, lying: 'right', seed: 7, z: 1495,
             arms: { L: [-4, 0], R: [-4, 0] } },
           { id: 'medic', person: medic, height: 600, x: 390, ground: 1500, seed: 3, z: 1500, stride: { R: [80, 95], L: [-5, 100] },
             hold: { R: Object.assign({}, PROP.therm, { to: 6.6 }), L: Object.assign({}, PROP.therm, { from: 6.6 }) },
-            arms: { R: [70, 8], L: [30, 20] }, head: { tilt: 6 },
+            arms: { R: [70, 8], L: [30, 20] }, head: { tilt: 6 }, idle: { lean: 1.5, period: 3.4 },
             moves: [
               { at: 6.2, for: 3.0, do: 'arms', R: [26, 34], L: [22, 40] },   // reading done: thermometer to the other hand
               { at: 9.0, for: 2.1, do: 'reach', arm: 'R', deg: 42, bend: 22 },  // fingers on the boy's wrist: "without a pulse"
@@ -218,7 +268,8 @@
         ].concat(bubbles) },
       { id: 'ward', from: 14.9, to: 22.41, bg: WARD, far: wardFar, set: ward, front: wardFront, handheld: 2,
         camera: [
-          { at: 0, zoom: 1.9, x: 330, y: 1240 },                   // the doctor: "This is not folklore. It is a case report."
+          { at: 0, zoom: 1.9, x: 337, y: 780 },                    // match cut: the lamp sits exactly where the hole in the ice was
+          { at: .2, for: 1.6, zoom: 1.9, x: 330, y: 1240 },         // tilt down to the doctor: "This is not folklore. It is a case report."
           { at: 3.4, for: 3.8, zoom: 1.22, x: 610, y: 1240 }        // pull out to the bed: "the longest ice water survival on record"
         ],
         cast: [

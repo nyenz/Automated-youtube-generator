@@ -34,7 +34,10 @@
      inside a shot every time (moves, camera) counts from the start of that shot.
    more cast options: lying: true (on the back, head left) · flip: true (asset faces the other way) · z: draw order
      hold: { R: { id, draw, grip: [x,y], scale, rot, follow, from, to } }  — a prop in the hand (drawn under the mitten)
-     silhouette: '#16222d' (draw it as one flat dark shape) · opacity · rot (assets)
+     silhouette: '#16222d' (draw it as one flat dark shape) · opacity · rot (assets) · layer: 'far' (moves with the far layer)
+     cycle: { period, phase, grow: [from, to], fade: [from, to], dx, dy, fall } — a repeating detail (breath puff, drip)
+     blink: { period, on: 0..1, phase } — on/off (warning lights) · idle: { lean, period } — a person shifting their weight
+   captions.keys: ['pulse', 'hours', ...] — only these words get the accent colour; each group pops in
      stride / head / lean: the resting pose
    side-view people (person.view: 'side'): walk swings the legs; kneel, sit, chair, reach { arm, deg }, drift { dx, dy, rot }
    ========================================================================= */
@@ -71,6 +74,18 @@
     return ease(Math.min((t - a) / f, (a + d - t) / f, 1));
   }
 
+  /* "alive" weight for poses: a tiny wind-up the other way, then a small overshoot that settles.
+     Used for arm, leg and head poses (not for shaking/waving loops). */
+  const backOut = k => { const c1 = 1.6, c3 = c1 + 1; return 1 + c3 * (k - 1) ** 3 + c1 * (k - 1) ** 2; };
+  function alive(m, t) {
+    const a = m.at || 0, d = m.for || 1, f = Math.min(.42, d / 2.5);
+    if (t < a || t > a + d) return 0;
+    const k = Math.min((t - a) / f, (a + d - t) / f);
+    if (k >= 1) return 1;
+    if (k < .22) return -.07 * Math.sin(Math.PI * k / .22);          // wind-up
+    return backOut((k - .22) / .78);                                  // go, overshoot a little, settle
+  }
+
   /** where the actor is and how it stands at time t */
   function pose(c, t) {
     const P = { x: c.x || 0, dy: 0, rot: 0, sx: 1, sy: 1, dx: 0, arms: { L: (c.arms && c.arms.L) || HANG, R: (c.arms && c.arms.R) || HANG },
@@ -81,6 +96,7 @@
     const ph = (c.seed || 1) * 1.7;
     P.sy = 1 + .007 * Math.sin(t * 2 * Math.PI / 3.1 + ph);
     P.rot = .5 * Math.sin(t * 2 * Math.PI / 4.3 + ph);
+    if (c.idle && c.idle.lean) P.lean += c.idle.lean * Math.sin(t * 2 * Math.PI / (c.idle.period || 3.6) + ph);   // shifting weight
     let x = c.x || 0;
     (c.moves || []).slice().sort((a, b) => (a.at || 0) - (b.at || 0)).forEach(m => {
       const a = m.at || 0, d = m.for || 1, k = (t - a) / d, w = weight(m, t);
@@ -115,9 +131,10 @@
       if (m.do === 'bounce') { const s = Math.abs(Math.sin((t - a) * Math.PI * 2.4)); P.dy -= s * (m.height || (c.height || 500) * .05) * w; }
       if (m.do === 'shake') P.head.turn += .45 * Math.sin((t - a) * Math.PI * 4) * w;
       if (m.do === 'nod') P.head.nod += 2.4 * Math.abs(Math.sin((t - a) * Math.PI * 2.4)) * w;
-      if (m.do === 'look') P.head.turn += (m.dir === 'L' ? -.7 : m.dir === 'R' ? .7 : (+m.turn || 0)) * w;
-      if (m.do === 'tilt') P.head.tilt += (m.deg == null ? 8 : m.deg) * w;
-      if (m.do === 'lean') P.lean += (m.deg == null ? 6 : m.deg) * w;
+      const wl = alive(m, t), wh = alive(m, t - .12);                 // the head follows a beat after the body
+      if (m.do === 'look') P.head.turn += (m.dir === 'L' ? -.7 : m.dir === 'R' ? .7 : (+m.turn || 0)) * wh;
+      if (m.do === 'tilt') P.head.tilt += (m.deg == null ? 8 : m.deg) * wh;
+      if (m.do === 'lean') P.lean += (m.deg == null ? 6 : m.deg) * wl;
       if (m.do === 'cheer') { P.legs.L = [6 * w, 0]; P.legs.R = [6 * w, 0]; P.head.tilt -= 4 * w; }
       if (m.do === 'wave') P.head.tilt += (m.arm === 'L' ? 5 : -5) * w;
       if (m.do === 'shiver') P.dx += 2.2 * Math.sin(t * 2 * Math.PI * 11) * w * (c.height || 500) / 500;
@@ -125,9 +142,11 @@
       if (m.do === 'shrug') { P.dy -= (c.height || 500) * .012 * w * Math.abs(Math.sin((t - a) * Math.PI / Math.max(.4, d))); P.head.tilt += 8 * w; }
       if (m.do === 'drift') { const k2 = ease(Math.min(1, Math.max(0, (t - a) / d))); P.dx += (m.dx || 0) * k2; P.dy += (m.dy || 0) * k2; P.rot += (m.rot || 0) * k2; }
       const fn = ARMS[m.do];
-      if (fn) ['L', 'R'].forEach(side => { const tg = fn(m, t - a, side, c); if (tg) P.arms[side] = mix(P.arms[side], tg, w); });
+      const loop = m.do === 'wave' || m.do === 'cheer', wa = loop ? w : wl;
+      if (fn) ['L', 'R'].forEach(side => { const tg = fn(m, t - a, side, c); if (tg) P.arms[side] = mix(P.arms[side], tg, wa); });
       const lf = LEGS[m.do];
-      if (lf) { const tg = lf(m); ['L', 'R'].forEach(side => { if (tg[side]) P.legs[side] = mix(P.legs[side], tg[side], w); }); }
+      if (lf) { const tg = lf(m); ['L', 'R'].forEach(side => { if (tg[side]) P.legs[side] = mix(P.legs[side], tg[side], wl); }); }
+      if ((fn || lf) && !loop) P.dy += (c.height || 500) * .006 * Math.max(0, -wl) * 6;   // a small dip on the wind-up
     });
     return P;
   }
@@ -196,7 +215,14 @@
       if (c.from != null && t < c.from) return; if (c.until != null && t > c.until) return;
       const P = pose(c, t), G = c.ground || S.height * .85, h = c.height || 500;
       const sil = svg => c.silhouette ? svg.replace(/fill="#[0-9a-fA-F]{3,6}"/g, 'fill="' + c.silhouette + '"') : svg;
-      const wrap = svg => c.opacity != null ? `<g opacity="${c.opacity}">${svg}</g>` : svg;
+      let op = c.opacity, cs = 1, cx = 0, cy = 0;
+      if (c.cycle) {                                                    // repeating detail: a breath puff, a drip
+        const C = c.cycle, k = (((t + (C.phase || 0)) % C.period) + C.period) % C.period / C.period;
+        cs = lerp((C.grow || [1, 1])[0], (C.grow || [1, 1])[1], k); op = lerp((C.fade || [1, 1])[0], (C.fade || [1, 1])[1], k) * (op == null ? 1 : op);
+        cx = (C.dx || 0) * k; cy = (C.dy || 0) * (C.fall ? k * k : k);
+      }
+      if (c.blink) { const B = c.blink, k = (((t + (B.phase || 0)) % B.period) + B.period) % B.period / B.period; if (k > (B.on || .5)) return; }
+      const wrap = svg => op != null && op < 1 ? `<g opacity="${f(Math.max(0, op))}">${svg}</g>` : svg;
       if (c.person) {
         c.holdNow = null;
         if (c.hold) { c.holdNow = {}; Object.keys(c.hold).forEach(k => { const hh = c.hold[k]; if (!hh || (hh.from != null && t < hh.from) || (hh.to != null && t >= hh.to)) return; c.holdNow[k] = hh; }); }
@@ -212,7 +238,7 @@
         g += wrap(`<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(P.sx)} ${f(P.sy)})">${sil(personBody(c, P))}</g>`);
       } else if (c.draw) {
         const o = c.origin || [540, 1000], sc = c.scale || 1;
-        g += wrap(`<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot + (c.rot || 0))}) scale(${f(sc * P.sx * (c.flip ? -1 : 1))} ${f(sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${sil(assetBody(c))}</g>`);
+        g += wrap(`<g transform="translate(${f(P.x + P.dx + cx)} ${f(G + P.dy + cy)}) rotate(${f(P.rot + (c.rot || 0))}) scale(${f(cs * sc * P.sx * (c.flip ? -1 : 1))} ${f(cs * sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${sil(assetBody(c))}</g>`);
       }
     });
     return g;
@@ -227,10 +253,11 @@
     const camT = k => { const z = 1 + (cam.zoom - 1) * k, x = S.width / 2 + (cam.x - S.width / 2) * k, y = S.height / 2 + (cam.y - S.height / 2) * k;
       return `<g transform="translate(${f(S.width / 2)} ${f(S.height / 2)}) scale(${f(z)}) translate(${f(-x)} ${f(-y)})">`; };
     let g = '';
-    if (sh.far) g += camT(sh.farDepth || .45) + setBody(sh.id + '|far', sh.far, S) + '</g>';
+    const cast = sh.cast || [], farCast = cast.filter(c => c.layer === 'far'), mainCast = cast.filter(c => c.layer !== 'far');
+    if (sh.far) g += camT(sh.farDepth || .45) + setBody(sh.id + '|far', sh.far, S) + castSVG(S, farCast, t) + '</g>';
     g += camT(1);
     if (sh.set) g += setBody(sh.id + '|back', sh.set, S);
-    g += castSVG(S, sh.cast || [], t) + '</g>';
+    g += castSVG(S, mainCast, t) + '</g>';
     if (sh.front) g += camT(sh.frontDepth || 1.3) + setBody(sh.id + '|front', sh.front, S) + '</g>';
     return { head: shell.slice(0, cut) + g, tail: shell.slice(cut) };
   }
@@ -246,8 +273,10 @@
     const ch = C._chunks.find((c, i) => t >= c[0][1] - .05 && t < Math.min(c[c.length - 1][2] + .35, (C._chunks[i + 1] || [[0, 1e9]])[0][1] - .05));
     if (!ch) return '';
     const size = C.size || 76, y = C.y || S.height * .2, esc = x => String(x).replace(/[<&]/g, m => m === '<' ? '&lt;' : '&amp;');
-    const spans = ch.map(w => `<tspan fill="${t >= w[1] && t < w[2] + .1 ? (C.accent || '#f2b45a') : (C.colour || '#f6efe2')}">${esc(w[0].toUpperCase())}</tspan>`).join(' ');
-    return `<text x="${S.width / 2}" y="${y}" text-anchor="middle" font-family="Montserrat, 'DejaVu Sans', Arial, sans-serif" font-weight="900" font-size="${size}" letter-spacing="1" stroke="#2a1810" stroke-width="${size * .16}" stroke-linejoin="round" paint-order="stroke">${spans}</text>`;
+    const key = w => C.keys ? C.keys.indexOf(w[0].toLowerCase().replace(/[.,!?;:]/g, '')) >= 0 : (t >= w[1] && t < w[2] + .1);
+    const spans = ch.map(w => `<tspan fill="${key(w) ? (C.accent || '#f2b45a') : (C.colour || '#f6efe2')}">${esc(w[0].toUpperCase())}</tspan>`).join(' ');
+    const pk = Math.min(1, Math.max(0, (t - ch[0][1] + .05) / .16)), pop = pk >= 1 ? 1 : .86 + .14 * backOut(pk);   // each group pops in
+    return `<text transform="translate(${S.width / 2} ${y}) scale(${f(pop)}) translate(${-S.width / 2} ${-y})" x="${S.width / 2}" y="${y}" text-anchor="middle" font-family="Montserrat, 'DejaVu Sans', Arial, sans-serif" font-weight="900" font-size="${size}" letter-spacing="1" stroke="#2a1810" stroke-width="${size * .16}" stroke-linejoin="round" paint-order="stroke">${spans}</text>`;
   }
 
   function frame(S, t) {
