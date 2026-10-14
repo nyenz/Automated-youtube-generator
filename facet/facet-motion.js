@@ -29,10 +29,12 @@
    camera: [{ at, for, zoom: 1, x, y }]  — x,y = the point to look at (default the middle)
 
    SHOTS (a film with cuts): { width, height, duration, captions: { words: [[word, start, end], ...] },
-     shots: [{ id, from, to, bg, set: (F, W, H) => drawing, front: (F, W, H) => drawing, cast: [...], camera: [...] }] }
+     shots: [{ id, from, to, bg, far, set, front: (F, W, H) => drawing, cast: [...], camera: [...], handheld: px }] }
+       far = slow distant layer, set = the ground the cast stands on, front = near silhouettes that frame the shot (move faster)
      inside a shot every time (moves, camera) counts from the start of that shot.
    more cast options: lying: true (on the back, head left) · flip: true (asset faces the other way) · z: draw order
-     hold: { R: { id, draw, grip: [x,y], scale, rot, follow } }  — a prop in the hand (drawn under the mitten)
+     hold: { R: { id, draw, grip: [x,y], scale, rot, follow, from, to } }  — a prop in the hand (drawn under the mitten)
+     silhouette: '#16222d' (draw it as one flat dark shape) · opacity · rot (assets)
      stride / head / lean: the resting pose
    side-view people (person.view: 'side'): walk swings the legs; kneel, sit, chair, reach { arm, deg }, drift { dx, dy, rot }
    ========================================================================= */
@@ -149,7 +151,7 @@
     Object.keys(hold).forEach(side => { const h = hold[side]; if (!h) return; const pb = assetBody(h), g = h.grip || [540, 540], sc = h.scale || .3;
       held[side] = (x, y, deg) => F.raw(`<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${((h.follow ? deg : 0) + (h.rot || 0)).toFixed(1)}) scale(${sc}) translate(${-g[0]} ${-g[1]})">${pb}</g>`); });
     F.begin({ width: 1080, height: 1080, seed: c.seed || 3 });
-    F.person(Object.assign({}, c.person, { x: 540, ground: 1000, height: c.height || 500,
+    F.person(Object.assign({}, c.person, c.lying === 'right' ? { face: -1 } : {}, { x: 540, ground: 1000, height: c.height || 500,
       arms: { L: arms.L.map(Math.round), R: arms.R.map(Math.round) }, stride: legs, head, lean, held }));
     const s = '<g transform="translate(-540 -1000)">' + bodyOf(F.render(), 'p' + cache.size + '_') + '</g>';
     if (cache.size > 4000) cache.clear();
@@ -193,21 +195,24 @@
     list.slice().sort((a, b) => (a.z != null ? a.z : a.ground || 0) - (b.z != null ? b.z : b.ground || 0)).forEach(c => {
       if (c.from != null && t < c.from) return; if (c.until != null && t > c.until) return;
       const P = pose(c, t), G = c.ground || S.height * .85, h = c.height || 500;
+      const sil = svg => c.silhouette ? svg.replace(/fill="#[0-9a-fA-F]{3,6}"/g, 'fill="' + c.silhouette + '"') : svg;
+      const wrap = svg => c.opacity != null ? `<g opacity="${c.opacity}">${svg}</g>` : svg;
       if (c.person) {
-        c.holdNow = c.hold || null;
-        if (c.lying) {                                                   // lying on the back, head to the left (or right with lying: 'right')
+        c.holdNow = null;
+        if (c.hold) { c.holdNow = {}; Object.keys(c.hold).forEach(k => { const hh = c.hold[k]; if (!hh || (hh.from != null && t < hh.from) || (hh.to != null && t >= hh.to)) return; c.holdNow[k] = hh; }); }
+        if (c.lying) {                                                   // lying on the back, face UP: head to the left, or to the right with lying: 'right'
           const dir = c.lying === 'right' ? 1 : -1;
-          g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy - h * .145)}) rotate(${dir * 90 + P.rot})">${personBody(c, P)}</g>`;
+          g += wrap(`<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy - h * .145)}) rotate(${f(dir * 90 + P.rot)})">${sil(personBody(c, P))}</g>`);
           return;
         }
         if (c.shadow !== false) {
           const lift = Math.max(0, -P.dy) / h;
           g += `<g transform="translate(${f(P.x + h * .02)} ${f(G)}) scale(${f(1 - lift * 1.2)} 1)">${shadowBody(h * .42)}</g>`;
         }
-        g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(P.sx)} ${f(P.sy)})">${personBody(c, P)}</g>`;
+        g += wrap(`<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(P.sx)} ${f(P.sy)})">${sil(personBody(c, P))}</g>`);
       } else if (c.draw) {
         const o = c.origin || [540, 1000], sc = c.scale || 1;
-        g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(sc * P.sx * (c.flip ? -1 : 1))} ${f(sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${assetBody(c)}</g>`;
+        g += wrap(`<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot + (c.rot || 0))}) scale(${f(sc * P.sx * (c.flip ? -1 : 1))} ${f(sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${sil(assetBody(c))}</g>`);
       }
     });
     return g;
@@ -216,11 +221,18 @@
   function shotSVG(S, sh, t) {
     const shell = shellOf(S, sh.bg || S.bg || '#c0612c'), cut = shell.lastIndexOf('<rect width=');
     const cam = camAt({ width: S.width, height: S.height, camera: sh.camera }, t);
-    let g = `<g transform="translate(${f(S.width / 2)} ${f(S.height / 2)}) scale(${f(cam.zoom)}) translate(${f(-cam.x)} ${f(-cam.y)})">`;
+    const A = sh.handheld || 0;                                         // a slow, slight handheld drift (no shake)
+    if (A) { cam.x += A * (Math.sin(t * 1.3 + 1) + .5 * Math.sin(t * 2.7)); cam.y += A * .7 * Math.sin(t * 1.1 + 2); }
+    // depth without blur: far things move less than the camera, near things more (parallax)
+    const camT = k => { const z = 1 + (cam.zoom - 1) * k, x = S.width / 2 + (cam.x - S.width / 2) * k, y = S.height / 2 + (cam.y - S.height / 2) * k;
+      return `<g transform="translate(${f(S.width / 2)} ${f(S.height / 2)}) scale(${f(z)}) translate(${f(-x)} ${f(-y)})">`; };
+    let g = '';
+    if (sh.far) g += camT(sh.farDepth || .45) + setBody(sh.id + '|far', sh.far, S) + '</g>';
+    g += camT(1);
     if (sh.set) g += setBody(sh.id + '|back', sh.set, S);
-    g += castSVG(S, sh.cast || [], t);
-    if (sh.front) g += setBody(sh.id + '|front', sh.front, S);
-    return { head: shell.slice(0, cut) + g + '</g>', tail: shell.slice(cut) };
+    g += castSVG(S, sh.cast || [], t) + '</g>';
+    if (sh.front) g += camT(sh.frontDepth || 1.3) + setBody(sh.id + '|front', sh.front, S) + '</g>';
+    return { head: shell.slice(0, cut) + g, tail: shell.slice(cut) };
   }
   /* captions: a few words at a time, the spoken word in the accent colour. Plain solid text — no glow, no blur. */
   function chunks(words) {

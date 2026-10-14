@@ -227,6 +227,10 @@ Casting rule: characters are white by default (skin `pale` or `warm`); use other
 5. Fine facets (small step) on big parts look like crumpled foil → use step 80–110 on body parts.
 6. Realistic proportions killed the style (long legs, small head looked like a mannequin) → people only via `F.person`, never edit the CANON numbers toward realism.
 7. A child drawn small and behind the holder's arms disappears → make the child at least half the holder's height and keep its head clear of the arms.
+8. A person lying with the head to the right came out face-down → the motion layer now mirrors them (`lying: 'right'`), so lying people always face up.
+9. A child under water drawn in full colour, floating flat, looked silly → show it as a dark partial silhouette (`silhouette: '#132131'`) against the light, sinking out of the frame.
+10. A child's huge head hides raised arms in side view → for arms-up poses use the front view.
+11. Depth without blur: give each place 3 layers — `far` (moves slowly), `set`, and dark `front` silhouettes near the camera (move faster).
 
 ---
 
