@@ -219,6 +219,9 @@ Casting rule: characters are white by default (skin `pale` or `warm`); use other
 11. Depth without blur: give each place 3 layers — `far` (moves slowly), `set`, and dark `front` silhouettes near the camera (move faster).
 12. Small things make it feel alive: every pose change has a tiny wind-up and a small overshoot that settles (built in), breath in the cold (`cycle`), drips from wet things, warning lights that blink (`blink`), and only key words coloured in captions (`captions.keys`).
 13. Match cuts: put a bright shape in the next place exactly where the last bright shape was on screen (the ice hole became the hospital lamp).
+14. A bright far bank competed with the people → grade the far layer into the world colour (`grade: { far: ['#24344a', .4] }`): darker at night, bluer under water, lighter in fog or daylight. The subject keeps the strongest contrast.
+15. Blur only as focus: soft background behind a close-up, slightly soft foreground silhouettes, and a rack focus (one plane goes soft as the other goes sharp) when attention moves. Never on the subject, never over ~5 px, and the matched shape stays sharp at a match cut.
+16. Furniture and machines behind the action are `plane: 'back'`, so they share the background's focus and grade and do not compete with the people.
 
 ---
 
