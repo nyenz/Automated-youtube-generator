@@ -74,6 +74,7 @@ Plain numbers only. Points are `[x, y]`, (0,0) is the top-left. No other librari
 | `F.flat(points, colour, opacity)` | Small solid detail: lenses, buttons, pocket, eye slit, lip edge. |
 | `F.occlusion(points, opacity, blur)` | Soft contact shadow (blur 6, 10 or 14). |
 | `F.shade(colour, t)` | Lighter (t > 0) or darker (t < 0) version of a colour. Range −0.35…+0.15. |
+| `F.text(x, y, str, size, colour)` | Flat text: a screen reading, a sign. |
 | `F.render(label)` | Always last: `return F.render('...')`. |
 
 ### `F.part` options
@@ -158,6 +159,18 @@ F.person({
   lean: deg,                                         // lean the upper body sideways (pivot at the hips)
 ```
 No blur, glow, sparks or other effects are ever added for movement.
+
+**Side view** (for walking across the screen, kneeling, sitting, lying): add `view: 'side'` to `F.person`. The person faces right
+(`face: -1` faces left). `R` is the near arm/leg (in front), `L` the far one (drawn behind, slightly darker). In side view
+`stride: { L: [hipDeg, kneeDeg], R: [...] }` swings a leg forward (+) and bends the knee, and arm angles swing forward (+).
+Poses: walk `L [-22, 8]`, `R [22, 0]` · kneel `R [80, 95]`, `L [-5, 100]` · sit on the floor `[85, 0]` both · sit on a chair `[85, 85]` both.
+The figure is set down by itself so its lowest point (shoe or knee) touches the ground. To show someone lying on their back,
+draw the side view and turn it with `F.group('rotate(-90 x ground)', ...)` (head to the left, face up).
+
+**Holding things:** `held: { R: (x, y, deg) => { ...draw the thing with its grip at x,y... } }` — the kit calls it at the hand,
+after the arm and before the mitten, so the hand closes over the handle. Works in front and side view.
+
+**Text:** `F.text(x, y, '7.0°C', size, colour)` for a screen reading or a sign. Plain flat letters only.
 
 Arm poses: hanging `[7, 2]` · hands on hips `[35, -110]` · holding something in front `[-5, -90]` · waving `[150, 30]` ·
 carrying a child on the hip: near arm `[30, -122]` (under the child), far arm `[-2, -62]` (across to the child's back).
@@ -376,6 +389,7 @@ ${out.join('\n')}<rect width="${W}" height="${H}" filter="url(#grain)"/></svg>`;
    *          deferArms: true → arms are NOT drawn; person() returns a function that draws them later (to put arms in front of something) }
    */
   function person(sp) {
+    if (sp.view === 'side') return personSide(sp);
     const C = CANON[sp.build || 'adult'], s = (sp.height || 900) / 100, X0 = sp.x || 540, G = sp.ground || 1000;
     // stretch: TALL characters keep the SAME big head and only the body below the chin gets longer (and a bit slimmer).
     //   1 = normal, 1.3 = tall, 1.5 = very tall, 0.8 = short.  `height` is the size of a NORMAL person; a stretched one ends up taller.
@@ -447,6 +461,7 @@ ${out.join('\n')}<rect width="${W}" height="${H}" filter="url(#grain)"/></svg>`;
         part(tube(sh, el, C.armW * s * wb, C.armW * .94 * s * wb), AC, { ridge: [[sh[0] - C.armW * s * .2, sh[1]], [el[0] - C.armW * s * .2, el[1]]], contrast: .22, step: 9 * s });
         part(tube(el, wr, C.armW * .94 * s * wb, C.armW * .86 * s * wb), AC, { ridge: [[el[0] - C.armW * s * .2, el[1]], [wr[0] - C.armW * s * .2, wr[1]]], contrast: .22, step: 9 * s });
         const hx = wr[0] + d * Math.sin(a2) * C.handR * .7 * s, hy2 = wr[1] + Math.cos(a2) * C.handR * .7 * s;
+        if (sp.held && sp.held[side]) sp.held[side](hx, hy2, d * (ang[0] + ang[1]));   // a held thing goes under the mitten
         part(disc(hx, hy2, C.handR * s, C.handR * 1.1 * s, 7), SK, { contrast: .16, step: 6 * s });        // big mitten hand
       });
     };
@@ -503,9 +518,140 @@ ${out.join('\n')}<rect width="${W}" height="${H}" filter="url(#grain)"/></svg>`;
     arms(); return () => {};
   }
 
+
+  /* =====================================================================
+     SIDE VIEW — the same house proportions seen from the side (facing right;
+     face: -1 faces left). Same units as person(): 0 = top of head, 100 = ground.
+     stride: { L: [hipDeg, kneeDeg], R: [...] }  + hipDeg swings the leg FORWARD, kneeDeg bends the knee
+       (walk: [20,0]/[-20,10]; kneel: R [80,95], L [-5,100]; sit on the floor: [85,0] both; sit on a chair: [85,85])
+     arms: { L: [upperDeg, foreDeg], R: [...] }  + swings FORWARD (90 = straight out in front)
+     R = the NEAR leg/arm (drawn in front), L = the FAR one (drawn behind, a little darker).
+     The figure is set down so its lowest point (foot or knee) touches the ground.
+     ===================================================================== */
+  function personSide(sp) {
+    const C = CANON[sp.build || 'adult'], s = (sp.height || 900) / 100, X0 = sp.x || 540, G = sp.ground || 1000, fc = sp.face || 1;
+    const kS = sp.stretch || 1, chY = C.chin, wb = 1 / (1 + (kS - 1) * .35) * (sp.wide || 1);
+    const Yf = y => y <= chY ? y : chY + (y - chY) * kS, TOT = Yf(100);
+    const P = (x, y) => [X0 + fc * x * s * (y > chY + .5 ? wb : 1), G - (TOT - Yf(y)) * s];
+    const Q = pts => pts.map(([x, y]) => P(x, y));
+    const SK = sp.skin || '#ece3d6', TOP = sp.top || '#d3ccbd', HAIR = (sp.hair && sp.hair.colour) || '#7a4231';
+    const hs = sp.hair && sp.hair.style || 'cap', B = sp.bottom || { type: 'trousers', colour: '#4e5242' };
+    const hw = C.headW, ft = C.faceTop, ch = C.chin, mid = (ft + ch) / 2, ey = mid + 1.5;
+    const sy = C.shoulderY, cw = C.chestW, ww = C.waistW, hy = C.hipY;
+    const n2 = v => (+v || 0).toFixed(2), G2 = (t, fn) => t ? group(t, fn) : fn();
+    const HD = sp.head || {}, far = c => shade(c, -.1);
+    // ---- legs: thigh + shin tubes from the hip, the shoe follows the shin
+    const skirt = B.type === 'skirt', hipU = skirt ? 88 : hy + 2, legLen = (C.ankle - hipU) * s * kS;
+    const lw = (skirt ? 7 : C.legW * .95) * s * wb;
+    const legs = {};
+    ['L', 'R'].forEach(side => {
+      const st = (sp.stride && sp.stride[side]) || [0, 0], hip = P(side === 'R' ? 1 : -1, hipU);
+      const a1 = st[0] * Math.PI / 180, a2 = (st[0] - (st[1] || 0)) * Math.PI / 180;
+      const kn = [hip[0] + fc * Math.sin(a1) * legLen * .5, hip[1] + Math.cos(a1) * legLen * .5];
+      const an = [kn[0] + fc * Math.sin(a2) * legLen * .5, kn[1] + Math.cos(a2) * legLen * .5];
+      legs[side] = { hip, kn, an, a2 };
+    });
+    // set the figure down: lowest point = foot sole or a bent knee
+    let low = -1e9;
+    ['L', 'R'].forEach(k => { const g = legs[k]; low = Math.max(low, g.an[1] + 3.5 * s * Math.cos(g.a2 * (Math.abs(g.a2) > 1.2 ? .8 : .35)), g.kn[1] + lw * .5); });
+    const drop = sp.plant === false ? 0 : G - low;
+    if (drop) out.push(`<g transform="translate(0 ${n2(drop)})">`);
+    const leanT = sp.lean ? `rotate(${n2(fc * sp.lean)} ${n2(P(0, hy)[0])} ${n2(P(0, hy)[1])})` : '';
+    const drawLeg = side => {
+      const g = legs[side], col = side === 'L' ? far : (c => c);
+      const LC = skirt ? (sp.legs || SK) : B.colour, SH = sp.shoes || '#5a3124';
+      part(tube(g.hip, g.kn, lw, lw * .96), col(LC), { ridge: [[g.hip[0] - lw * .2, g.hip[1]], [g.kn[0] - lw * .2, g.kn[1]]], contrast: .24, step: 10 * s });
+      part(tube(g.kn, g.an, lw * .96, lw * .92), col(LC), { ridge: [[g.kn[0] - lw * .2, g.kn[1]], [g.an[0] - lw * .2, g.an[1]]], contrast: .24, step: 10 * s });
+      const fa = g.a2 * (Math.abs(g.a2) > 1.2 ? .8 : .35), ca = Math.cos(fa), sa = Math.sin(fa), U = (u, v) => [g.an[0] + fc * (u * ca + v * sa) * s, g.an[1] + (-u * sa + v * ca) * s];
+      const sw = skirt ? 8 : C.legW * .62;
+      part([U(-sw * .55, -1), U(sw * 1.05, -1), U(sw * 1.15, 3.5), U(-sw * .6, 3.5)], col(SH), { contrast: .2, step: 10 * s });
+    };
+    // ---- arms (forward = toward the face)
+    const armGeo = side => {
+      const ang = (sp.arms && sp.arms[side]) || [4, 4], sh = P(side === 'R' ? 1.5 : -1.5, sy + 3);
+      const a1 = ang[0] * Math.PI / 180, a2 = (ang[0] + ang[1]) * Math.PI / 180;
+      const el = [sh[0] + fc * Math.sin(a1) * C.upper * s * kS, sh[1] + Math.cos(a1) * C.upper * s * kS];
+      const wr = [el[0] + fc * Math.sin(a2) * C.fore * s * kS, el[1] + Math.cos(a2) * C.fore * s * kS];
+      const hd = [wr[0] + fc * Math.sin(a2) * C.handR * .7 * s, wr[1] + Math.cos(a2) * C.handR * .7 * s];
+      return { sh, el, wr, hd, deg: fc * (ang[0] + ang[1]) };
+    };
+    const drawArm = side => {
+      const g = armGeo(side), col = side === 'L' ? far : (c => c), AC = sp.sleeve || TOP, aw = C.armW * s * wb;
+      part(tube(g.sh, g.el, aw, aw * .94), col(AC), { ridge: [[g.sh[0] - aw * .2, g.sh[1]], [g.el[0] - aw * .2, g.el[1]]], contrast: .22, step: 9 * s });
+      part(tube(g.el, g.wr, aw * .94, aw * .86), col(AC), { ridge: [[g.el[0] - aw * .2, g.el[1]], [g.wr[0] - aw * .2, g.wr[1]]], contrast: .22, step: 9 * s });
+      if (sp.held && sp.held[side]) sp.held[side](g.hd[0], g.hd[1], g.deg);
+      part(disc(g.hd[0], g.hd[1], C.handR * s, C.handR * 1.1 * s, 7), col(SK), { contrast: .16, step: 6 * s });
+    };
+    // ---- far side first
+    if (hs === 'long') G2(leanT, () => part(Q([[-hw * .3, ft - 6], [-hw - 3, ft + 6], [-hw - 4, ch + 4], [-hw - 1, ch + 13], [-hw * .2, ch + 10], [-hw * .1, mid]]),
+      shade(HAIR, -.05), { ridge: Q([[-hw * .8, ft], [-hw - 1, ch + 8]]), contrast: .3, step: 14 * s }));
+    G2(leanT, () => drawArm('L'));
+    drawLeg('L');
+    if (skirt) G2(leanT, () => part(Q([[-ww * .78, hy - 1], [ww * .8, hy - 1], [ww + 4, 92], [-ww - 3, 92]]), B.colour,
+      { ridge: Q([[-ww * .3, hy], [-ww * .5, 92]]), contrast: .26, step: 20 * s, extra: Q([[0, 86]]) }));
+    drawLeg('R');
+    if (leanT) out.push(`<g transform="${leanT}">`);
+    // ---- torso: a barrel seen from the side (back on the left, chest on the right)
+    part(Q([[-cw * .5, ch - 1], [cw * .3, ch - 1], [cw * .66, sy + 3], [cw * .74, sy + 14], [ww * .78, hy + 1], [-ww * .74, hy + 1], [-cw * .7, sy + 12], [-cw * .66, sy + 2]]),
+      TOP, { ridge: Q([[-cw * .2, ch], [-ww * .2, hy]]), contrast: .22, step: 16 * s });
+    if (sp.vest) {
+      part(Q([[-cw * .68, sy + 1], [cw * .2, sy], [cw * .5, sy + 14], [ww * .76, hy + 2], [-ww * .76, hy + 2], [-cw * .74, sy + 13]]), sp.vest,
+        { ridge: Q([[-cw * .3, sy], [-ww * .3, hy]]), contrast: .26, step: 16 * s });
+      occlusion(Q([[cw * .2, sy], [cw * .5, sy + 14], [ww * .76, hy + 2], [ww * .62, hy + 2], [cw * .36, sy + 14], [cw * .1, sy + 1]]), .22, 6);
+      flat(Q([[cw * .02, sy + 18], [cw * .4, sy + 18], [cw * .4, sy + 23], [cw * .02, sy + 23]]), shade(sp.vest, -.12));
+    }
+    if (sp.tie) part(Q([[cw * .5, ch], [cw * .64, ch], [cw * .82, sy + 16], [cw * .7, sy + 19.5]]), sp.tie, { contrast: .24, step: 10 * s });
+    // ---- head (profile): back of the skull on the left, face on the right
+    const headT = (HD.tilt || HD.nod) ? `translate(0 ${n2((HD.nod || 0) * s)}) rotate(${n2(fc * (HD.tilt || 0))} ${n2(P(0, ch)[0])} ${n2(P(0, ch)[1])})` : '';
+    occlusion(Q([[-hw * .6, ch - 3], [hw * .5, ch - 3], [hw * .4, ch + 4], [-hw * .5, ch + 4]]), .32, 10);
+    if (headT) out.push(`<g transform="${headT}">`);
+    part(Q([[-hw * .8, ft + 1], [hw * .5, ft], [hw * .84, ft + 6], [hw * .9, mid], [hw * .86, ch - 6], [hw * .5, ch], [-hw * .4, ch], [-hw * .88, ch - 6], [-hw * .96, mid]]), SK,
+      { ridge: Q([[-hw * .25, ft], [-hw * .15, ch]]), contrast: .16, step: 9 * s });
+    const fx = hw * .88;
+    if (sp.beard) {
+      part(Q([[-hw * .25, mid - 1], [hw * .1, mid + 5.5], [fx, mid + 6], [fx + .6, ch - 3], [hw * .6, ch + 8], [0, ch + 9.5], [-hw * .45, ch + 3], [-hw * .5, mid + 2]]), sp.beard,
+        { ridge: Q([[-hw * .1, mid], [hw * .1, ch + 8]]), contrast: .22, step: 6 * s, extra: Q([[hw * .3, ch - 2]]) });
+      part(Q([[hw * .35, mid + 6], [fx + .4, mid + 5], [fx + 1, mid + 9.5], [hw * .4, mid + 9]]), shade(sp.beard, -.28), { contrast: .18, step: 5 * s });
+      part(Q([[hw * .55, mid + 8.8], [fx + .2, mid + 8.8], [fx, mid + 11.4], [hw * .58, mid + 11.4]]), '#e2c2b2', { contrast: .14, step: 4 * s });
+    } else {
+      flat(Q([[hw * .3, ey + 4], [hw * .6, ey + 4], [hw * .6, ey + 6.5], [hw * .3, ey + 6.5]]), '#e0a08e', .45);
+      flat(Q([[fx - 3.5, ch - 5.5], [fx - .2, ch - 5.5], [fx - .5, ch - 3.4], [fx - 3, ch - 3.4]]), sp.lips || '#c98a7e');
+    }
+    part(Q([[fx - .4, ey - 1.5], [fx + 3.4, ey + 3.8], [fx - .2, ey + 4.8]]), shade(SK, -.04), { ridge: Q([[fx, ey]]), contrast: .22, step: 4 * s });   // nose wedge
+    const dark = '#3a2a24';
+    if (sp.glasses) {
+      flat(Q([[hw * .38, ey - 4.2], [fx - .2, ey - 4.2], [fx, ey - 2.6], [fx, ey + 1.6], [fx - 1.4, ey + 3], [hw * .38, ey + 3], [hw * .36, ey - 2.6]]), sp.glasses);
+      flat(Q([[hw * .38 + 1.4, ey - 2.8], [fx - 1.4, ey - 2.8], [fx - 1.4, ey + 1.6], [hw * .38 + 1.4, ey + 1.6]]), '#e6ded1');
+      flat(Q([[hw * .38 + 1.4, ey + .4], [fx - 1.4, ey + .4], [fx - 1.4, ey + 1.6], [hw * .38 + 1.4, ey + 1.6]]), '#d4cabb');
+      flat(Q([[-hw * .15, ey - 2.6], [hw * .38, ey - 2.6], [hw * .38, ey - 1.6], [-hw * .15, ey - 1.6]]), sp.glasses);
+    } else {
+      if ((sp.eyes || 'slits') === 'dots') flat(disc(...P(hw * .58, ey), 1.3 * s, 1.5 * s, 6), dark);
+      else flat(Q([[hw * .4, ey + .3], [hw * .75, ey - .6], [hw * .76, ey + .9], [hw * .42, ey + 1.6]]), dark);
+      if (hs !== 'bald') flat(Q([[hw * .36, ey - 3.2], [hw * .78, ey - 4.4], [hw * .78, ey - 3.4], [hw * .38, ey - 2.2]]), shade(HAIR, -.35));
+    }
+    const ear = () => part(disc(...P(-hw * .18, mid + 1), C.earR * .75 * s, C.earR * s), '#d8c4b8', { contrast: .2, step: 5 * s });
+    if (hs !== 'long') ear();
+    if (hs === 'cap' || hs === 'tuft') part(Q([[-hw * .98, mid + 3], [-hw - .2, ft], [-hw * .5, ft - 6.5], [hw * .3, ft - 7.5], [hw * .82, ft - 2], [hw * .84, ft + 3], [hw * .3, ft + 1.5], [-hw * .1, ft + 4], [-hw * .45, mid], [-hw * .7, mid + 3]]),
+      HAIR, { ridge: Q([[-hw * .4, ft - 6], [-hw * .6, ft + 3]]), contrast: .26, step: 8 * s });
+    if (hs === 'long') part(Q([[-hw * .98, ch - 2], [-hw - .5, ft], [-hw * .4, ft - 7], [hw * .4, ft - 7.5], [hw * .86, ft - 1], [hw * .86, ft + 4], [hw * .3, ft + 2], [-hw * .1, ft + 5], [-hw * .2, mid + 4], [-hw * .5, ch - 2]]),
+      HAIR, { ridge: Q([[-hw * .4, ft - 6], [-hw * .7, mid]]), contrast: .3, step: 8 * s });
+    if (headT) out.push('</g>');
+    if (leanT) out.push('</g>');
+    const arms = () => { G2(leanT, () => drawArm('R')); if (drop) out.push('</g>'); };
+    arms.hands = { L: armGeo('L').hd, R: armGeo('R').hd };
+    if (sp.deferArms) return arms;
+    arms(); return () => {};
+  }
+
+  /** text(x, y, str, size, colour, anchor) — plain flat text (a screen reading, a sign). */
+  const text = (x, y, str, size = 40, c = '#3a2a24', anchor = 'middle', weight = 700) =>
+    out.push(`<text x="${x}" y="${y}" font-family="DejaVu Sans Mono, Consolas, monospace" font-weight="${weight}" font-size="${size}" fill="${c}" text-anchor="${anchor}">${String(str).replace(/[<&]/g, m => m === '<' ? '&lt;' : '&amp;')}</text>`);
+  /** raw(svg) — put ready-made SVG markup in (used by the motion layer for cached drawings). */
+  const raw = svgText => out.push(svgText);
+
   /** group(transform, fn) — draw fn inside an SVG transform, e.g. 'translate(20 0) scale(1.2)' or 'rotate(-20 400 380)' (posing limbs). */
   function group(t, fn) { out.push(`<g transform="${t}">`); fn(); out.push('</g>'); }
-  root.F = { begin, part, flat, occlusion, groundShadow, group, render, shade, person, tube, disc, CANON };
+  root.F = { begin, part, flat, occlusion, groundShadow, group, render, shade, person, tube, disc, text, raw, CANON };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 ```

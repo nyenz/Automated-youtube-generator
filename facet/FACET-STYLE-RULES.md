@@ -60,6 +60,7 @@ Plain numbers only. Points are `[x, y]`, (0,0) is the top-left. No other librari
 | `F.flat(points, colour, opacity)` | Small solid detail: lenses, buttons, pocket, eye slit, lip edge. |
 | `F.occlusion(points, opacity, blur)` | Soft contact shadow (blur 6, 10 or 14). |
 | `F.shade(colour, t)` | Lighter (t > 0) or darker (t < 0) version of a colour. Range −0.35…+0.15. |
+| `F.text(x, y, str, size, colour)` | Flat text: a screen reading, a sign. |
 | `F.render(label)` | Always last: `return F.render('...')`. |
 
 ### `F.part` options
@@ -144,6 +145,18 @@ F.person({
   lean: deg,                                         // lean the upper body sideways (pivot at the hips)
 ```
 No blur, glow, sparks or other effects are ever added for movement.
+
+**Side view** (for walking across the screen, kneeling, sitting, lying): add `view: 'side'` to `F.person`. The person faces right
+(`face: -1` faces left). `R` is the near arm/leg (in front), `L` the far one (drawn behind, slightly darker). In side view
+`stride: { L: [hipDeg, kneeDeg], R: [...] }` swings a leg forward (+) and bends the knee, and arm angles swing forward (+).
+Poses: walk `L [-22, 8]`, `R [22, 0]` · kneel `R [80, 95]`, `L [-5, 100]` · sit on the floor `[85, 0]` both · sit on a chair `[85, 85]` both.
+The figure is set down by itself so its lowest point (shoe or knee) touches the ground. To show someone lying on their back,
+draw the side view and turn it with `F.group('rotate(-90 x ground)', ...)` (head to the left, face up).
+
+**Holding things:** `held: { R: (x, y, deg) => { ...draw the thing with its grip at x,y... } }` — the kit calls it at the hand,
+after the arm and before the mitten, so the hand closes over the handle. Works in front and side view.
+
+**Text:** `F.text(x, y, '7.0°C', size, colour)` for a screen reading or a sign. Plain flat letters only.
 
 Arm poses: hanging `[7, 2]` · hands on hips `[35, -110]` · holding something in front `[-5, -90]` · waving `[150, 30]` ·
 carrying a child on the hip: near arm `[30, -122]` (under the child), far arm `[-2, -62]` (across to the child's back).

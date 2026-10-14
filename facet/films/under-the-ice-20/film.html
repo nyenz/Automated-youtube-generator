@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Under the Ice</title>
+<style>html,body{margin:0;background:#151a20;height:100%;font-family:sans-serif}#v{height:100vh;display:flex;justify-content:center;cursor:pointer}#v svg{height:100%;width:auto}
+#go{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#f6efe2;font-size:22px;background:rgba(0,0,0,.4)}</style>
+</head><body><div id="v"></div><div id="go">Click to play (with narration)</div>
+<audio id="a" src="narration.wav"></audio>
+<script src="../../facet-kit.js"></script>
+<script src="../../facet-motion.js"></script>
+<script src="words.js"></script>
+<script src="film.js"></script>
+<script>
+const S = window.ICE20, el = document.getElementById('v'), au = document.getElementById('a');
+el.innerHTML = FM.frame(S, 0);
+if (!location.hash.includes('still')) document.getElementById('go').onclick = () => {
+  document.getElementById('go').remove(); au.currentTime = 0; au.play();
+  (function tick() { el.innerHTML = FM.frame(S, Math.min(au.currentTime, S.duration - .01)); if (!au.ended) requestAnimationFrame(tick); })();
+};
+else document.getElementById('go').remove();
+window.READY = true;
+</script>
+</body></html>
