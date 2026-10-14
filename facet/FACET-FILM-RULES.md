@@ -104,6 +104,17 @@ an accident, a body), show a **dark partial silhouette** instead (`silhouette: '
   snow with a flat see-through tint. Never glow.
 - **One accent colour per shot marks the most important thing** (the orange backboard, the thermometer reading).
 
+## 6b. Show exactly what the words say (literal details)
+
+The viewer checks the picture against the words. When the narration names a detail, the picture must show THAT detail:
+- "reads against the **thigh**" → the device is aimed at the thigh, and the camera follows its aim there on that word.
+- **Instruments are alive:** a thermometer, clock, gauge, scale or monitor shows a value that changes and settles on the number
+  the narrator says (`value: { from: 9.6, to: 7.0, at: 0, for: 1.6, step: .1 }` on the prop or the held prop; the asset draws `draw(F, v)`).
+- **Bodies react:** cold → skin drains to a pale blue-grey and lips turn bluish; fear → pale; heat or effort → flushed
+  (`{ word: 'cold', who: 'boy', do: 'colour', for: 1.8, skin: '#cdd8de', lips: '#8d8fae' }` — the change stays).
+- A move must never cancel another one that is still going (do not use 'sad', which drops both arms, while a hand is busy; use a head tilt).
+- **Captions are never cut off:** long groups wrap to two lines or shrink to fit (built in). Still prefer short groups.
+
 ## 7. Colour across the film
 
 - Each place has its own colour world (`bg`): cold blue outside at night, deep blue under water, teal in the hospital.
@@ -123,6 +134,7 @@ an accident, a body), show a **dark partial silhouette** instead (`silhouette: '
 - [ ] Every camera move has a reason; every shot has `handheld`.
 - [ ] Each place has `far`, `set` and `front` layers and at least 2 small details.
 - [ ] Lying people face up; wet things look wet; cold shows breath.
+- [ ] Every detail the narration names is shown literally on that word (where it is aimed, what it reads, how the body looks).
 - [ ] Anything too hard or too dark to show is a silhouette.
 - [ ] Captions sit in the empty top area and only key words are coloured.
 - [ ] Far layers are graded into the world colour; the subject has the strongest contrast.

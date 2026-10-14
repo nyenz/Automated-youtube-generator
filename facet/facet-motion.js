@@ -36,6 +36,8 @@
      hold: { R: { id, draw, grip: [x,y], scale, rot, follow, from, to } }  — a prop in the hand (drawn under the mitten)
      silhouette: '#16222d' (draw it as one flat dark shape) · opacity · rot (assets) · layer: 'far' (moves with the far layer)
      cycle: { period, phase, grow: [from, to], fade: [from, to], dx, dy, fall } — a repeating detail (breath puff, drip)
+     value: { from, to, at, for, step } — a live number passed to draw(F, value) (a reading counting down); also on hold entries
+   move colour { skin, lips, top, shoes } — the body slowly changes colour and STAYS (cold → pale blue-grey skin, blue lips)
      plane: 'back' — a cast item that belongs to the background plane (furniture, machines): it gets the set's focus and grade
    shot.grade: { far: [colour, amount], set: [colour, amount] } — aerial perspective: far things sink into the world colour
    shot.focus: [{ at, for, far, set, cast, front }] — subtle depth of field in screen pixels (0–5). The subject is never blurred.
@@ -89,11 +91,22 @@
     return backOut((k - .22) / .78);                                  // go, overshoot a little, settle
   }
 
+  /* LIVE VALUES: a prop whose drawing changes over time (a thermometer counting down, a clock, a gauge).
+     value: 7 (fixed) or { from: 11.4, to: 7.0, at: 0, for: 1.8, step: 0.1 } — the asset's draw(F, value) gets the number. */
+  function valueAt(v, t) {
+    if (v == null) return undefined; if (typeof v !== 'object') return v;
+    const k = Math.min(1, Math.max(0, (t - (v.at || 0)) / (v.for || 1))), e = 1 - (1 - k) ** 3, x = lerp(v.from, v.to, e), st = v.step || .1;
+    return +(Math.round(x / st) * st).toFixed(4);
+  }
+  const hex2 = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), toHex = c => '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+  const mixHex = (a, b, k) => { const A = hex2(a), B = hex2(b); return toHex(A.map((v, i) => v + (B[i] - v) * k)) };
+  const BASE = { skin: '#ece3d6', lips: '#c98a7e', top: '#d3ccbd', sleeve: null, shoes: '#5a3124' };
+
   /** where the actor is and how it stands at time t */
   function pose(c, t) {
     const P = { x: c.x || 0, dy: 0, rot: 0, sx: 1, sy: 1, dx: 0, arms: { L: (c.arms && c.arms.L) || HANG, R: (c.arms && c.arms.R) || HANG },
       legs: { L: ((c.stride && c.stride.L) || [0, 0]).slice(), R: ((c.stride && c.stride.R) || [0, 0]).slice() },
-      head: Object.assign({ tilt: 0, turn: 0, nod: 0 }, c.head || {}), lean: c.lean || 0 };
+      head: Object.assign({ tilt: 0, turn: 0, nod: 0 }, c.head || {}), lean: c.lean || 0, paint: {} };
     const sideV = isSide(c);
     // idle: slow breathing + a tiny sway, so nobody is ever frozen
     const ph = (c.seed || 1) * 1.7;
@@ -120,6 +133,12 @@
           }
         } else if (t > a + d) P.x = to;
         x = to; return;
+      }
+      if (m.do === 'colour' || m.do === 'color') {                     // a body change that stays: cold skin, a blush, going pale
+        const k = Math.round(ease(Math.min(1, Math.max(0, (t - a) / d))) * 12) / 12; if (!k) return;
+        Object.keys(m).forEach(key => { if (!BASE.hasOwnProperty(key) || typeof m[key] !== 'string') return;
+          const from = P.paint[key] || (c.person && c.person[key]) || BASE[key] || '#888888'; P.paint[key] = mixHex(from, m[key], k); });
+        return;
       }
       if (!w && m.do !== 'hop' && m.do !== 'drift') return;
       if (m.do === 'hop' && t >= a && t <= a + d) {
@@ -166,22 +185,23 @@
   function personBody(c, Pz) {
     const arms = Pz.arms, legs = { L: Pz.legs.L.map(v => r(v, .5)), R: Pz.legs.R.map(v => r(v, .5)) };
     const head = { tilt: r(Pz.head.tilt, .5), turn: r(Pz.head.turn, .05), nod: r(Pz.head.nod, .2) }, lean = r(Pz.lean, .5);
-    const hold = c.holdNow || {}, hk = Object.keys(hold).map(k => k + ':' + (hold[k] ? hold[k].id : '')).join();
-    const key = c.id + '|' + arms.L.map(Math.round) + '|' + arms.R.map(Math.round) + '|' + legs.L + '|' + legs.R + '|' + [head.tilt, head.turn, head.nod, lean] + '|' + hk;
+    const hold = c.holdNow || {}, hk = Object.keys(hold).map(k => k + ':' + (hold[k] ? hold[k].id + '=' + hold[k]._v : '')).join();
+    const paint = Pz.paint || {}, pk = Object.keys(paint).map(k => k + paint[k]).join();
+    const key = c.id + '|' + arms.L.map(Math.round) + '|' + arms.R.map(Math.round) + '|' + legs.L + '|' + legs.R + '|' + [head.tilt, head.turn, head.nod, lean] + '|' + hk + '|' + pk;
     if (cache.has(key)) return cache.get(key);
     const held = {};
-    Object.keys(hold).forEach(side => { const h = hold[side]; if (!h) return; const pb = assetBody(h), g = h.grip || [540, 540], sc = h.scale || .3;
+    Object.keys(hold).forEach(side => { const h = hold[side]; if (!h) return; const pb = assetBody(h, h._v), g = h.grip || [540, 540], sc = h.scale || .3;
       held[side] = (x, y, deg) => F.raw(`<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${((h.follow ? deg : 0) + (h.rot || 0)).toFixed(1)}) scale(${sc}) translate(${-g[0]} ${-g[1]})">${pb}</g>`); });
     F.begin({ width: 1080, height: 1080, seed: c.seed || 3 });
-    F.person(Object.assign({}, c.person, c.lying === 'right' ? { face: -1 } : {}, { x: 540, ground: 1000, height: c.height || 500,
+    F.person(Object.assign({}, c.person, paint, c.lying === 'right' ? { face: -1 } : {}, { x: 540, ground: 1000, height: c.height || 500,
       arms: { L: arms.L.map(Math.round), R: arms.R.map(Math.round) }, stride: legs, head, lean, held }));
     const s = '<g transform="translate(-540 -1000)">' + bodyOf(F.render(), 'p' + cache.size + '_') + '</g>';
     if (cache.size > 4000) cache.clear();
     cache.set(key, s); return s;
   }
-  function assetBody(c) {
-    const key = c.id + '|asset';
-    if (!cache.has(key)) cache.set(key, bodyOf(c.draw(F), 'a' + cache.size + '_'));
+  function assetBody(c, v) {
+    const key = c.id + '|asset|' + (v === undefined ? '' : v);
+    if (!cache.has(key)) cache.set(key, bodyOf(c.draw(F, v), 'a' + cache.size + '_'));
     return cache.get(key);
   }
   function shadowBody(w) {
@@ -238,7 +258,7 @@
       const wrap = svg => op != null && op < 1 ? `<g opacity="${f(Math.max(0, op))}">${svg}</g>` : svg;
       if (c.person) {
         c.holdNow = null;
-        if (c.hold) { c.holdNow = {}; Object.keys(c.hold).forEach(k => { const hh = c.hold[k]; if (!hh || (hh.from != null && t < hh.from) || (hh.to != null && t >= hh.to)) return; c.holdNow[k] = hh; }); }
+        if (c.hold) { c.holdNow = {}; Object.keys(c.hold).forEach(k => { const hh = c.hold[k]; if (!hh || (hh.from != null && t < hh.from) || (hh.to != null && t >= hh.to)) return; c.holdNow[k] = Object.assign({}, hh, { _v: valueAt(hh.value, t) }); }); }
         if (c.lying) {                                                   // lying on the back, face UP: head to the left, or to the right with lying: 'right'
           const dir = c.lying === 'right' ? 1 : -1;
           g += wrap(`<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy - h * .145)}) rotate(${f(dir * 90 + P.rot)})">${sil(personBody(c, P))}</g>`);
@@ -251,7 +271,7 @@
         g += wrap(`<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(P.sx)} ${f(P.sy)})">${sil(personBody(c, P))}</g>`);
       } else if (c.draw) {
         const o = c.origin || [540, 1000], sc = c.scale || 1;
-        g += wrap(`<g transform="translate(${f(P.x + P.dx + cx)} ${f(G + P.dy + cy)}) rotate(${f(P.rot + (c.rot || 0))}) scale(${f(cs * sc * P.sx * (c.flip ? -1 : 1))} ${f(cs * sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${sil(assetBody(c))}</g>`);
+        g += wrap(`<g transform="translate(${f(P.x + P.dx + cx)} ${f(G + P.dy + cy)}) rotate(${f(P.rot + (c.rot || 0))}) scale(${f(cs * sc * P.sx * (c.flip ? -1 : 1))} ${f(cs * sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${sil(assetBody(c, valueAt(c.value, t)))}</g>`);
       }
     });
     return g;
@@ -295,9 +315,15 @@
     if (!ch) return '';
     const size = C.size || 76, y = C.y || S.height * .2, esc = x => String(x).replace(/[<&]/g, m => m === '<' ? '&lt;' : '&amp;');
     const key = w => C.keys ? C.keys.indexOf(w[0].toLowerCase().replace(/[.,!?;:]/g, '')) >= 0 : (t >= w[1] && t < w[2] + .1);
-    const spans = ch.map(w => `<tspan fill="${key(w) ? (C.accent || '#f2b45a') : (C.colour || '#f6efe2')}">${esc(w[0].toUpperCase())}</tspan>`).join(' ');
+    // captions must never be cut off: wrap to two lines, then shrink until the widest line fits 86% of the frame
+    const maxW = S.width * .86, est = (ws, sz) => ws.reduce((a, w) => a + w[0].length * sz * .68, 0) + (ws.length - 1) * sz * .32;
+    let lines = [ch], fs = size;
+    if (est(ch, fs) > maxW && ch.length > 1) { let best = 1, bw = 1e9; for (let i = 1; i < ch.length; i++) { const m = Math.max(est(ch.slice(0, i), fs), est(ch.slice(i), fs)); if (m < bw) { bw = m; best = i } } lines = [ch.slice(0, best), ch.slice(best)] }
+    const wid = Math.max.apply(null, lines.map(l => est(l, fs))); if (wid > maxW) fs = Math.floor(fs * maxW / wid);
     const pk = Math.min(1, Math.max(0, (t - ch[0][1] + .05) / .16)), pop = pk >= 1 ? 1 : .86 + .14 * backOut(pk);   // each group pops in
-    return `<text transform="translate(${S.width / 2} ${y}) scale(${f(pop)}) translate(${-S.width / 2} ${-y})" x="${S.width / 2}" y="${y}" text-anchor="middle" font-family="Montserrat, 'DejaVu Sans', Arial, sans-serif" font-weight="900" font-size="${size}" letter-spacing="1" stroke="#2a1810" stroke-width="${size * .16}" stroke-linejoin="round" paint-order="stroke">${spans}</text>`;
+    return lines.map((ln, li) => { const yy = y + (li - (lines.length - 1) / 2) * fs * 1.12;
+      const spans = ln.map(w => `<tspan fill="${key(w) ? (C.accent || '#f2b45a') : (C.colour || '#f6efe2')}">${esc(w[0].toUpperCase())}</tspan>`).join(' ');
+      return `<text transform="translate(${S.width / 2} ${y}) scale(${f(pop)}) translate(${-S.width / 2} ${-y})" x="${S.width / 2}" y="${f(yy)}" text-anchor="middle" font-family="Montserrat, 'DejaVu Sans', Arial, sans-serif" font-weight="900" font-size="${fs}" letter-spacing="1" stroke="#2a1810" stroke-width="${fs * .16}" stroke-linejoin="round" paint-order="stroke">${spans}</text>`; }).join('');
   }
 
   function frame(S, t) {

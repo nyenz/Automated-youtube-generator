@@ -222,6 +222,10 @@ Casting rule: characters are white by default (skin `pale` or `warm`); use other
 14. A bright far bank competed with the people → grade the far layer into the world colour (`grade: { far: ['#24344a', .4] }`): darker at night, bluer under water, lighter in fog or daylight. The subject keeps the strongest contrast.
 15. Blur only as focus: soft background behind a close-up, slightly soft foreground silhouettes, and a rack focus (one plane goes soft as the other goes sharp) when attention moves. Never on the subject, never over ~5 px, and the matched shape stays sharp at a match cut.
 16. Furniture and machines behind the action are `plane: 'back'`, so they share the background's focus and grade and do not compete with the people.
+17. "Reads against the thigh" while the device pointed at the hip → aim the prop at exactly what the words name, and follow its aim with the camera on that word.
+18. A thermometer frozen on 7.0 looks dead → instruments count to the value the narrator says (`value`), then settle.
+19. "Cold as the ice" with a normal face missed the point → bodies change colour with the story (`colour` move: cold skin, blue lips) and keep it.
+20. Captions wider than the frame were cut off → captions wrap to two lines and shrink to fit (built in).
 
 ---
 

@@ -47,7 +47,7 @@
     return size * U / h;
   };
   /** an asset's drawing as a function for the motion layer (it calls draw(F) and keeps the SVG) */
-  function drawFn(a) { return function (F2) { var s = a.draw(F2); if (typeof s !== 'string' || s.indexOf('<svg') < 0) throw new Error(a.name + ': draw(F) must end with return F.render(\'...\')'); return s } }
+  function drawFn(a) { return function (F2, v) { var s = a.draw(F2, v); if (typeof s !== 'string' || s.indexOf('<svg') < 0) throw new Error(a.name + ': draw(F) must end with return F.render(\'...\')'); return s } }
 
   /* ---------------- canvas + player ---------------- */
   var cv = null, cx = null, cfg = {}, W = 1080, H = 1920, FILM = null;
@@ -144,7 +144,7 @@
     var cast = [], byName = {};
     Object.keys(sp.cast || {}).forEach(function (name) {
       var e = sp.cast[name] || {}, a = K.make(e.asset || name), pos = place(e.at, name), c = { id: r.id + ':' + name, x: pos[0], ground: pos[1], seed: e.seed || hash(name), moves: [] };
-      ['z', 'layer', 'plane', 'opacity', 'cycle', 'blink', 'flip', 'rot', 'silhouette', 'shadow', 'lying', 'idle', 'arms', 'head', 'lean', 'stride', 'from', 'until'].forEach(function (k) { if (e[k] !== undefined) c[k] = e[k] });
+      ['z', 'layer', 'plane', 'opacity', 'cycle', 'blink', 'flip', 'rot', 'silhouette', 'shadow', 'lying', 'idle', 'arms', 'head', 'lean', 'stride', 'from', 'until', 'value'].forEach(function (k) { if (e[k] !== undefined) c[k] = e[k] });
       if (a.kind === 'character') {
         c.person = Object.assign({}, a.person || {}, e.view ? { view: e.view } : {}, e.face ? { face: e.face } : {});
         c.height = (e.size || a.size || 2.6) * U;
@@ -153,7 +153,7 @@
           c.hold = {};
           Object.keys(e.hold).forEach(function (side) {
             var h = e.hold[side], item = typeof h === 'string' ? h : h.item, pa = K.make(item);
-            c.hold[side] = Object.assign({ id: item, draw: drawFn(pa), grip: pa.grip || pa.origin || [540, 540], scale: K.scaleOf(pa, h.size) }, typeof h === 'object' ? { from: h.from, to: h.to, rot: h.rot, follow: h.follow } : {});
+            c.hold[side] = Object.assign({ id: item, draw: drawFn(pa), grip: pa.grip || pa.origin || [540, 540], scale: K.scaleOf(pa, h.size) }, typeof h === 'object' ? { from: h.from, to: h.to, rot: h.rot, follow: h.follow, value: h.value } : {});
           });
         }
       } else if (a.kind === 'set') {
@@ -231,14 +231,25 @@
     var k = Math.min(1, Math.max(0, (t - WORDS[grp[0]].s + .05) / .16)), c1 = 1.6, pop = k >= 1 ? 1 : .86 + .14 * (1 + (c1 + 1) * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2));
     ctx.font = '900 ' + fs + 'px Montserrat, "Arial Black", "DejaVu Sans", Arial, sans-serif'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
     var parts = grp.map(function (wi) { return { i: wi, txt: WORDS[wi].w.toUpperCase().replace(/[,;:]$/, '') } });
-    var space = fs * .28, widths = parts.map(function (p) { return ctx.measureText(p.txt).width }), total = widths.reduce(function (a, b) { return a + b }, 0) + space * (parts.length - 1);
-    var y = h * (cs.pos || (land ? .14 : .172)), x = w / 2 - total / 2;
+    // never cut off: wrap to two lines, then shrink until the widest line fits 86% of the frame
+    var maxW = w * .86;
+    function measure() { var sp = fs * .28, ws = parts.map(function (p) { return ctx.measureText(p.txt).width }); return { sp: sp, ws: ws } }
+    function lineW(m, a, b) { var s2 = 0; for (var k = a; k < b; k++) s2 += m.ws[k] + (k > a ? m.sp : 0); return s2 }
+    var M = measure(), split = parts.length;
+    if (lineW(M, 0, parts.length) > maxW && parts.length > 1) { var bw = 1e9; for (var k2 = 1; k2 < parts.length; k2++) { var mm = Math.max(lineW(M, 0, k2), lineW(M, k2, parts.length)); if (mm < bw) { bw = mm; split = k2 } } }
+    var rows = split < parts.length ? [[0, split], [split, parts.length]] : [[0, parts.length]];
+    var widest = Math.max.apply(null, rows.map(function (r) { return lineW(M, r[0], r[1]) }));
+    if (widest > maxW) { fs = Math.floor(fs * maxW / widest); ctx.font = '900 ' + fs + 'px Montserrat, "Arial Black", "DejaVu Sans", Arial, sans-serif'; M = measure() }
+    var y = h * (cs.pos || (land ? .14 : .172));
     ctx.save(); ctx.translate(w / 2, y); ctx.scale(pop, pop); ctx.translate(-w / 2, -y);
-    parts.forEach(function (p, j) {
-      var word = norm(WORDS[p.i].w), on = KEYS ? KEYS.indexOf(word) >= 0 || KEYS.indexOf(WORDS[p.i].w.toLowerCase().replace(/[.,!?;:]/g, '')) >= 0 : (WORDS[p.i].s <= t && t < WORDS[p.i].e + .1);
-      ctx.lineWidth = fs * .16; ctx.strokeStyle = '#2a1810'; ctx.strokeText(p.txt, x, y);
-      ctx.fillStyle = on ? (cs.color || '#f2b45a') : '#f6efe2'; ctx.fillText(p.txt, x, y);
-      x += widths[j] + space;
+    rows.forEach(function (r, ri) {
+      var yy = y + (ri - (rows.length - 1) / 2) * fs * 1.12, x = w / 2 - lineW(M, r[0], r[1]) / 2;
+      for (var j = r[0]; j < r[1]; j++) {
+        var p = parts[j], word = norm(WORDS[p.i].w), on = KEYS ? KEYS.indexOf(word) >= 0 || KEYS.indexOf(WORDS[p.i].w.toLowerCase().replace(/[.,!?;:]/g, '')) >= 0 : (WORDS[p.i].s <= t && t < WORDS[p.i].e + .1);
+        ctx.lineWidth = fs * .16; ctx.strokeStyle = '#2a1810'; ctx.strokeText(p.txt, x, yy);
+        ctx.fillStyle = on ? (cs.color || '#f2b45a') : '#f6efe2'; ctx.fillText(p.txt, x, yy);
+        x += M.ws[j] + M.sp;
+      }
     });
     ctx.restore();
   };

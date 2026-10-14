@@ -12,14 +12,14 @@
   const ICE = '#b9cad3', SNOW = '#dfe4e3', BARK = '#5b4a42', ACC = '#cc5321';
 
   /* ---------------- props (each a normal kit asset: draw(F) in a 1080 canvas) ---------------- */
-  function thermometer(F) {
+  function thermometer(F, v) {
     F.begin({ width: 1080, height: 1080, seed: 21 });
     F.part([[360, 600], [470, 600], [500, 860], [400, 880], [350, 640]], '#3e3f42', { ridge: [[385, 610], [400, 870]], contrast: .24, step: 60 });      // grip
     F.part([[200, 380], [820, 380], [860, 430], [860, 620], [820, 660], [200, 660], [170, 620], [170, 420]], '#d3ccbd', { ridge: [[260, 390], [250, 650]], contrast: .2, step: 120 });
     F.part([[820, 450], [900, 465], [900, 575], [820, 590]], '#3e3f42', { contrast: .2, step: 60 });                                                      // sensor nose
     F.flat([[230, 420], [640, 420], [640, 620], [230, 620]], '#2b3b3a');                                                                                       // screen
     F.flat([[230, 590], [640, 590], [640, 620], [230, 620]], '#22302f');
-    F.text(435, 562, '7.0°C', 132, '#cfe6d2');
+    F.text(435, 562, (v == null ? 7 : v).toFixed(1) + '°C', 132, '#cfe6d2');      // live reading
     F.flat([[680, 450], [790, 450], [790, 520], [680, 520]], ACC);                                                                                             // trigger light
     return F.render('infrared thermometer');
   }
@@ -229,18 +229,23 @@
       { id: 'pond', from: 0, to: 11.0, bg: NIGHT, far: pondFar, set: pond, front: pondFront, handheld: 3,
         grade: { far: ['#24344a', .4] },                             // the far bank sinks into the night
         focus: [
-          { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },            // close on the thermometer: everything behind it soft
-          { at: 2.0, for: 3.2, far: 1.2, set: 0, front: 1.5 },        // pull out: the scene comes into focus
-          { at: 6.9, for: 3.0, far: 3, set: .6, front: 2 }            // in close on the boy: the far bank softens again
+          { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },            // close on the reading: everything behind it soft
+          { at: 2.3, for: 1.8, far: 4, set: 1.5 },
+          { at: 4.4, for: 1.0, far: 4, set: .8 },                     // at the thigh
+          { at: 6.0, for: 1.1, far: 1.2, set: 0, front: 1.5 },        // pull out: the scene comes into focus
+          { at: 7.1, for: 2.0, far: 3, set: .6, front: 2 }            // in close on the boy's face
         ],
         camera: [
-          { at: 0, zoom: 3.0, x: 560, y: 1225 },                   // the thermometer screen: "7 degrees Celsius"
-          { at: 2.0, for: 4.4, zoom: 1.3, x: 570, y: 1340 },       // pull out: the medic, the boy, the hole in the ice
-          { at: 6.9, for: 3.2, zoom: 1.7, x: 610, y: 1400 }        // glide in to the boy: "cold as the ice, limp, without a pulse"
+          { at: 0, zoom: 3.2, x: 600, y: 1282 },                   // the screen counts down to 7.0 °C: "7 degrees Celsius"
+          { at: 2.3, for: 1.8, zoom: 2.0, x: 565, y: 1300 },       // "an infrared thermometer": the hand and the device
+          { at: 4.4, for: 1.0, zoom: 2.4, x: 645, y: 1372 },       // follow its aim: "against the thigh"
+          { at: 6.0, for: 1.1, zoom: 1.4, x: 600, y: 1360 },       // "of an 8-year-old boy": pull out, the whole scene
+          { at: 7.1, for: 2.0, zoom: 2.3, x: 850, y: 1420 },       // "He is cold as the ice": glide in to his face
+          { at: 9.3, for: 1.4, zoom: 1.85, x: 735, y: 1415 }       // "without a pulse": ease back to see the fingers on his wrist
         ],
         cast: [
-          { id: 'board', draw: backboard, origin: [540, 1000], x: 700, ground: 1500, scale: .56, z: 1490 },
-          { id: 'puddle', draw: puddle, origin: [540, 990], x: 690, ground: 1512, scale: .62, z: 1480 },
+          { id: 'board', draw: backboard, origin: [540, 1000], x: 760, ground: 1500, scale: .56, z: 1490 },
+          { id: 'puddle', draw: puddle, origin: [540, 990], x: 750, ground: 1512, scale: .62, z: 1480 },
           { id: 'drip1', draw: drop, origin: [540, 540], x: 600, ground: 1500, scale: .07, z: 1491, cycle: { period: 1.4, dy: 30, fall: true, fade: [1, 0] } },
           { id: 'drip2', draw: drop, origin: [540, 540], x: 760, ground: 1502, scale: .06, z: 1491, cycle: { period: 1.7, phase: .6, dy: 26, fall: true, fade: [1, 0] } },
           { id: 'drip3', draw: drop, origin: [540, 540], x: 900, ground: 1500, scale: .07, z: 1491, cycle: { period: 1.2, phase: .3, dy: 30, fall: true, fade: [1, 0] } },
@@ -251,16 +256,18 @@
           { id: 'tintB', layer: 'far', draw: tint('#4f86d8'), origin: [0, 0], x: 0, ground: 0, z: 0, blink: { period: .8, on: .5, phase: .4 } },
           { id: 'breath1', draw: breath, origin: [440, 540], x: 482, ground: 1200, scale: .13, z: 1510, cycle: { period: 2.6, grow: [.4, 1.6], fade: [.8, 0], dx: 46, dy: -40 } },
           { id: 'breath2', draw: breath, origin: [440, 540], x: 482, ground: 1200, scale: .13, z: 1510, cycle: { period: 2.6, phase: 1.3, grow: [.4, 1.6], fade: [.8, 0], dx: 46, dy: -40 } },
-          { id: 'boy', person: wetBoy, height: 420, x: 520, ground: 1484, lying: 'right', seed: 7, z: 1495,
-            arms: { L: [-4, 0], R: [-4, 0] } },
+          { id: 'boy', person: wetBoy, height: 420, x: 578, ground: 1484, lying: 'right', seed: 7, z: 1495,
+            arms: { L: [-4, 0], R: [-4, 0] },
+            moves: [{ at: 7.4, for: 1.8, do: 'colour', skin: '#cdd8de', lips: '#8d8fae' }] },   // "cold as the ice": his face drains to a cold blue-grey
           { id: 'medic', person: medic, height: 600, x: 390, ground: 1500, seed: 3, z: 1500, stride: { R: [80, 95], L: [-5, 100] },
-            hold: { R: Object.assign({}, PROP.therm, { to: 6.6 }), L: Object.assign({}, PROP.therm, { from: 6.6 }) },
-            arms: { R: [70, 8], L: [30, 20] }, head: { tilt: 6 }, idle: { lean: 1.5, period: 3.4 },
+            hold: { R: Object.assign({}, PROP.therm, { to: 6.6, rot: 52, value: { from: 9.6, to: 7.0, at: .05, for: 1.55, step: .1 } }), L: Object.assign({}, PROP.therm, { from: 6.6, value: 7 }) },
+            arms: { R: [36, 28], L: [30, 20] }, head: { tilt: 6 }, idle: { lean: 1.5, period: 3.4 },
             moves: [
               { at: 6.2, for: 3.0, do: 'arms', R: [26, 34], L: [22, 40] },   // reading done: thermometer to the other hand
-              { at: 9.0, for: 2.1, do: 'reach', arm: 'R', deg: 42, bend: 22 },  // fingers on the boy's wrist: "without a pulse"
+              { at: 9.2, for: 1.9, do: 'reach', arm: 'R', deg: 60, bend: 16 },
+              { at: 9.2, for: 1.9, do: 'lean', deg: 16 },                   // he leans in over the boy  // fingers on the boy's wrist: "without a pulse"
               { at: 9.0, for: 2.1, do: 'tilt', deg: 8 },
-              { at: 10.2, for: 0.9, do: 'sad' }
+              { at: 10.3, for: 0.8, do: 'tilt', deg: 14 }             // his head drops; the hand stays on the wrist
             ] }
         ] },
       { id: 'under', from: 11.0, to: 14.9, bg: DEEP, far: underFar, set: underIce, front: underFront, handheld: 2,
