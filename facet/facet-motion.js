@@ -36,6 +36,9 @@
      hold: { R: { id, draw, grip: [x,y], scale, rot, follow, from, to } }  — a prop in the hand (drawn under the mitten)
      silhouette: '#16222d' (draw it as one flat dark shape) · opacity · rot (assets) · layer: 'far' (moves with the far layer)
      cycle: { period, phase, grow: [from, to], fade: [from, to], dx, dy, fall } — a repeating detail (breath puff, drip)
+     plane: 'back' — a cast item that belongs to the background plane (furniture, machines): it gets the set's focus and grade
+   shot.grade: { far: [colour, amount], set: [colour, amount] } — aerial perspective: far things sink into the world colour
+   shot.focus: [{ at, for, far, set, cast, front }] — subtle depth of field in screen pixels (0–5). The subject is never blurred.
      blink: { period, on: 0..1, phase } — on/off (warning lights) · idle: { lean, period } — a person shifting their weight
    captions.keys: ['pulse', 'hours', ...] — only these words get the accent colour; each group pops in
      stride / head / lean: the resting pose
@@ -198,6 +201,16 @@
     return cam;
   }
 
+  /** focus keyframes: [{ at, for, far, set, cast, front }] (blur in screen pixels, keep it 0–5) */
+  function focusAt(list, t) {
+    let v = { far: 0, set: 0, cast: 0, front: 0 };
+    (list || []).forEach(m => {
+      const a = m.at || 0, d = m.for || .001; if (t < a) return; const k = ease((t - a) / d);
+      const to = {}; Object.keys(v).forEach(n => { to[n] = m[n] == null ? v[n] : m[n]; });
+      Object.keys(v).forEach(n => { v[n] = lerp(v[n], to[n], k); });
+    });
+    return v;
+  }
   function setBody(id, fn, S) {
     const key = 'set|' + id;
     if (!cache.has(key)) cache.set(key, bodyOf(fn(F, S.width, S.height), 'set' + cache.size + '_'));
@@ -252,13 +265,21 @@
     // depth without blur: far things move less than the camera, near things more (parallax)
     const camT = k => { const z = 1 + (cam.zoom - 1) * k, x = S.width / 2 + (cam.x - S.width / 2) * k, y = S.height / 2 + (cam.y - S.height / 2) * k;
       return `<g transform="translate(${f(S.width / 2)} ${f(S.height / 2)}) scale(${f(z)}) translate(${f(-x)} ${f(-y)})">`; };
+    // FOCUS (depth of field): a small blur on the layers that are out of focus. The subject plane stays sharp.
+    const foc = focusAt(sh.focus, t), W = S.width, H = S.height;
+    const soft = (px, id, inner) => {
+      if (!px || px < .15) return inner;
+      return `<filter id="dof${id}" filterUnits="userSpaceOnUse" x="-200" y="-200" width="${W + 400}" height="${H + 400}"><feGaussianBlur stdDeviation="${f(Math.min(px, 6))}"/></filter><g filter="url(#dof${id})">${inner}</g>`;
+    };
+    // AERIAL PERSPECTIVE: far things lose contrast and sink into the world colour (darker at night, bluer under water)
+    const grade = gr => gr ? `<rect x="-6000" y="-6000" width="14000" height="14000" fill="${gr[0]}" opacity="${gr[1]}"/>` : '';
+    const cast = sh.cast || [], farCast = cast.filter(c => c.layer === 'far'),
+      backCast = cast.filter(c => c.layer !== 'far' && c.plane === 'back'), mainCast = cast.filter(c => c.layer !== 'far' && c.plane !== 'back');
     let g = '';
-    const cast = sh.cast || [], farCast = cast.filter(c => c.layer === 'far'), mainCast = cast.filter(c => c.layer !== 'far');
-    if (sh.far) g += camT(sh.farDepth || .45) + setBody(sh.id + '|far', sh.far, S) + castSVG(S, farCast, t) + '</g>';
-    g += camT(1);
-    if (sh.set) g += setBody(sh.id + '|back', sh.set, S);
-    g += castSVG(S, mainCast, t) + '</g>';
-    if (sh.front) g += camT(sh.frontDepth || 1.3) + setBody(sh.id + '|front', sh.front, S) + '</g>';
+    if (sh.far) g += soft(foc.far, 'f', camT(sh.farDepth || .45) + setBody(sh.id + '|far', sh.far, S) + castSVG(S, farCast, t) + grade(sh.grade && sh.grade.far) + '</g>');
+    g += soft(foc.set, 's', camT(1) + (sh.set ? setBody(sh.id + '|back', sh.set, S) : '') + castSVG(S, backCast, t) + grade(sh.grade && sh.grade.set) + '</g>');
+    g += soft(foc.cast, 'c', camT(1) + castSVG(S, mainCast, t) + '</g>');
+    if (sh.front) g += soft(foc.front, 'n', camT(sh.frontDepth || 1.3) + setBody(sh.id + '|front', sh.front, S) + '</g>');
     return { head: shell.slice(0, cut) + g, tail: shell.slice(cut) };
   }
   /* captions: a few words at a time, the spoken word in the accent colour. Plain solid text — no glow, no blur. */

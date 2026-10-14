@@ -227,6 +227,12 @@
     captions: { words: window.ICE_WORDS, y: 330, size: 80, keys: ['7', 'degrees', 'celsius', '8-year-old', 'pulse', 'two', 'hours', 'folklore', 'case', 'report', 'longest', 'record'] },
     shots: [
       { id: 'pond', from: 0, to: 11.0, bg: NIGHT, far: pondFar, set: pond, front: pondFront, handheld: 3,
+        grade: { far: ['#24344a', .4] },                             // the far bank sinks into the night
+        focus: [
+          { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },            // close on the thermometer: everything behind it soft
+          { at: 2.0, for: 3.2, far: 1.2, set: 0, front: 1.5 },        // pull out: the scene comes into focus
+          { at: 6.9, for: 3.0, far: 3, set: .6, front: 2 }            // in close on the boy: the far bank softens again
+        ],
         camera: [
           { at: 0, zoom: 3.0, x: 560, y: 1225 },                   // the thermometer screen: "7 degrees Celsius"
           { at: 2.0, for: 4.4, zoom: 1.3, x: 570, y: 1340 },       // pull out: the medic, the boy, the hole in the ice
@@ -258,6 +264,8 @@
             ] }
         ] },
       { id: 'under', from: 11.0, to: 14.9, bg: DEEP, far: underFar, set: underIce, front: underFront, handheld: 2,
+        grade: { far: ['#0f1e2c', .35] },                            // deep water swallows the distance
+        focus: [{ at: 0, far: 2.5, set: 0, cast: 0, front: 3 }],
         camera: [{ at: 0, zoom: 1.75, x: 570, y: 500 }, { at: 0, for: 3.9, zoom: 1.6, x: 570, y: 560 }],
         cast: [
           { id: 'sled', draw: sled, origin: [540, 880], x: 330, ground: 470, scale: .36, z: 1, silhouette: '#1f2f3e' },
@@ -267,18 +275,24 @@
             moves: [{ at: 0, for: 3.9, do: 'drift', dy: 430, dx: 40, rot: 22 }] }
         ].concat(bubbles) },
       { id: 'ward', from: 14.9, to: 22.41, bg: WARD, far: wardFar, set: ward, front: wardFront, handheld: 2,
+        grade: { far: ['#25524a', .3] },
+        focus: [
+          { at: 0, far: 4, set: 0, cast: 0, front: 2.5 },            // the lamp is sharp for the match cut…
+          { at: .3, for: 1.4, set: 2.4 },                              // …then, on the doctor, the room behind him goes soft
+          { at: 3.4, for: 2.6, far: 2, set: 0, cast: 1.6, front: 2 }  // rack focus to the boy in the bed; the doctor goes soft
+        ],
         camera: [
           { at: 0, zoom: 1.9, x: 337, y: 780 },                    // match cut: the lamp sits exactly where the hole in the ice was
           { at: .2, for: 1.6, zoom: 1.9, x: 330, y: 1240 },         // tilt down to the doctor: "This is not folklore. It is a case report."
           { at: 3.4, for: 3.8, zoom: 1.22, x: 610, y: 1240 }        // pull out to the bed: "the longest ice water survival on record"
         ],
         cast: [
-          { id: 'ecmo', draw: ecmo, origin: [540, 960], x: 560, ground: 1440, scale: .5, z: 1400 },
-          { id: 'bed', draw: bedBack, origin: [540, 990], x: 760, ground: 1460, scale: .62, z: 1410 },
-          { id: 'boyBed', person: boy, height: 360, x: 640, ground: 1312, lying: 'right', seed: 7, z: 1420, shadow: false,
+          { id: 'ecmo', plane: 'back', draw: ecmo, origin: [540, 960], x: 560, ground: 1440, scale: .5, z: 1400 },
+          { id: 'bed', plane: 'back', draw: bedBack, origin: [540, 990], x: 760, ground: 1460, scale: .62, z: 1410 },
+          { id: 'boyBed', plane: 'back', person: boy, height: 360, x: 640, ground: 1312, lying: 'right', seed: 7, z: 1420, shadow: false,
             arms: { L: [-4, 0], R: [-4, 0] } },
-          { id: 'blanket', draw: blanket, origin: [540, 790], x: 750, ground: 1342, scale: .62, z: 1430 },
-          { id: 'tubes', draw: tubes, origin: [0, 700], x: 590, ground: 1300, scale: .35, z: 1425 },
+          { id: 'blanket', plane: 'back', draw: blanket, origin: [540, 790], x: 750, ground: 1342, scale: .62, z: 1430 },
+          { id: 'tubes', plane: 'back', draw: tubes, origin: [0, 700], x: 590, ground: 1300, scale: .35, z: 1425 },
           { id: 'doc', person: doctor, height: 560, x: 290, ground: 1540, seed: 9, z: 1540,
             hold: { R: PROP.clip }, arms: { R: [-5, -90], L: [7, 2] },
             moves: [
