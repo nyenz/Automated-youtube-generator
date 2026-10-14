@@ -27,6 +27,14 @@
      look  { dir: 'L'|'R' }      tilt { deg }           lean { deg }
      shiver (cold / scared)      arms { L:[up,fore], R:[up,fore] }  (any pose by hand)
    camera: [{ at, for, zoom: 1, x, y }]  — x,y = the point to look at (default the middle)
+
+   SHOTS (a film with cuts): { width, height, duration, captions: { words: [[word, start, end], ...] },
+     shots: [{ id, from, to, bg, set: (F, W, H) => drawing, front: (F, W, H) => drawing, cast: [...], camera: [...] }] }
+     inside a shot every time (moves, camera) counts from the start of that shot.
+   more cast options: lying: true (on the back, head left) · flip: true (asset faces the other way) · z: draw order
+     hold: { R: { id, draw, grip: [x,y], scale, rot, follow } }  — a prop in the hand (drawn under the mitten)
+     stride / head / lean: the resting pose
+   side-view people (person.view: 'side'): walk swings the legs; kneel, sit, chair, reach { arm, deg }, drift { dx, dy, rot }
    ========================================================================= */
 (function (root) {
   'use strict';
@@ -39,10 +47,19 @@
     cheer: (m, t) => [158, 14 + 10 * Math.sin(t * 2 * Math.PI * 2.6)],
     point: (m, t, side) => side === (m.arm || 'R') ? [86, 0] : null,
     hips: () => [35, -110],
-    hold: () => [-5, -90],
+    hold: (m, t, side, c) => isSide(c) ? [42, 48] : [-5, -90],
+    reach: (m, t, side) => side === (m.arm || 'R') ? [m.deg == null ? 90 : m.deg, m.bend || 0] : null,
     shrug: () => [48, -118],
     sad: () => [1, -3],
     arms: (m, t, side) => (m[side] || null),
+  };
+  const isSide = c => !!(c && c.person && c.person.view === 'side');
+  // leg poses (side view): [hipDeg forward, kneeDeg bend]
+  const LEGS = {
+    kneel: () => ({ R: [80, 95], L: [-5, 100] }),
+    sit: () => ({ R: [85, 0], L: [85, 0] }),
+    chair: () => ({ R: [85, 85], L: [85, 85] }),
+    legs: m => ({ L: m.L, R: m.R }),
   };
 
   /* how strongly a move is "on" at time t: fades in and out over 0.25 s */
@@ -55,7 +72,9 @@
   /** where the actor is and how it stands at time t */
   function pose(c, t) {
     const P = { x: c.x || 0, dy: 0, rot: 0, sx: 1, sy: 1, dx: 0, arms: { L: (c.arms && c.arms.L) || HANG, R: (c.arms && c.arms.R) || HANG },
-      legs: { L: [0, 0], R: [0, 0] }, head: { tilt: 0, turn: 0, nod: 0 }, lean: 0 };
+      legs: { L: ((c.stride && c.stride.L) || [0, 0]).slice(), R: ((c.stride && c.stride.R) || [0, 0]).slice() },
+      head: Object.assign({ tilt: 0, turn: 0, nod: 0 }, c.head || {}), lean: c.lean || 0 };
+    const sideV = isSide(c);
     // idle: slow breathing + a tiny sway, so nobody is ever frozen
     const ph = (c.seed || 1) * 1.7;
     P.sy = 1 + .007 * Math.sin(t * 2 * Math.PI / 3.1 + ph);
@@ -68,14 +87,20 @@
         if (t >= a && t <= a + d) {
           P.x = lerp(from, to, ease(k));
           const ph2 = (t - a) * (m.steps || 2) * Math.PI, s = Math.sin(ph2);
-          P.rot += 1.6 * s * w; P.dy -= Math.abs(s) * (c.height || 500) * .01 * w;
-          P.legs.L = [2 * w, Math.max(0, s) * 4 * w]; P.legs.R = [2 * w, Math.max(0, -s) * 4 * w];   // real steps
-          P.head.tilt += -2 * s * w;
-          P.arms.L = mix(P.arms.L, [12 + 8 * s, 2], w); P.arms.R = mix(P.arms.R, [12 - 8 * s, 2], w);
+          if (sideV) {                                                     // side view: legs swing forward and back
+            P.dy -= Math.abs(Math.cos(ph2)) * (c.height || 500) * .008 * w;
+            P.legs.L = [-24 * s * w, 10 * Math.max(0, s) * w]; P.legs.R = [24 * s * w, 10 * Math.max(0, -s) * w];
+            P.arms.L = mix(P.arms.L, [26 * s, 12], w); P.arms.R = mix(P.arms.R, [-26 * s, 12], w);
+          } else {
+            P.rot += 1.6 * s * w; P.dy -= Math.abs(s) * (c.height || 500) * .01 * w;
+            P.legs.L = [2 * w, Math.max(0, s) * 4 * w]; P.legs.R = [2 * w, Math.max(0, -s) * 4 * w];   // real steps
+            P.head.tilt += -2 * s * w;
+            P.arms.L = mix(P.arms.L, [12 + 8 * s, 2], w); P.arms.R = mix(P.arms.R, [12 - 8 * s, 2], w);
+          }
         } else if (t > a + d) P.x = to;
         x = to; return;
       }
-      if (!w && m.do !== 'hop') return;
+      if (!w && m.do !== 'hop' && m.do !== 'drift') return;
       if (m.do === 'hop' && t >= a && t <= a + d) {
         const h = m.height || (c.height || 500) * .18;
         P.dy -= Math.sin(Math.PI * k) * h;
@@ -96,8 +121,11 @@
       if (m.do === 'shiver') P.dx += 2.2 * Math.sin(t * 2 * Math.PI * 11) * w * (c.height || 500) / 500;
       if (m.do === 'sad') { P.sy *= 1 - .02 * w; P.head.nod += 3 * w; P.head.tilt += 6 * w; }
       if (m.do === 'shrug') { P.dy -= (c.height || 500) * .012 * w * Math.abs(Math.sin((t - a) * Math.PI / Math.max(.4, d))); P.head.tilt += 8 * w; }
+      if (m.do === 'drift') { const k2 = ease(Math.min(1, Math.max(0, (t - a) / d))); P.dx += (m.dx || 0) * k2; P.dy += (m.dy || 0) * k2; P.rot += (m.rot || 0) * k2; }
       const fn = ARMS[m.do];
-      if (fn) ['L', 'R'].forEach(side => { const tg = fn(m, t - a, side); if (tg) P.arms[side] = mix(P.arms[side], tg, w); });
+      if (fn) ['L', 'R'].forEach(side => { const tg = fn(m, t - a, side, c); if (tg) P.arms[side] = mix(P.arms[side], tg, w); });
+      const lf = LEGS[m.do];
+      if (lf) { const tg = lf(m); ['L', 'R'].forEach(side => { if (tg[side]) P.legs[side] = mix(P.legs[side], tg[side], w); }); }
     });
     return P;
   }
@@ -114,11 +142,15 @@
   function personBody(c, Pz) {
     const arms = Pz.arms, legs = { L: Pz.legs.L.map(v => r(v, .5)), R: Pz.legs.R.map(v => r(v, .5)) };
     const head = { tilt: r(Pz.head.tilt, .5), turn: r(Pz.head.turn, .05), nod: r(Pz.head.nod, .2) }, lean = r(Pz.lean, .5);
-    const key = c.id + '|' + arms.L.map(Math.round) + '|' + arms.R.map(Math.round) + '|' + legs.L + '|' + legs.R + '|' + [head.tilt, head.turn, head.nod, lean];
+    const hold = c.holdNow || {}, hk = Object.keys(hold).map(k => k + ':' + (hold[k] ? hold[k].id : '')).join();
+    const key = c.id + '|' + arms.L.map(Math.round) + '|' + arms.R.map(Math.round) + '|' + legs.L + '|' + legs.R + '|' + [head.tilt, head.turn, head.nod, lean] + '|' + hk;
     if (cache.has(key)) return cache.get(key);
+    const held = {};
+    Object.keys(hold).forEach(side => { const h = hold[side]; if (!h) return; const pb = assetBody(h), g = h.grip || [540, 540], sc = h.scale || .3;
+      held[side] = (x, y, deg) => F.raw(`<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${((h.follow ? deg : 0) + (h.rot || 0)).toFixed(1)}) scale(${sc}) translate(${-g[0]} ${-g[1]})">${pb}</g>`); });
     F.begin({ width: 1080, height: 1080, seed: c.seed || 3 });
     F.person(Object.assign({}, c.person, { x: 540, ground: 1000, height: c.height || 500,
-      arms: { L: arms.L.map(Math.round), R: arms.R.map(Math.round) }, stride: legs, head, lean }));
+      arms: { L: arms.L.map(Math.round), R: arms.R.map(Math.round) }, stride: legs, head, lean, held }));
     const s = '<g transform="translate(-540 -1000)">' + bodyOf(F.render(), 'p' + cache.size + '_') + '</g>';
     if (cache.size > 4000) cache.clear();
     cache.set(key, s); return s;
@@ -145,25 +177,71 @@
     return cam;
   }
 
-  function frame(S, t) {
-    const shellKey = 'shell|' + S.width + 'x' + S.height + S.bg;
-    if (!cache.has(shellKey)) { F.begin({ width: S.width, height: S.height, bg: S.bg || '#c0612c', seed: 1 }); cache.set(shellKey, F.render(S.title || 'Facet scene')); }
-    const shell = cache.get(shellKey), cut = shell.lastIndexOf('<rect width=');
-    const cam = camAt(S, t), f = n => (+n).toFixed(2);
-    let g = `<g transform="translate(${f(S.width / 2)} ${f(S.height / 2)}) scale(${f(cam.zoom)}) translate(${f(-cam.x)} ${f(-cam.y)})">`;
-    (S.cast || []).slice().sort((a, b) => (a.ground || 0) - (b.ground || 0)).forEach(c => {
+  function setBody(id, fn, S) {
+    const key = 'set|' + id;
+    if (!cache.has(key)) cache.set(key, bodyOf(fn(F, S.width, S.height), 'set' + cache.size + '_'));
+    return cache.get(key);
+  }
+  function shellOf(S, bg) {
+    const k = 'shell|' + S.width + 'x' + S.height + bg;
+    if (!cache.has(k)) { F.begin({ width: S.width, height: S.height, bg, seed: 1 }); cache.set(k, F.render(S.title || 'Facet scene')); }
+    return cache.get(k);
+  }
+  const f = n => (+n).toFixed(2);
+  function castSVG(S, list, t) {
+    let g = '';
+    list.slice().sort((a, b) => (a.z != null ? a.z : a.ground || 0) - (b.z != null ? b.z : b.ground || 0)).forEach(c => {
       if (c.from != null && t < c.from) return; if (c.until != null && t > c.until) return;
-      const P = pose(c, t), G = c.ground || S.height * .85;
+      const P = pose(c, t), G = c.ground || S.height * .85, h = c.height || 500;
       if (c.person) {
-        const lift = Math.max(0, -P.dy) / (c.height || 500);
-        g += `<g transform="translate(${f(P.x + (c.height || 500) * .02)} ${f(G)}) scale(${f(1 - lift * 1.2)} 1)">${shadowBody((c.height || 500) * .42)}</g>`;
+        c.holdNow = c.hold || null;
+        if (c.lying) {                                                   // lying on the back, head to the left (or right with lying: 'right')
+          const dir = c.lying === 'right' ? 1 : -1;
+          g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy - h * .145)}) rotate(${dir * 90 + P.rot})">${personBody(c, P)}</g>`;
+          return;
+        }
+        if (c.shadow !== false) {
+          const lift = Math.max(0, -P.dy) / h;
+          g += `<g transform="translate(${f(P.x + h * .02)} ${f(G)}) scale(${f(1 - lift * 1.2)} 1)">${shadowBody(h * .42)}</g>`;
+        }
         g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(P.sx)} ${f(P.sy)})">${personBody(c, P)}</g>`;
       } else if (c.draw) {
         const o = c.origin || [540, 1000], sc = c.scale || 1;
-        g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(sc * P.sx)} ${f(sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${assetBody(c)}</g>`;
+        g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(sc * P.sx * (c.flip ? -1 : 1))} ${f(sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${assetBody(c)}</g>`;
       }
     });
-    return shell.slice(0, cut) + g + '</g>' + shell.slice(cut);
+    return g;
+  }
+  /** one shot: its own colour world, set, cast and camera. t = seconds since the shot started. */
+  function shotSVG(S, sh, t) {
+    const shell = shellOf(S, sh.bg || S.bg || '#c0612c'), cut = shell.lastIndexOf('<rect width=');
+    const cam = camAt({ width: S.width, height: S.height, camera: sh.camera }, t);
+    let g = `<g transform="translate(${f(S.width / 2)} ${f(S.height / 2)}) scale(${f(cam.zoom)}) translate(${f(-cam.x)} ${f(-cam.y)})">`;
+    if (sh.set) g += setBody(sh.id + '|back', sh.set, S);
+    g += castSVG(S, sh.cast || [], t);
+    if (sh.front) g += setBody(sh.id + '|front', sh.front, S);
+    return { head: shell.slice(0, cut) + g + '</g>', tail: shell.slice(cut) };
+  }
+  /* captions: a few words at a time, the spoken word in the accent colour. Plain solid text — no glow, no blur. */
+  function chunks(words) {
+    const out = []; let cur = [];
+    words.forEach((w, i) => { cur.push(w); const end = /[.,!?;:]$/.test(w[0]) || cur.length >= 3; if (end || i === words.length - 1) { out.push(cur); cur = []; } });
+    return out;
+  }
+  function captionSVG(S, t) {
+    const C = S.captions; if (!C || !C.words) return '';
+    C._chunks = C._chunks || chunks(C.words);
+    const ch = C._chunks.find((c, i) => t >= c[0][1] - .05 && t < Math.min(c[c.length - 1][2] + .35, (C._chunks[i + 1] || [[0, 1e9]])[0][1] - .05));
+    if (!ch) return '';
+    const size = C.size || 76, y = C.y || S.height * .2, esc = x => String(x).replace(/[<&]/g, m => m === '<' ? '&lt;' : '&amp;');
+    const spans = ch.map(w => `<tspan fill="${t >= w[1] && t < w[2] + .1 ? (C.accent || '#f2b45a') : (C.colour || '#f6efe2')}">${esc(w[0].toUpperCase())}</tspan>`).join(' ');
+    return `<text x="${S.width / 2}" y="${y}" text-anchor="middle" font-family="Montserrat, 'DejaVu Sans', Arial, sans-serif" font-weight="900" font-size="${size}" letter-spacing="1" stroke="#2a1810" stroke-width="${size * .16}" stroke-linejoin="round" paint-order="stroke">${spans}</text>`;
+  }
+
+  function frame(S, t) {
+    let sh = S.shots ? S.shots.find(x => t >= x.from && t < x.to) || S.shots[S.shots.length - 1] : null;
+    const one = sh ? shotSVG(S, sh, t - sh.from) : shotSVG(S, { id: 'main', bg: S.bg, set: S.set, front: S.front, cast: S.cast, camera: S.camera }, t);
+    return one.head + one.tail.replace('</svg>', captionSVG(S, t) + '</svg>');
   }
 
   function play(S, el) {
