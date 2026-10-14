@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Facet Motion Demo</title>
+<style>html,body{margin:0;background:#2a1a12;height:100%}#v{height:100vh;display:flex;justify-content:center}#v svg{height:100%;width:auto}</style>
+</head><body><div id="v"></div>
+<script src="facet-kit.js"></script>
+<script src="facet-motion.js"></script>
+<script>
+/* Loads an asset file (a plain `function draw(F) {...}`) without changing it. */
+async function loadAsset(path) { const code = await (await fetch(path)).text(); return new Function(code + '\n;return draw;')(); }
+
+async function makeScene() {
+  const fox = await loadAsset('assets/fox.js');
+  return {
+    title: 'Facet motion test', width: 1080, height: 1920, bg: '#c0612c', duration: 9,
+    camera: [
+      { at: 0, zoom: 1.18, x: 550, y: 1300 },
+      { at: 2.8, for: 5.8, zoom: 1.3, x: 555, y: 1320 }
+    ],
+    cast: [
+      { id: 'dad', seed: 3, height: 560, x: -300, ground: 1540,
+        person: { build: 'adult', skin: '#ece3d6', hair: { style: 'cap', colour: '#7a4231' }, beard: '#6e3a2b', glasses: '#5e3326',
+                  top: '#d3ccbd', vest: '#6c6052', tie: '#cc5321', bottom: { type: 'trousers', colour: '#4e5242' }, shoes: '#5a3124' },
+        moves: [
+          { at: 0.2, for: 2.6, do: 'walk', to: 300 },
+          { at: 3.0, for: 1.8, do: 'wave', arm: 'R' },
+          { at: 5.4, for: 1.6, do: 'hips' },
+          { at: 7.3, for: 1.4, do: 'nod' }
+        ] },
+      { id: 'mum', seed: 5, height: 560, x: 810, ground: 1560,
+        person: { build: 'woman', skin: '#ece3d6', hair: { style: 'long', colour: '#c9a25e' },
+                  top: '#d3ccbd', bottom: { type: 'skirt', colour: '#4e5242' }, shoes: '#5a3124' },
+        moves: [
+          { at: 1.0, for: 1.6, do: 'hold' },
+          { at: 3.4, for: 1.4, do: 'nod' },
+          { at: 5.0, for: 1.8, do: 'shrug' },
+          { at: 7.1, for: 1.6, do: 'cheer' }
+        ] },
+      { id: 'fox', draw: fox, origin: [540, 950], scale: .42, x: 552, ground: 1615, seed: 2,
+        moves: [
+          { at: 3.6, for: .7, do: 'hop' },
+          { at: 6.0, for: 2.2, do: 'bounce' }
+        ] }
+    ]
+  };
+}
+makeScene().then(S => { window.SCENE = S; if (!location.hash.includes('still')) FM.play(S, document.getElementById('v')); });
+</script>
+</body></html>
