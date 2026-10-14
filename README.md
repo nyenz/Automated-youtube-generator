@@ -1,6 +1,6 @@
 # Paper Cinema Studio
 
-A free app that makes narrated YouTube videos (vertical shorts, and long videos with shorts cut from them) in one of two locked styles: **Low-Poly Paper** (flat faceted cut-outs in a 2.5D world, the default) or **Dark Paper Cinema** (dark 3D paper cut-outs). All the visuals are code. You don't need an API, a paid service or video editing skills.
+A free app that makes narrated YouTube videos (vertical shorts, and long videos with shorts cut from them) in one of three locked styles: **Facet** (low-poly paper figurines filmed like a movie — the default), **Low-Poly Paper** (flat faceted cut-outs in a 2.5D world) or **Dark Paper Cinema** (dark 3D paper cut-outs). All the visuals are code. You don't need an API, a paid service or video editing skills.
 
 **Open the app:** https://nyenz.github.io/Automated-youtube-generator/ (use Chrome on a PC). First time only: in GitHub, open the repo → **Settings** → **Pages** → Source: **Deploy from a branch** → Branch: **main**, folder **/ (root)** → **Save**. Wait 1–2 minutes.
 
@@ -22,8 +22,12 @@ Click **Load demo** to see a finished example right away.
 | 10. Export: frame-perfect MP4 (1080 × 1920, or 1920 × 1080 for long videos) with narration, sound effects and captions | the app | free |
 | 11. Publish: thumbnail from your video + title, description, tags, chapters | the app + Claude | free |
 
-## Two visual styles
-Pick the style on the Project page. New projects start in **Low-Poly Paper**; projects made before it stay in Dark Paper Cinema.
+## Visual styles
+Pick the style on the Project page. New projects start in **Facet**; older projects keep their style.
+- **Facet** (default): people are a short description (`F.person`) drawn in fixed exaggerated proportions; props and sets are drawn with big lit facets (`F.part`).
+  Sets have three layers (far, ground, dark near silhouettes) so the camera shows depth. Shots are forms: camera keyframes on spoken words, subtle focus and rack focus,
+  aerial perspective, acting on the words, held props, silhouettes, small looping details (breath, drips, blinking lights). Narration only — no generated music or sound effects.
+  Rules: `facet/FACET-STYLE-RULES.md` (look) and `facet/FACET-FILM-RULES.md` (film). Demo: "Under the Ice (Facet)" with the real narration.
 - **Low-Poly Paper**: people, props and sets are painted as flat faceted pictures (one light, no outlines). Everything is a cut-out, so the AI only draws pictures and the kit does the rest: jointed people with live faces (12 emotions), walking, waving, pointing, holding things, sitting. The camera is a real camera in a 2.5D world: parallax, depth-of-field blur and focus pulls, fog, floating dust, light shafts, blurred foreground shapes, film grain / gate weave / halation, mood grading, attention spotlight, flow continuity between shots, composition with room in front of the face, captions that move away from faces. Same SHOT forms, same sound, same export.
 - **Dark Paper Cinema**: the original dark 3D paper cut-out look.
 Changing the style after assets exist means the assets must be made again (the shots can stay, but check them in Watch & fix).
@@ -74,6 +78,10 @@ Projects and audio are saved in your browser. Use **Export project** to back up 
 index.html          the app
 stage.html          the 3D stage (Dark Paper): player, checks, asset sheet, runs inside the app
 stage-lp.html       the Low-Poly stage (same modes)
+stage-facet.html    the Facet stage (same modes)
+facet/              LOCKED (Facet): the engine (facet-kit.js), motion (facet-motion.js), rules, films
+kit/facet/stagekit.js  Facet KIT + DIRECTOR for the app stage (assets, SHOT forms, captions, checks)
+app/templates-facet.js Facet prompts for plan, asset and shot tickets
 app/                app code: templates (all prompts), timing (Whisper + alignment), plan checks, trends
 kit/style-kit.js    LOCKED look (Dark Paper): paper materials, face kit, people, lens, light, sound, recorder
 kit/lp/engine.js    LOCKED (Low-Poly): the faceted drawing engine
@@ -88,6 +96,7 @@ kit/piano.js        piano samples for the score
 kit/stage.js        runs the stage modes (play, checks, sheet, export)
 kit/vendor/         MP4 / WebM muxers (offline video export)
 examples/demo.js    demo 1 ("A Hand in the Dark", Dark Paper)
+examples/under-the-ice-facet/ demo ("Under the Ice", Facet, with narration; build.js makes demo.js)
 examples/demo-lp.js demo ("The Lantern", Low-Poly)
 examples/demo2.js   demo 2 ("The Missing Milk", 2:00 test video)
 examples/the-missing-milk.html  demo 2 as a standalone playable page
@@ -98,3 +107,8 @@ Double-clicking `index.html` mostly works. For everything to work (Whisper, vide
 
 ## Credits
 Piano samples: Salamander Grand Piano by Alexander Holm (CC-BY 3.0), via the Tone.js audio collection.
+
+## Asset chats: automatic batching
+On the Assets step, **Auto by complexity** (default) splits the asset tickets for you: a hard asset (a set, a complex creature or machine) gets a chat of its own,
+medium ones (a vehicle, a machine, an animal) go two per chat, and simple ones (people, small props, small details) go 3–6 per chat. Similar kinds stay together,
+so one chat makes things that match. You can still choose a fixed number of difficulty points per chat, or everything in one chat for Claude.

@@ -311,5 +311,5 @@
     (function tick() { const t = ((performance.now() - t0) / 1000) % (S.duration || 8); el.innerHTML = frame(S, t); requestAnimationFrame(tick); })();
   }
 
-  root.FM = { frame, pose, play, ease };
+  root.FM = { frame, pose, play, ease, clear: () => cache.clear() };
 })(typeof window !== 'undefined' ? window : globalThis);

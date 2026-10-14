@@ -297,7 +297,7 @@ extra: function (t, A, K) { /* t = seconds into the shot; A.name = the cast obje
   TP.styles = { paper: { STYLE: TP.STYLE, TOOLS: TP.TOOLS, EXAMPLE: TP.EXAMPLE, SHOTRULES: TP.SHOTRULES, NAME: '3D paper cut-out', TITLE: 'dark paper cut-out animation' } };
   TP.use = function (p) {
     var k = (p && p.settings && p.settings.style) || 'paper', st = TP.styles[k] || TP.styles.paper;
-    ['STYLE', 'TOOLS', 'EXAMPLE', 'SHOTRULES', 'NAME', 'TITLE'].forEach(function (x) { TP[x] = st[x] });
+    ['STYLE', 'TOOLS', 'EXAMPLE', 'SHOTRULES', 'NAME', 'TITLE', 'ASSETCHECK', 'SHOTCHECK', 'PLANNOTES', 'ASSETOPEN'].forEach(function (x) { TP[x] = st[x] });
     return k;
   };
 
@@ -313,7 +313,7 @@ extra: function (t, A, K) { /* t = seconds into the shot; A.name = the cast obje
   function assetList(p, opts) {
     var A = (p.plan && p.plan.assets) || [], info = p.assetInfo || {};
     var rows = A.map(function (a) {
-      var sz = info[a.name] && info[a.name].size, s = '- ' + a.name + ' (' + a.kind + ')' + (sz ? (a.kind === 'set' ? ' ' + sz[0] + ' wide' : ' ' + sz[1] + ' tall') : (a.size ? ' about ' + a.size + (a.kind === 'set' ? ' wide' : ' tall') : ''));
+      var sz = info[a.name] && info[a.name].size, s = '- ' + a.name + ' (' + a.kind + ')' + (sz ? (a.kind === 'set' ? ' ' + sz[0] + ' wide' : ' ' + sz[sz.length > 2 ? 1 : sz.length - 1] + ' tall') : (a.size ? ' about ' + a.size + (a.kind === 'set' ? ' wide' : ' tall') : ''));
       if (a.kind === 'set') s += ' — spots: ' + (a.spots || []).join(', ');
       if (a.moves && a.moves.length) s += ' — custom moves: ' + a.moves.join(', ');
       if (a.parts && a.parts.length && a.kind !== 'set') s += ' — parts: ' + a.parts.join(', ');
@@ -420,16 +420,16 @@ ${TP.STYLE}
    - Reuse! One set used in many shots beats many sets. ${cuts.length > 1 ? 'The shorts must reuse the long video\'s assets (do not plan separate ones).' : ''}
    - Aim for ${cuts.length > 1 ? '10–24' : '6–14'} assets. kato, nia and 'void' already exist: never list them.
    - name: lower-case-with-dashes. kind: character | creature | prop | set | fx.
-   - difficulty: 1 = simple (a rock, a cup, a sign), 2 = medium (a set, a vehicle, a prop with moving parts, a simple person), 3 = hard (a creature, a detailed person or costume).
+${TP.PLANNOTES ? '' : '   - difficulty: 1 = simple (a rock, a cup, a sign), 2 = medium (a set, a vehicle, a prop with moving parts, a simple person), 3 = hard (a creature, a detailed person or costume).\n'}
    - size: height in kit units (see SCALE). For sets, the width.
    - look: 1–2 sentences: shape, colours from the palette, the ONE exaggeration. For REAL people say their real skin tone, hair, facial hair, glasses, clothes/uniform and age so they are recognisable.
    - parts: named pieces shots will need (e.g. "lid", "door", "wheel"). For sets put spot names in "spots" instead.
-   - moves: ONLY custom animations that the built-in moves cannot do (e.g. "flap", "open-lid", "bite", "crawl"). Built-in moves already exist for everything: walk, run, sneak, move, turn, look, point, wave, reach, nod, shake-head, talk, react, appear, vanish, float, spin, shake, jump, fall, grow, hold, drop, crouch, hide, peek, sit, sleep, yawn, cheer, cower, shiver, stomp, emerge, burrow.
+${TP.PLANNOTES ? '' : '   - moves: ONLY custom animations that the built-in moves cannot do (e.g. "flap", "open-lid", "bite", "crawl"). Built-in moves already exist for everything: walk, run, sneak, move, turn, look, point, wave, reach, nod, shake-head, talk, react, appear, vanish, float, spin, shake, jump, fall, grow, hold, drop, crouch, hide, peek, sit, sleep, yawn, cheer, cower, shiver, stomp, emerge, burrow.\n'}
    - holdable: true if a hand holds it (it then needs a grip point).
    - spots (sets only): named places where things stand: e.g. ["door", "bed", "window", "center"].
    - Plan for believable action: if someone hides, the set needs real cover (a bush, wall, crate) and a spot behind it; if something comes out of the ground, give the set a spot for it.
-2. SHOTS — for each cut, split the numbered lines into shots.
-   - Each shot = 1 to 3 consecutive lines, about 2–6 seconds. Every line belongs to exactly one shot, in order, no gaps, no overlaps.
+${TP.PLANNOTES ? TP.PLANNOTES + '\n' : ''}2. SHOTS — for each cut, split the numbered lines into shots.
+   - ${TP.PLANNOTES ? 'Each shot = one place: 1 to 6 consecutive lines (about 3–12 seconds).' : 'Each shot = 1 to 3 consecutive lines, about 2–6 seconds.'} Every line belongs to exactly one shot, in order, no gaps, no overlaps.
    - id = the cut's prefix + 2 digits (e.g. ${cuts[0] ? cuts[0].prefix : 'M'}01, ${cuts[0] ? cuts[0].prefix : 'M'}02 ...).
    - set: one set name (or "void"). cast: names of the assets visible (not the set).
    - show: what the viewer SEES, 1–2 sentences, concrete (who does what, where, the key moment).
@@ -446,7 +446,7 @@ ${cutText}
 ## REPLY WITH JSON ONLY (one code block, no comments, double quotes, no trailing commas)
 {
   "title": "...",
-  "sky": "night",
+  "sky": "night",${TP.PLANNOTES ? '\n  "keys": ["7", "degrees", "pulse"],' : ''}
   "assets": [
     { "name": "tug-cabin", "kind": "set", "difficulty": 2, "size": 14, "look": "...", "parts": [], "moves": [], "spots": ["door", "center", "corner"] },
     { "name": "diver", "kind": "character", "difficulty": 3, "size": 3, "look": "...", "parts": ["helmet"], "moves": [] },
@@ -472,7 +472,7 @@ ${cuts.map(function (c) { return '    "' + c.id + '": [ { "id": "' + c.prefix + 
     var spec = A.map(function (a, i) {
       return `### ${i + 1}. '${a.name}' — kind: ${a.kind}
 - look: ${a.look}
-- size: about ${a.size} units ${a.kind === 'set' ? 'wide' : 'tall'}
+- size: ${a.kind === 'set' && TP.PLANNOTES ? 'the whole frame (1080 × 1920); the ground line about y 1400–1560' : 'about ' + a.size + ' units ' + (a.kind === 'set' ? 'wide' : 'tall')}
 ${a.kind === 'set' ? '- spots (must ALL exist): ' + (a.spots || []).join(', ') : ''}${a.parts && a.parts.length ? '\n- parts to return by name: ' + a.parts.join(', ') : ''}${a.moves && a.moves.length ? '\n- custom moves to return in do: ' + a.moves.join(', ') + '  (pure functions (k, t))' : ''}${a.holdable ? '\n- it is HELD by a hand: return grip' : ''}
 - used in: ${usedIn(p, a.name)}`;
     }).join('\n\n');
@@ -495,14 +495,14 @@ ${others || '(none)'}
 ${spec}
 
 ## BEFORE YOU ANSWER, CHECK:
-- [ ] Each one starts with KIT.asset('<exact name above>', function (K, opts) {
+${TP.ASSETCHECK || `- [ ] Each one starts with KIT.asset('<exact name above>', function (K, opts) {
 - [ ] It returns root, kind and EVERY part / spot / move listed.
 - [ ] People use K.human or K.mascot. Every face uses K.face.
 - [ ] Only K.M / K.flat / K.glow / K.sheet / world helpers make visible things. Only palette colours.
 - [ ] Sizes match the SCALE table. Living things face +z. Origin on the ground.
 - [ ] Moves set values absolutely and depend only on k and t.
 - [ ] No THREE., no Math.random, no document, no code outside KIT.asset(...).
-- [ ] Complete code — no "...", nothing left out.
+- [ ] Complete code — no "...", nothing left out.`}
 
 ## REPLY WITH ONE JAVASCRIPT CODE BLOCK containing ${A.length === 1 ? 'the KIT.asset call' : 'the ' + A.length + ' KIT.asset calls'}, and nothing else.`;
   };
@@ -568,13 +568,13 @@ ${assetList(p)}
 ${body}
 
 ## BEFORE YOU ANSWER, CHECK:
-- [ ] One SHOT('<id>', {...}) per shot above, with the exact ids.
+${TP.SHOTCHECK || `- [ ] One SHOT('<id>', {...}) per shot above, with the exact ids.
 - [ ] set and every cast name come from ASSETS. Every 'at' / 'to' spot exists in that set.
 - [ ] Every word: '...' is spoken in THAT shot (see its words list).
 - [ ] Only the camera / mood / move / sound words listed in the rules.
 - [ ] The cast list matches "cast" (you may add a held prop if needed).
 - [ ] Neighbouring shots look different (framing / side / move).
-- [ ] Everything you focus on is in camera.on (otherwise it is off screen). Characters start where the shot before left them.
+- [ ] Everything you focus on is in camera.on (otherwise it is off screen). Characters start where the shot before left them.`}
 
 ## REPLY WITH ONE JAVASCRIPT CODE BLOCK containing only the SHOT(...) calls.`;
   };
