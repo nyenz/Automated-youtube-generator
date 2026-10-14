@@ -225,5 +225,5 @@ Casting rule: characters are white by default (skin `pale` or `warm`); use other
 ## 10. Making a film
 
 Pictures follow this file. **Films follow `FACET-FILM-RULES.md`** (shots, cuts, camera, acting, depth layers,
-silhouettes, small details, colour, captions). Hard rules for every film: no blur, no glow, no sparks,
+silhouettes, small details, colour, captions). Hard rules for every film: no glow, no sparks, blur only as subtle focus,
 narration only (no music or sound effects), captions never cover faces.

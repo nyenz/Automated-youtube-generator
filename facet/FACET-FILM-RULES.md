@@ -8,7 +8,7 @@ from a real test video, so follow all of them.
 
 ## 0. Hard rules (never break)
 
-1. **No blur, no glow, no sparks, no haze, no lens effects.** Depth comes from layers, silhouettes and colour, never from blur.
+1. **No glow, no sparks, no haze, no lens flares.** Blur is allowed ONLY as subtle focus (depth of field, section 4b): a few pixels, never on the subject.
 2. **Narration only.** No music, no sound effects (the owner adds those himself).
 3. **Captions never cover a face or the main action.** Keep them in the empty top area (`captions.y` ≈ 330 on a 1080×1920 frame).
 4. **No title cards, no newspaper/headline cut scenes.** Tell everything with people, places and objects.
@@ -67,6 +67,26 @@ Every place has 3 layers:
   broken ice). They frame the shot and move faster than everything. Keep them at the edges, never over faces.
 
 Things that belong far away go in the far layer with `layer: 'far'` so they move with it.
+Furniture and machines that stand behind the action get `plane: 'back'` so they share the set's focus and grade.
+
+## 4a. Depth by value (aerial perspective) — every place
+
+Real distance takes contrast away. Do the same with flat colour:
+- **Near** silhouettes (`front`): the darkest values in the frame, almost no detail.
+- **Subject** (the cast): full contrast and full colour. Nothing in the frame competes with it.
+- **Far** (`far`): lower contrast, pushed toward the world colour with `grade: { far: [colour, amount] }`:
+  at night darker and bluer (`['#24344a', .4]`), under water deep blue (`['#0f1e2c', .35]`), indoors a soft shade of the wall colour (`.25–.3`),
+  in daylight or fog lighter instead of darker.
+- Keep the brightest light and the strongest accent on the subject, never in the far layer.
+
+## 4b. Focus (subtle depth of field)
+
+Blur is a camera tool, not an effect. Use it only to say *where to look*:
+- `focus: [{ at, for, far, set, cast, front }]` — blur in screen pixels per layer. Normal range: far 1–4, set 0–2.5, front 1.5–3, cast 0.
+- **Close-ups:** what is behind the subject goes soft (far 4–5, set 2–3); when the camera pulls out, ease everything back into focus.
+- **Rack focus:** when attention moves from one person to another, ease the first one soft (≈1.5) and the other plane sharp, over 2–3 s, together with the camera move.
+- **Foreground silhouettes** are slightly soft (2–3): they are very close to the lens.
+- **Never blur the subject, faces that are speaking, or the thing the narration is talking about.** Never more than 5–6 px. No blur at the frame of a match cut on the matched shape.
 
 ## 5. Things you should not show literally → silhouettes
 
@@ -105,7 +125,8 @@ an accident, a body), show a **dark partial silhouette** instead (`silhouette: '
 - [ ] Lying people face up; wet things look wet; cold shows breath.
 - [ ] Anything too hard or too dark to show is a silhouette.
 - [ ] Captions sit in the empty top area and only key words are coloured.
-- [ ] No blur, glow, sparks, music or sound effects anywhere.
+- [ ] Far layers are graded into the world colour; the subject has the strongest contrast.
+- [ ] Blur only as subtle focus (≤ 5 px), never on the subject; no glow, sparks, music or sound effects anywhere.
 
 ---
 
@@ -117,7 +138,7 @@ window.MYFILM = {
   captions: { words: [[word, start, end], ...], y: 330, size: 80, keys: ['pulse', 'hours'] },
   shots: [{
     id, from, to, bg, far, set, front,                 // far/set/front: (F, W, H) => { F.begin({width: W, height: H, bg}); ...; return F.render() }
-    handheld: 3,
+    handheld: 3, grade: { far: ['#24344a', .4] }, focus: [{ at: 0, far: 4, set: 2 }, { at: 2, for: 3, far: 1, set: 0 }],
     camera: [{ at: 0, zoom: 3, x, y }, { at: 2, for: 4, zoom: 1.3, x, y }],   // times count from the shot start
     cast: [
       { id, person: { ...F.person spec, view: 'side' }, height, x, ground, seed, z,
@@ -125,7 +146,7 @@ window.MYFILM = {
         hold: { R: { id, draw, grip: [x, y], scale, from, to } },
         lying: 'right' | true, silhouette: '#132131', shadow: false,
         moves: [{ at, for, do: 'walk'|'kneel'|'sit'|'reach'|'look'|'tilt'|'nod'|'shake'|'sad'|'hold'|'wave'|'drift'|..., ... }] },
-      { id, draw: assetDrawFunction, origin: [x, y], x, ground, scale, z, layer: 'far', flip, rot, opacity,
+      { id, draw: assetDrawFunction, origin: [x, y], x, ground, scale, z, layer: 'far', plane: 'back', flip, rot, opacity,
         cycle: { period, phase, grow: [a, b], fade: [a, b], dx, dy, fall }, blink: { period, on, phase } }
     ] }]
 };
