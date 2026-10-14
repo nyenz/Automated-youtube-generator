@@ -53,6 +53,7 @@ KIT.asset('asset-name', function (F) {
   Real people: match their real skin tone, hair, facial hair, glasses and clothes/uniform so viewers recognise them.
 - prop / creature / fx: { kind, size (height in units), origin: [x, y] (the point it stands on, bottom centre, in its own drawing),
     top: y (its highest point), grip: [x, y] (only if a hand holds it), draw: function (F) { F.begin({ width: 1080, height: 1080, seed }); ...; return F.render('...') } }
+  Instruments (thermometer, clock, gauge, monitor): draw: function (F, v) { ... F.text(x, y, (v == null ? 7 : v).toFixed(1) + '°C', ...) ... } — the shot animates v.
 - set: { kind: 'set', bg: worldColour, grade: { far: [colour, amount] },
     far: function (F, W, H) {...},     // distant things: hills, trees, a window — the camera moves them slowly
     set: function (F, W, H) {...},     // the ground the cast stands on, walls, things at the cast's distance
@@ -88,12 +89,12 @@ KIT.asset('medic', function (F) {
 
 // PROP — held in a hand, so it has a grip
 KIT.asset('thermometer', function (F) {
-  return { kind: 'prop', size: 0.44, origin: [540, 880], top: 380, grip: [420, 860], draw: function (F) {
+  return { kind: 'prop', size: 0.44, origin: [540, 880], top: 380, grip: [420, 860], draw: function (F, v) {   // v = the live reading
     F.begin({ width: 1080, height: 1080, seed: 21 });
     F.part([[360, 600], [470, 600], [500, 860], [400, 880], [350, 640]], '#3e3f42', { ridge: [[385, 610], [400, 870]], contrast: .24, step: 60 });
     F.part([[200, 380], [820, 380], [860, 430], [860, 620], [820, 660], [200, 660], [170, 620], [170, 420]], '#d3ccbd', { ridge: [[260, 390], [250, 650]], contrast: .2, step: 120 });
     F.flat([[230, 420], [640, 420], [640, 620], [230, 620]], '#2b3b3a');
-    F.text(435, 562, '7.0°C', 132, '#cfe6d2');
+    F.text(435, 562, (v == null ? 7 : v).toFixed(1) + '°C', 132, '#cfe6d2');
     F.flat([[680, 450], [790, 450], [790, 520], [680, 520]], '#cc5321');
     return F.render('infrared thermometer');
   } };
@@ -168,21 +169,25 @@ SHOT('M01', {
   lying: true (on the back, head left) | 'right' (head right) — lying people always face UP ·
   arms: { L: [upperDeg, foreDeg], R: [...] } (front view: 0 hangs, + out, − across the body; side view: + forward, 90 = straight out) ·
   head: { tilt, turn (−1..1, front view), nod } · lean · stride (legs) · idle: { lean: 1.5 } (shifting weight) · size (override, units) ·
-  hold: { R: 'item' } or { R: { item, from, to } } (the item must be a holdable prop) · silhouette: '#132131' (one flat dark shape) · shadow: false
+  hold: { R: 'item' } or { R: { item, from, to, rot, value } } (the item must be a holdable prop; rot aims it, e.g. 52 = pointing down-forward) · silhouette: '#132131' (one flat dark shape) · shadow: false
   Arm poses (front): hang [7, 2] · hands on hips [35, −110] · hold in front [−5, −90] · wave [150, 30]. (side): reach forward [80, 0] · reach down [42, 22].
 - Things: size, flip, rot, opacity, layer: 'far' (moves with the distance), plane: 'back' (furniture behind the action: shares the background focus),
-  cycle: { period, phase, grow: [a, b], fade: [a, b], dx, dy, fall: true } (breath puffs, drips, bubbles) · blink: { period, on, phase } (warning lights)
+  cycle: { period, phase, grow: [a, b], fade: [a, b], dx, dy, fall: true } (breath puffs, drips, bubbles) · blink: { period, on, phase } (warning lights) ·
+  value: 7 or { from: 9.6, to: 7.0, at: 0, for: 1.6, step: .1 } (a live number for instruments: the asset's draw(F, v) shows it — also on hold entries)
 - z: draw order (bigger = in front). Default: by ground y.
 ### MOVES (do:)
 walk { to: spot | x } · hop · bounce · wave { arm } · cheer · point { arm } · hips · hold (hands in front) · shrug · sad · shake (head "no") · nod ·
 look { dir: 'L' | 'R' } · tilt { deg } · lean { deg } · shiver · kneel · sit · chair · reach { arm, deg, bend } · arms { L, R } · legs { L, R } ·
-drift { dx, dy, rot } (slow float/sink over 'for' seconds). Every pose change winds up, overshoots a little and settles by itself.
+drift { dx, dy, rot } (slow float/sink over 'for' seconds) · colour { skin, lips, top, shoes } (the body changes colour and keeps it: cold → skin '#cdd8de', lips '#8d8fae').
+Never start a move that cancels a busy one ('sad' drops both arms — while a hand is busy use tilt instead). Every pose change winds up, overshoots a little and settles by itself.
 camera zoom words: wide 1 · full 1.25 · medium 1.6 · close 2.2 · detail 3 (or any number).
 
 ### FILM RULES (follow all)
 - ONE PLACE = ONE SHOT: inside a place, move the camera (open close, pull out, glide in) instead of cutting. A 20 s piece has 2–4 places.
 - Open on what the narration names first (the narrator says "7 degrees" → open on the thermometer screen).
 - Every camera move has a reason (follow the action, reveal the place, come closer for a feeling). Leave look-room in front of faces.
+- SHOW EXACTLY WHAT THE WORDS SAY: aim the prop at the named place ("against the thigh" → aimed at the thigh, camera follows on that word);
+  instruments count to the number the narrator says (value); bodies change colour with the story (colour: cold, fear, effort).
 - Acting matches the words (on the word): a check on "pulse", head drops after bad news, a shake on "not", a nod on "yes", look at whoever is talked about.
 - Only one person acts at a time; the others stay almost still.
 - Things too dark or too hard to show literally (a child under water, a fall, an accident) → a dark partial silhouette against a light, moving out of frame.

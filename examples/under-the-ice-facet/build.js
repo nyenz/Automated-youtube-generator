@@ -22,7 +22,7 @@ const person = (name, size, spec) => `KIT.asset('${name}', function (F) {\n  ret
 
 const assets = {
   'pond': set('pond', ['pondFar', 'pond', 'pondFront'], `{ kind: 'set', bg: NIGHT, grade: { far: ['#24344a', .4] }, far: pondFar, set: pond, front: pondFront,
-    spots: { medic: [390, 1500], boy: [520, 1484], board: [700, 1500], hole: [850, 1370], bank: [860, 1102], center: [540, 1500] } }`),
+    spots: { medic: [390, 1500], boy: [578, 1484], board: [760, 1500], hole: [850, 1370], bank: [860, 1102], center: [540, 1500] } }`),
   'under-ice': set('under-ice', ['underFar', 'underIce', 'underFront'], `{ kind: 'set', bg: DEEP, grade: { far: ['#0f1e2c', .35] }, far: underFar, set: underIce, front: underFront,
     spots: { hole: [580, 300], below: [560, 700], center: [540, 900] } }`),
   'ward': set('ward', ['wardFar', 'ward', 'wardFront'], `{ kind: 'set', bg: WARD, grade: { far: ['#25524a', .3] }, far: wardFar, set: ward, front: wardFront,
@@ -59,23 +59,28 @@ const shots = {
   set: 'pond',
   handheld: 3,
   camera: [
-    { at: 0, zoom: 3.0, on: [560, 1225] },                 // open on what the narrator names: the thermometer reading 7.0 °C
-    { word: 'That', for: 4.0, zoom: 1.3, on: [570, 1340] }, // pull out: medic, boy, the hole in the ice
-    { word: 'He', for: 1.9, zoom: 1.8, on: [680, 1410] }    // glide in to the boy
+    { at: 0, zoom: 3.2, on: [600, 1282] },                   // open on the reading counting down to 7.0 °C
+    { word: 'That', for: 1.8, zoom: 2.0, on: [565, 1300] },   // "an infrared thermometer": the hand and the device
+    { word: 'against', for: 1.0, zoom: 2.4, on: [645, 1372] },// follow its aim: "against the thigh"
+    { word: 'boy', for: 1.0, zoom: 1.4, on: [600, 1360] },    // pull out: the whole scene
+    { word: 'He', for: 1.9, zoom: 2.3, on: [850, 1420] }      // glide in to his face
   ],
   focus: [
     { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },
-    { word: 'That', for: 3.2, far: 1.2, set: 0, front: 1.5 },
+    { word: 'That', for: 1.8, far: 4, set: 1.5 },
+    { word: 'against', for: 1.0, far: 4, set: .8 },
+    { word: 'boy', for: 1.0, far: 1.2, set: 0, front: 1.5 },
     { word: 'He', for: 1.9, far: 3, set: .6, front: 2 }
   ],
   cast: {
-    'wet-ice': { at: [690, 1512], z: 1480 },
+    'wet-ice': { at: [750, 1512], z: 1480 },
     backboard: { at: 'board', z: 1490 },
     'boy-wet': { at: 'boy', view: 'side', lying: 'right', z: 1495, arms: { L: [-4, 0], R: [-4, 0] } },
-    medic: { at: 'medic', view: 'side', pose: 'kneel', z: 1500, arms: { R: [70, 8], L: [30, 20] }, head: { tilt: 6 }, idle: { lean: 1.5, period: 3.4 },
-             hold: { R: { item: 'thermometer', to: 6.6 }, L: { item: 'thermometer', from: 6.6 } } },
+    medic: { at: 'medic', view: 'side', pose: 'kneel', z: 1500, arms: { R: [36, 28], L: [30, 20] }, head: { tilt: 6 }, idle: { lean: 1.5, period: 3.4 },
+             hold: { R: { item: 'thermometer', to: 6.6, rot: 52, value: { from: 9.6, to: 7.0, at: .05, for: 1.55, step: .1 } },   // aimed at the thigh, the reading counts down
+                     L: { item: 'thermometer', from: 6.6, value: 7 } } },
     breath: { at: [482, 1200], z: 1510, cycle: { period: 2.6, grow: [.4, 1.6], fade: [.8, 0], dx: 46, dy: -40 } },
-    drip: { at: [600, 1500], z: 1491, cycle: { period: 1.4, dy: 30, fall: true, fade: [1, 0] } },
+    drip: { at: [660, 1500], z: 1491, cycle: { period: 1.4, dy: 30, fall: true, fade: [1, 0] } },
     ambulance: { at: 'bank', layer: 'far', z: 1 },
     'light-red': { at: 'bank', layer: 'far', z: 2, blink: { period: .8, on: .5 } },
     'light-blue': { at: 'bank', layer: 'far', z: 2, blink: { period: .8, on: .5, phase: .4 } },
@@ -84,9 +89,10 @@ const shots = {
   },
   moves: [
     { word: 'boy', who: 'medic', do: 'arms', for: 2.4, R: [26, 34], L: [22, 40] },  // reading done: thermometer to the other hand
-    { word: 'cold', who: 'medic', do: 'reach', for: 1.5, arm: 'R', deg: 42, bend: 22 }, // fingers on the boy's wrist
-    { word: 'cold', who: 'medic', do: 'tilt', for: 1.5, deg: 8 },
-    { word: 'ice', who: 'medic', do: 'sad', for: .8 }
+    { word: 'cold', who: 'boy-wet', do: 'colour', for: 1.8, skin: '#cdd8de', lips: '#8d8fae' },  // "cold as the ice": his face drains to blue-grey
+    { word: 'cold', who: 'medic', do: 'reach', for: 1.6, arm: 'R', deg: 60, bend: 16 },  // fingers on the boy's wrist
+    { word: 'cold', who: 'medic', do: 'lean', for: 1.6, deg: 16 },
+    { word: 'ice', who: 'medic', do: 'tilt', for: .8, deg: 14 }
   ]
 });`,
   M02: `SHOT('M02', {
