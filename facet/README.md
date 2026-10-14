@@ -1,7 +1,9 @@
 # Facet style
 
 - `facet-kit.js` — the style engine (the backbone). People can now be posed: `stride` (leg steps), `head` (tilt/turn/nod), `lean`. No blur or effects.
-- `FACET-STYLE-RULES.md`, `FACET-KIT-FULL.md` — the rules for AIs that draw assets.
+- `FACET-STYLE-RULES.md` — the rules for AIs that draw assets (how things look).
+- `FACET-FILM-RULES.md` — the rules for AIs that make films (shots, cuts, camera, acting, depth, details, captions).
+- `FACET-KIT-FULL.md` — everything in one file (rules + engine + film rules) to paste into an AI.
 - `assets/` — example assets (each is one `function draw(F)`).
 - `facet-motion.js` — makes the drawings move: people get a new pose each frame (arms, steps, head turn/nod/tilt, lean);
   any asset is moved as a whole (walk, hop, bounce, rock, breathe, shiver). No blur, glow or other effects.

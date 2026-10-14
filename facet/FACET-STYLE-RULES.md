@@ -219,3 +219,11 @@ Casting rule: characters are white by default (skin `pale` or `warm`); use other
 11. Depth without blur: give each place 3 layers — `far` (moves slowly), `set`, and dark `front` silhouettes near the camera (move faster).
 12. Small things make it feel alive: every pose change has a tiny wind-up and a small overshoot that settles (built in), breath in the cold (`cycle`), drips from wet things, warning lights that blink (`blink`), and only key words coloured in captions (`captions.keys`).
 13. Match cuts: put a bright shape in the next place exactly where the last bright shape was on screen (the ice hole became the hospital lamp).
+
+---
+
+## 10. Making a film
+
+Pictures follow this file. **Films follow `FACET-FILM-RULES.md`** (shots, cuts, camera, acting, depth layers,
+silhouettes, small details, colour, captions). Hard rules for every film: no blur, no glow, no sparks,
+narration only (no music or sound effects), captions never cover faces.
