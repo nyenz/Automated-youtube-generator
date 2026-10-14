@@ -48,10 +48,10 @@
   function newProject(name) {
     return {
       id: 'p' + Date.now().toString(36), name: name || 'New video', created: Date.now(),
-      settings: { topic: '', category: 'survival', type: 'short', minutes: 2.5, shorts: 2, shortMinutes: 1, mascot: 'both', voice: 'male', sky: 'auto', style: 'lowpoly', refChannel: '' },
+      settings: { topic: '', category: 'survival', type: 'short', minutes: 2.5, shorts: 2, shortMinutes: 1, mascot: 'both', voice: 'male', sky: 'auto', style: 'facet', refChannel: '' },
       research: '', styleRef: '', topicAnswer: '', scriptRaw: '', title: '', voiceStyle: '', sources: '',
       cuts: [], plan: null, planRaw: '', assets: {}, assetInfo: {}, assetTickets: [], shots: {}, shotTickets: {},
-      ptsAsset: 3, ptsShot: 4, claudeShots: false
+      ptsAsset: 'auto', ptsShot: 4, claudeShots: false
     };
   }
   function syncCuts() {
@@ -69,7 +69,7 @@
   var saveT = null;
   function save(now) { clearTimeout(saveT); saveT = setTimeout(function () { DB.put(P).then(refreshProjects) }, now ? 0 : 400) }
   function styleOf() { return (P && P.settings && P.settings.style) || 'paper' }
-  function stagePage() { return styleOf() === 'lowpoly' ? 'stage-lp.html' : 'stage.html' }
+  function stagePage() { var s = styleOf(); return s === 'facet' ? 'stage-facet.html' : s === 'lowpoly' ? 'stage-lp.html' : 'stage.html' }
   function sky() { return P.settings.sky !== 'auto' ? P.settings.sky : ((P.plan && P.plan.sky) || 'night') }
 
   /* ---------------- status per step ---------------- */
@@ -105,7 +105,7 @@
       ['Assets', 'One ticket per chat, many chats at once (Qwen, DeepSeek, free Claude). The app checks every answer.'], ['Shots', 'Fill-in forms for camera, focus, light, moves and sound — synced to the spoken words.'],
       ['Watch & fix', 'Play it with audio + captions. Click a bad shot, copy the fix prompt, paste the answer.'], ['Export', 'Frame-perfect MP4 at 1080 × 1920 (or 1920 × 1080).'], ['Publish', 'Thumbnail, title, description, tags and chapters.']];
     return h('div', null, h('h1', null, 'Welcome to Paper Cinema Studio'),
-      h('p', { className: 'lead' }, 'Make narrated YouTube videos in a dark paper cut-out 3D style — all free. AI chats do the writing and building; this app keeps everything consistent, checks it, and renders the video.'),
+      h('p', { className: 'lead' }, 'Make narrated YouTube videos in a low-poly paper figurine style (Facet), filmed like a movie — all free. AI chats do the writing and building; this app keeps everything consistent, checks it, and renders the video.'),
       h('div', { className: 'row' }, h('button', { on: { click: function () { document.getElementById('newBtn').click() } } }, '+ Start a new video'), h('button', { className: 'ghost', on: { click: function () { document.getElementById('demoBtn').click() } } }, 'See the demo first')),
       h('div', { className: 'card', style: 'margin-top:16px' }, h('h3', null, 'How it works'), h('table', null, steps.map(function (x, i) { return h('tr', null, h('td', { style: 'width:28px' }, h('span', { className: 'badge' }, i + 1)), h('td', { style: 'width:130px' }, h('b', null, x[0])), h('td', { className: 'muted' }, x[1])) }))),
       h('p', { className: 'muted small' }, 'Everything is saved in this browser. Use Export → Export project to back up.'));
@@ -307,9 +307,12 @@
   function makeAssetTickets() {
     var items = P.plan.assets.map(function (a) { return { name: a.name, difficulty: a.difficulty } });
     var old = {}; (P.assetTickets || []).forEach(function (t) { old[t.names.slice().sort().join(',')] = t });
-    P.assetTickets = PLAN.pack(items, P.ptsAsset).map(function (b, i) {
-      var names = b.map(function (x) { return x.name }), o = old[names.slice().sort().join(',')];
-      return o ? Object.assign(o, { n: i + 1 }) : { id: 'a' + i + Date.now().toString(36), n: i + 1, names: names, status: 'waiting', answer: '' };
+    var auto = P.ptsAsset === 'auto' || P.ptsAsset == null;
+    var groups = auto ? PLAN.batch(P.plan.assets) : PLAN.pack(items, P.ptsAsset).map(function (b) { return { names: b.map(function (x) { return x.name }) } });
+    P.assetTickets = groups.map(function (g, i) {
+      var names = g.names, o = old[names.slice().sort().join(',')];
+      var t = o ? Object.assign(o, { n: i + 1 }) : { id: 'a' + i + Date.now().toString(36), n: i + 1, names: names, status: 'waiting', answer: '' };
+      t.label = g.label || null; return t;
     });
   }
   function makeShotTickets(cid) {
@@ -379,8 +382,8 @@
       staleBanner(), h('h1', null, 'Assets'), h('p', { className: 'lead' }, 'Each ticket is a prompt for ONE new chat. Open several chats at the same time (Qwen, DeepSeek, free Claude…) — every ticket carries the same locked rules, so the pieces match.'),
       help(['Click <b>Copy prompt</b> on a ticket → paste into a NEW chat → send. Do this for every ticket at once.', 'Paste each chat\'s answer into its ticket and click <b>Check</b>.', '✅ = good → <b>Approve</b>. ❌ = click <b>Copy fix prompt</b>, paste it into the SAME chat, paste the new answer, Check again.', 'Use <b>Asset sheet</b> to see everything side by side under the same light. Something looks off? Write a note and copy a fix prompt.']),
       h('div', { className: 'card row' },
-        h('span', null, 'Difficulty points per chat:'), h('select', { on: { change: function () { P.ptsAsset = +this.value; makeAssetTickets(); save(); rerender() } } }, [2, 3, 4, 6, 99].map(function (v) { return h('option', { value: v, selected: P.ptsAsset === v }, v === 99 ? 'all in one chat (Claude)' : v) })),
-        h('span', { className: 'muted small' }, '1 = simple, 2 = medium, 3 = hard. 3 points = one hard asset, or medium + simple, or three simple.'),
+        h('span', null, 'Chats:'), h('select', { on: { change: function () { P.ptsAsset = this.value === 'auto' ? 'auto' : +this.value; makeAssetTickets(); save(); rerender() } } }, ['auto', 2, 3, 4, 6, 99].map(function (v) { return h('option', { value: v, selected: String(P.ptsAsset == null ? 'auto' : P.ptsAsset) === String(v) }, v === 'auto' ? 'Auto by complexity (recommended)' : v === 99 ? 'all in one chat (Claude)' : v + ' difficulty points per chat') })),
+        h('span', { className: 'muted small' }, P.ptsAsset === 'auto' || P.ptsAsset == null ? 'Hard assets get their own chat, medium ones go in pairs, simple ones in bunches of 3–6. Similar kinds stay together.' : '1 = simple, 2 = medium, 3 = hard. 3 points = one hard asset, or medium + simple, or three simple.'),
         h('span', { className: 'grow' }), badge(nOk + ' / ' + P.plan.assets.length + ' approved', nOk === P.plan.assets.length ? 'b-ok' : 'b-blue'),
         h('button', { className: 'ok', on: { click: function () { approveAll(P.assets, P.plan.assets.map(function (a) { return a.name })) } } }, 'Approve all ✓'),
         h('button', { className: 'blue', on: { click: function () { sheetModal() } } }, 'Asset sheet')),
@@ -400,7 +403,7 @@
       checkAssets(t.names).then(function () { t.status = t.names.every(function (n) { return (P.assets[n] || {}).status !== 'error' }) ? 'checked' : 'error'; save(true); rerender() }).catch(function (e) { out.textContent = 'Error: ' + e.message });
     }
     return h('div', { className: 'card' },
-      h('div', { className: 'row' }, h('h3', null, 'Ticket ' + t.n), badge(pts + ' pts'), statusBadge(t.status), h('span', { className: 'grow' }),
+      h('div', { className: 'row' }, h('h3', null, 'Ticket ' + t.n), badge(t.label || pts + ' pts', t.label && /hard/.test(t.label) ? 'b-warn' : ''), statusBadge(t.status), h('span', { className: 'grow' }),
         h('button', { on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Asset ticket ' + t.n, TPL.assetTicket(P, t), 'Ticket ' + t.n); renderNav() } } }, 'Copy prompt')),
       A.map(function (a) { return assetRow(a) }),
       ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue', on: { click: check } }, 'Check'),
@@ -556,7 +559,7 @@
         P.cuts.map(function (c) { var L = P.plan.cuts[c.id] || [], ok = L.filter(function (s) { return ((P.shots[c.id] || {})[s.id] || {}).status === 'approved' }).length; return badge(c.label + ': shots ' + ok + '/' + L.length + (c.hasAudio ? ' · audio ✓' : ' · no audio') + (c.exported ? ' · exported ✓' : ''), ok === L.length && L.length ? 'b-ok' : 'b-blue') })));
   }
   function playerPayload(cid, res) {
-    return { mode: 'play', aspect: cutById(cid).aspect || '9:16', sky: sky(), name: (P.title || P.name) + ' - ' + cutById(cid).label, assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), captions: CAPS, res: res || QUALITY, mix: mixOf(), capStyle: capOf(), look: lookOf(), sizes: planSizes() };
+    return { mode: 'play', aspect: cutById(cid).aspect || '9:16', sky: sky(), name: (P.title || P.name) + ' - ' + cutById(cid).label, assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), captions: CAPS, res: res || QUALITY, mix: mixOf(), capStyle: capOf(), look: lookOf(), sizes: planSizes(), keys: (P.plan && P.plan.keys) || null };
   }
   function vWatch() {
     if (!P.plan) return h('div', null, h('h1', null, 'Watch & fix'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
@@ -635,13 +638,13 @@
 
   /* ---------------- standalone video HTML (for the AI or to share) ---------------- */
   function exportVideoHtml(cid) {
-    var LPS = styleOf() === 'lowpoly', files = LPS ? ['kit/lp/engine.js', 'kit/lp/rig.js', 'kit/lp/people.js', 'kit/lp/render.js', 'kit/lp/director.js', 'kit/lp/check.js', 'kit/piano.js', 'kit/sound.js', 'kit/stage.js'] : ['kit/style-kit.js', 'kit/director.js', 'kit/piano.js', 'kit/sound.js', 'kit/stage.js'];
+    var ST = styleOf(), LPS = ST !== 'paper', files = ST === 'facet' ? ['facet/facet-kit.js', 'facet/facet-motion.js', 'kit/facet/stagekit.js', 'kit/stage.js'] : ST === 'lowpoly' ? ['kit/lp/engine.js', 'kit/lp/rig.js', 'kit/lp/people.js', 'kit/lp/render.js', 'kit/lp/director.js', 'kit/lp/check.js', 'kit/piano.js', 'kit/sound.js', 'kit/stage.js'] : ['kit/style-kit.js', 'kit/director.js', 'kit/piano.js', 'kit/sound.js', 'kit/stage.js'];
     Promise.all(files.map(function (f) { return fetch(f).then(function (r) { return r.text() }) })).then(function (src) {
       var pl = playerPayload(cid, 720); delete pl.assets; delete pl.shots; pl.standalone = true;
       var A = assetCodes(), S = shotCodes(cid);
       function block(type, name, code) { return '<script type="text/x-' + type + '" data-name="' + esc(name) + '">\n' + String(code).replace(/<\/script/gi, '<\\/script') + '\n</script>' }
       var html = '<!doctype html>\n<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(pl.name) + '</title></head>\n<body style="margin:0;background:#0d0b10"><div id="msg" style="color:#e9dfc8;font:14px sans-serif;padding:20px">Loading…</div>\n' +
-        '<!-- ============ VIDEO: ' + esc(pl.name) + ' ============\n  This file is a whole video made with the "' + (LPS ? 'Low-Poly Paper' : 'Dark Paper Cinema') + '" kit.\n  READ: the ASSETS (KIT.asset blocks), the SHOTS (SHOT blocks) and the TIMING (words with seconds).\n  The LOCKED KIT at the bottom draws everything — do not edit or re-explain it.\n  Audio is not included; open the file in Chrome and press Play to watch it silently with captions.\n-->\n' +
+        '<!-- ============ VIDEO: ' + esc(pl.name) + ' ============\n  This file is a whole video made with the "' + (ST === 'facet' ? 'Facet' : LPS ? 'Low-Poly Paper' : 'Dark Paper Cinema') + '" kit.\n  READ: the ASSETS (KIT.asset blocks), the SHOTS (SHOT blocks) and the TIMING (words with seconds).\n  The LOCKED KIT at the bottom draws everything — do not edit or re-explain it.\n  Audio is not included; open the file in Chrome and press Play to watch it silently with captions.\n-->\n' +
         '<!-- ============ ASSETS ============ -->\n' + Object.keys(A).map(function (n) { return block('asset', n, A[n]) }).join('\n') + '\n' +
         '<!-- ============ SHOTS (in order) ============ -->\n' + (P.plan.cuts[cid] || []).filter(function (s) { return S[s.id] }).map(function (s) { return block('shot', s.id, S[s.id]) }).join('\n') + '\n' +
         '<!-- ============ TIMING + SHOT LIST ============ -->\n<script>window.STAGE_PAYLOAD = ' + JSON.stringify(pl) + ';\nwindow.STAGE_PAYLOAD.assets = {}; window.STAGE_PAYLOAD.shots = {};\n[].forEach.call(document.querySelectorAll(\'script[type="text/x-asset"]\'), function (s) { STAGE_PAYLOAD.assets[s.dataset.name] = s.textContent });\n[].forEach.call(document.querySelectorAll(\'script[type="text/x-shot"]\'), function (s) { STAGE_PAYLOAD.shots[s.dataset.name] = s.textContent });</script>\n' +
@@ -788,11 +791,11 @@
   };
   document.getElementById('demoBtn').onclick = function () {
     modal('Load a demo', h('div', { className: 'grid' },
-      [window.DEMO_LP, window.DEMO_ICE_LP, window.DEMO, window.DEMO2].filter(Boolean).map(function (D) { return h('div', { className: 'card' }, h('h3', null, D.title), h('p', { className: 'muted small' }, D.script.slice(0, 120) + '…'), h('button', { on: { click: function () { document.getElementById('mclose').click(); loadDemo(D) } } }, 'Load')) })));
+      [window.DEMO_ICE_FACET, window.DEMO_LP, window.DEMO_ICE_LP, window.DEMO, window.DEMO2].filter(Boolean).map(function (D) { return h('div', { className: 'card' }, h('h3', null, D.title), h('p', { className: 'muted small' }, D.script.slice(0, 120) + '…'), h('button', { on: { click: function () { document.getElementById('mclose').click(); loadDemo(D) } } }, 'Load')) })));
   };
   function loadDemo(D) {
     P = newProject('Demo — ' + D.title); P.settings.style = D.style || 'paper'; P.settings.topic = D.title; P.title = D.title; syncCuts();
-    var c = P.cuts[0], r = TIMING.estimate(D.script); c.text = D.script; c.words = r.words; c.duration = r.duration; c.lines = TIMING.lines(r.words); c.timing = 'estimate (no audio)';
+    var c = P.cuts[0], r = D.words ? { words: D.words, duration: D.duration } : TIMING.estimate(D.script); c.text = D.script; c.words = r.words; c.duration = r.duration; c.lines = TIMING.lines(r.words); c.timing = D.words ? 'from the narration' : 'estimate (no audio)';
     var plan = JSON.parse(JSON.stringify(D.plan)); plan.cuts = { main: plan.cuts.main.map(function (s) { s.id = s.id.replace(/^S/, 'M'); return s }) };
     if (plan.sky) P.settings.sky = plan.sky;
     PLAN.validate(plan, P.cuts); applyPlan(plan);
@@ -800,7 +803,8 @@
     P.assetTickets.forEach(function (t) { t.status = 'checked' });
     P.shots.main = {}; Object.keys(D.shots).forEach(function (id) { var nid = id.replace(/^S/, 'M'); P.shots.main[nid] = { code: D.shots[id].replace("SHOT('" + id + "'", "SHOT('" + nid + "'"), versions: [], status: 'approved' } });
     P.shotTickets.main.forEach(function (t) { t.status = 'checked' });
-    STEP = 'watch'; save(true); localStorage.setItem('lastProject', P.id); render(); toast('Demo loaded — press Play.');
+    var done = function () { STEP = 'watch'; save(true); localStorage.setItem('lastProject', P.id); render(); toast('Demo loaded — press Play.') };
+    if (D.audio) fetch(D.audio).then(function (r) { return r.blob() }).then(function (b) { return DB.putFile(P.id + ':' + c.id, b) }).then(function () { c.hasAudio = true; c.audioName = 'narration.wav'; done() }).catch(done); else done();
   }
 
   refreshProjects().then(function () {

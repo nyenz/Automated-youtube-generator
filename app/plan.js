@@ -113,6 +113,39 @@
     return bins;
   };
 
+  /* AUTO BATCHING by complexity: hard assets get a chat of their own, medium ones go in pairs,
+     simple ones in bunches (3–6). Similar kinds stay together so one chat makes things that match. */
+  var FAMILY = { set: 0, character: 1, creature: 2, prop: 3, fx: 4 };
+  PL.weight = function (a) {
+    var w = { 1: 1, 2: 2, 3: 4 }[Math.max(1, Math.min(3, +a.difficulty || 2))];
+    w += Math.min(1.5, ((a.parts || []).length + (a.moves || []).length * 1.5) * .5);   // named parts and custom moves add work
+    if (a.kind === 'fx' && (+a.difficulty || 2) === 1) w = .7;                          // tiny details (breath, drips, a light)
+    return w;
+  };
+  PL.level = function (w) { return w >= 4 ? 'hard' : w >= 2 ? 'medium' : 'simple' };
+  PL.batch = function (assets, cap) {
+    cap = cap || 4;
+    var items = assets.map(function (a) { return { name: a.name, kind: a.kind, w: PL.weight(a), f: FAMILY[a.kind] == null ? 3 : FAMILY[a.kind] } });
+    items.sort(function (a, b) { return a.f - b.f || b.w - a.w });
+    var bins = [];
+    items.forEach(function (it) {
+      if (it.w >= cap) { bins.push({ items: [it], w: it.w, f: it.f }); return }               // hard: alone
+      var best = null;
+      bins.forEach(function (b) { if (b.f === it.f && b.w < cap && b.w + it.w <= cap && b.items.length < 6 && (!best || b.w > best.w)) best = b });
+      if (best) { best.items.push(it); best.w += it.w } else bins.push({ items: [it], w: it.w, f: it.f });
+    });
+    // leftover small bins of different kinds may share a chat (only simple things, never a set)
+    var small = bins.filter(function (b) { return b.w <= 2 && b.items.length <= 2 && b.f !== 0 }), keep = bins.filter(function (b) { return small.indexOf(b) < 0 });
+    small.forEach(function (b) {
+      var host = null; keep.forEach(function (k) { if (k.f !== 0 && k.w < cap && k.w + b.w <= cap && k.items.length + b.items.length <= 6 && PL.level(Math.max.apply(null, k.items.map(function (x) { return x.w }))) !== 'hard' && (!host || k.w > host.w)) host = k });
+      if (host) { host.items = host.items.concat(b.items); host.w += b.w } else keep.push(b);
+    });
+    return keep.map(function (b) {
+      var lv = b.items.map(function (x) { return PL.level(x.w) }), label = b.items.length === 1 ? (lv[0] === 'hard' ? 'hard — its own chat' : lv[0]) : b.items.length + ' ' + (lv.every(function (l) { return l === 'simple' }) ? 'simple' : lv.every(function (l) { return l === 'medium' }) ? 'medium' : 'mixed');
+      return { names: b.items.map(function (x) { return x.name }), points: +b.w.toFixed(1), label: label };
+    });
+  };
+
   /* shot timing (same rule as the director) */
   PL.shotTimes = function (cut, plan) {
     return (plan || []).map(function (s, i) {

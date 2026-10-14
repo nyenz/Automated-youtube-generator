@@ -150,7 +150,7 @@
     K.noLiveSound = !!K.SND; K.sfxVol = MIX().sfx; D.groupSize = (p.capStyle && p.capStyle.group) || 3; SPEECH = speechRegions(p.cut.words);
     var LK = Object.assign({ film: .8, atmos: .8, fg: true, focus: .8 }, p.look || {});
     K.film = { grain: LK.film, weave: LK.film, halation: LK.film, fog: LK.atmos };
-    built = D.build({ cut: p.cut, sky: p.sky, sizes: p.sizes, look: LK });
+    built = D.build({ cut: p.cut, sky: p.sky, sizes: p.sizes, look: LK, keys: p.keys, name: p.name });
     Object.keys(se).forEach(function (k) { built.errors[k] = se[k] });
     built.assetErrors = ae;
     if (p.music) { music = new Audio(); music.src = URL.createObjectURL(p.music); music.loop = true; music.preload = 'auto' }
@@ -237,7 +237,8 @@
     for (var f = F0; f < F1; f++) {
       if (CANCEL) { post({ type: 'export-cancelled' }); return }
       var t = f / FPS, tq = Math.floor(t * 12) / 12;
-      K.frame(tq, t); fitOverlay(); D.drawOverlay(octx, overlay.width, overlay.height, t, { captions: P.captions !== false, style: P.capStyle });
+      var fr = K.frame(tq, t); if (fr && fr.then) await fr;   // some styles (Facet) finish the picture a moment later
+      fitOverlay(); D.drawOverlay(octx, overlay.width, overlay.height, t, { captions: P.captions !== false, style: P.capStyle });
       cx.drawImage(K.renderer.domElement, 0, 0, W, H); cx.drawImage(overlay, 0, 0, W, H);
       var vf = new VideoFrame(comp, { timestamp: Math.round((f - F0) * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
       venc.encode(vf, { keyFrame: (f - F0) % (FPS * 2) === 0 }); vf.close();
@@ -285,7 +286,7 @@
       if (b.errors[id]) out.errors.push(b.errors[id]);
       [.05, .5, .95].forEach(function (f) {
         var t = r.from + (r.to - r.from) * f;
-        try { K.frame(Math.floor(t * 12) / 12) } catch (e) { out.errors.push('At ' + (t - r.from).toFixed(1) + ' s into the shot: ' + errText(e)) }
+        try { var fr = K.frame(Math.floor(t * 12) / 12, t); if (fr && fr.catch) fr.catch(function () { }) } catch (e) { out.errors.push('At ' + (t - r.from).toFixed(1) + ' s into the shot: ' + errText(e)) }
       });
       var e2 = D.errors()[id]; if (e2 && out.errors.indexOf(e2) < 0) out.errors.push(e2);
       (D.warnings()[id] || []).forEach(function (w) { out.warnings.push(w) });
