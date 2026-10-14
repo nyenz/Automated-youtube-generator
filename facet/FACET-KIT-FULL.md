@@ -151,6 +151,14 @@ F.person({
 });
 ```
 
+**Posing for movement** (all optional; leave them out for the normal studio pose):
+```js
+  stride: { L: [outDeg, lift], R: [outDeg, lift] },  // swing a leg out (deg) or lift it for a step (units, 0–4)
+  head: { tilt: deg, turn: -1..1, nod: units },      // tilt the head, turn it left (-) / right (+), drop it for a nod (0–3)
+  lean: deg,                                         // lean the upper body sideways (pivot at the hips)
+```
+No blur, glow, sparks or other effects are ever added for movement.
+
 Arm poses: hanging `[7, 2]` · hands on hips `[35, -110]` · holding something in front `[-5, -90]` · waving `[150, 30]` ·
 carrying a child on the hip: near arm `[30, -122]` (under the child), far arm `[-2, -62]` (across to the child's back).
 
@@ -379,23 +387,37 @@ ${out.join('\n')}<rect width="${W}" height="${H}" filter="url(#grain)"/></svg>`;
     const SK = sp.skin || '#ece3d6', TOP = sp.top || '#d3ccbd', HAIR = (sp.hair && sp.hair.colour) || '#7a4231';
     const hs = sp.hair && sp.hair.style || 'cap';
     const hw = C.headW, ft = C.faceTop, ch = C.chin, mid = (ft + ch) / 2;
+    // POSE (all optional, 0 = the normal studio pose):
+    //   stride: { L: [outDeg, lift], R: [outDeg, lift] } — swing a leg out, or lift it (units) for a step
+    //   head: { tilt: deg, turn: -1..1, nod: units }    — tilt the head, turn it left/right, drop it for a nod
+    //   lean: deg                                        — lean the whole upper body (pivot at the hips)
+    const n2 = v => (+v || 0).toFixed(2), G2 = (t, fn) => t ? group(t, fn) : fn();
+    const HD = sp.head || {}, turn = Math.max(-1, Math.min(1, +HD.turn || 0));
+    const legT = side => { const l = (sp.stride && sp.stride[side]) || [0, 0], d = side === 'L' ? -1 : 1, hp = P(d * C.legW * .5, C.hipY);
+      return (l[0] || l[1]) ? `translate(0 ${n2(-(l[1] || 0) * s)}) rotate(${n2(-d * (l[0] || 0))} ${n2(hp[0])} ${n2(hp[1])})` : ''; };
+    const hipC = P(0, C.hipY), chinC = P(0, ch);
+    const leanT = sp.lean ? `rotate(${n2(sp.lean)} ${n2(hipC[0])} ${n2(hipC[1])})` : '';
+    const headT = (HD.tilt || HD.nod) ? `translate(0 ${n2((HD.nod || 0) * s)}) rotate(${n2(HD.tilt)} ${n2(chinC[0])} ${n2(chinC[1])})` : '';
+    const turnT = k => turn ? `translate(${n2(turn * hw * k * s)} 0)` : '';
     // 1) hair that hangs behind the body
-    if (hs === 'long') part(Q([[-hw - 2, ft + 4], [-hw + 1, ft - 6], [0, ft - 9.5], [hw - 1, ft - 6], [hw + 2, ft + 4], [hw + 4, ch + 4], [hw + 2, ch + 13], [0, ch + 11], [-hw - 2, ch + 13], [-hw - 4, ch + 4]]),
-      HAIR, { ridge: Q([[-hw * .5, ft - 6], [-hw - 1, ch + 10]]), contrast: .3, step: 14 * s });
+    if (hs === 'long') G2(leanT, () => G2(headT, () => part(Q([[-hw - 2, ft + 4], [-hw + 1, ft - 6], [0, ft - 9.5], [hw - 1, ft - 6], [hw + 2, ft + 4], [hw + 4, ch + 4], [hw + 2, ch + 13], [0, ch + 11], [-hw - 2, ch + 13], [-hw - 4, ch + 4]]),
+      HAIR, { ridge: Q([[-hw * .5, ft - 6], [-hw - 1, ch + 10]]), contrast: .3, step: 14 * s })));
     // 2) legs + shoes (short, thick)
     const B = sp.bottom || { type: 'trousers', colour: '#4e5242' };
     if (B.type === 'skirt') {
       const LG = sp.legs || SK;
-      part(Q([[-7.5, 90], [-1.8, 90], [-2, C.ankle], [-7, C.ankle]]), LG, { contrast: .15, step: 10 * s });
-      part(Q([[1.8, 90], [7.5, 90], [7, C.ankle], [2, C.ankle]]), LG, { contrast: .15, step: 10 * s });
+      G2(legT('L'), () => part(Q([[-7.5, 90], [-1.8, 90], [-2, C.ankle], [-7, C.ankle]]), LG, { contrast: .15, step: 10 * s }));
+      G2(legT('R'), () => part(Q([[1.8, 90], [7.5, 90], [7, C.ankle], [2, C.ankle]]), LG, { contrast: .15, step: 10 * s }));
     } else {
-      part(Q([[-C.legW - .8, C.hipY], [-0.6, C.hipY], [-0.9, C.ankle], [-C.legW - .3, C.ankle]]), B.colour, { ridge: Q([[-C.legW * .7, C.hipY], [-C.legW * .7, C.ankle]]), contrast: .26, step: 12 * s });
-      part(Q([[0.6, C.hipY], [C.legW + .8, C.hipY], [C.legW + .3, C.ankle], [0.9, C.ankle]]), B.colour, { ridge: Q([[C.legW * .3, C.hipY], [C.legW * .3, C.ankle]]), contrast: .26, step: 12 * s });
+      G2(legT('L'), () => part(Q([[-C.legW - .8, C.hipY], [-0.6, C.hipY], [-0.9, C.ankle], [-C.legW - .3, C.ankle]]), B.colour, { ridge: Q([[-C.legW * .7, C.hipY], [-C.legW * .7, C.ankle]]), contrast: .26, step: 12 * s }));
+      G2(legT('R'), () => part(Q([[0.6, C.hipY], [C.legW + .8, C.hipY], [C.legW + .3, C.ankle], [0.9, C.ankle]]), B.colour, { ridge: Q([[C.legW * .3, C.hipY], [C.legW * .3, C.ankle]]), contrast: .26, step: 12 * s }));
       flat(Q([[-6, C.hipY], [6, C.hipY], [0, C.hipY + 6]]), shade(B.colour, -.35));
     }
     const sw = B.type === 'skirt' ? 8.5 : C.legW + 2.5, SH = sp.shoes || '#5a3124';
-    part(Q([[-sw, C.ankle - .5], [-0.3, C.ankle - .5], [0, 100], [-sw - 1, 100]]), SH, { contrast: .2, step: 10 * s });
-    part(Q([[0.3, C.ankle - .5], [sw, C.ankle - .5], [sw + 1, 100], [0, 100]]), SH, { contrast: .2, step: 10 * s });
+    G2(legT('L'), () => part(Q([[-sw, C.ankle - .5], [-0.3, C.ankle - .5], [0, 100], [-sw - 1, 100]]), SH, { contrast: .2, step: 10 * s }));
+    G2(legT('R'), () => part(Q([[0.3, C.ankle - .5], [sw, C.ankle - .5], [sw + 1, 100], [0, 100]]), SH, { contrast: .2, step: 10 * s }));
+    // everything above the hips leans together
+    if (leanT) out.push(`<g transform="${leanT}">`);
     // 3) torso: a barrel with sloped rounded shoulders, NO neck
     const sy = C.shoulderY, cw = C.chestW, ww = C.waistW, hy = C.hipY;
     if (B.type === 'skirt') {
@@ -429,10 +451,14 @@ ${out.join('\n')}<rect width="${W}" height="${H}" filter="url(#grain)"/></svg>`;
       });
     };
     occlusion(Q([[-hw + 2, ch - 3], [hw - 2, ch - 3], [hw - 3, ch + 4], [-hw + 3, ch + 4]]), .32, 10);
+    if (headT) out.push(`<g transform="${headT}">`);
+    // big round ears, drawn behind the head so a turned head hides the far one
+    [-1, 1].forEach(d => { const k = d === Math.sign(turn) ? 1.3 : .35;
+      part(disc(...P(d * (hw + C.earR * .55) - d * Math.abs(turn) * C.earR * k, mid + 1), C.earR * .75 * s, C.earR * s), '#d8c4b8', { contrast: .2, step: 5 * s }); });
     part(Q([[-hw * .9, ft], [hw * .9, ft], [hw, mid], [hw * .9, ch - 6], [hw * .45, ch], [-hw * .45, ch], [-hw * .9, ch - 6], [-hw, mid]]), SK,
       { ridge: Q([[-hw * .4, ft], [-hw * .3, ch]]), contrast: .16, step: 9 * s });
-    [-1, 1].forEach(d => part(disc(...P(d * (hw + C.earR * .55), mid + 1), C.earR * .75 * s, C.earR * s), '#d8c4b8', { contrast: .2, step: 5 * s }));   // big round ears
     const ey = mid + 1.5;
+    if (turn) out.push(`<g transform="${turnT(.3)}">`);      // a turned head: the face slides toward the turn
     if (sp.beard) {
       part(Q([[-hw - .2, mid - 1], [-hw * .7, mid + 3], [-hw * .45, mid + 7.5], [hw * .45, mid + 7.5], [hw * .7, mid + 3], [hw + .2, mid - 1], [hw + .6, ch - 4], [hw * .8, ch + 3],
               [hw * .4, ch + 8], [0, ch + 9.5], [-hw * .4, ch + 8], [-hw * .8, ch + 3], [-hw - .6, ch - 4]]), sp.beard,
@@ -460,15 +486,21 @@ ${out.join('\n')}<rect width="${W}" height="${H}" filter="url(#grain)"/></svg>`;
       else [-1, 1].forEach(d => flat(Q([[d * hw * .7, ey + .3], [d * hw * .2, ey - .6], [d * hw * .18, ey + .9], [d * hw * .66, ey + 1.6]]), dark));
       if (hs !== 'bald') [-1, 1].forEach(d => flat(Q([[d * hw * .72, ey - 3.2], [d * hw * .2, ey - 4.4], [d * hw * .2, ey - 3.4], [d * hw * .7, ey - 2.2]]), shade(HAIR, -.35)));
     }
+    if (turn) out.push('</g>');
     // 5) hair on top
+    if (turn) out.push(`<g transform="${turnT(.1)}">`);
     if (hs === 'cap') part(Q([[-hw - .4, ft + 7], [-hw, ft - 2], [-hw * .55, ft - 6.5], [0, ft - 7.5], [hw * .6, ft - 6.5], [hw, ft - 2], [hw + .4, ft + 7], [hw * .85, ft + 2.5], [0, ft + 1], [-hw * .85, ft + 2.5]]),
       HAIR, { ridge: Q([[-hw * .5, ft - 6], [-hw * .7, ft + 3]]), contrast: .26, step: 8 * s });
     if (hs === 'long') part(Q([[-hw - 1.2, mid + 3], [-hw - .5, ft - 2], [-hw * .5, ft - 7], [0, ft - 8], [hw * .5, ft - 7], [hw + .5, ft - 2], [hw + 1.2, mid + 3], [hw * .85, mid - 3], [hw * .5, ft + 2], [0, ft + 1.5], [-hw * .55, ft + 3.5], [-hw * .85, mid - 3]]),
       HAIR, { ridge: Q([[-hw * .5, ft - 6], [-hw - .5, mid]]), contrast: .3, step: 8 * s });
     if (hs === 'tuft') part(Q([[-hw - .3, ft + 6], [-hw * .9, ft - 2], [-hw * .4, ft - 5.5], [hw * .3, ft - 6], [hw * .85, ft - 3], [hw + .3, ft + 6], [hw * .7, ft + 2], [0, ft + 1.5], [-hw * .6, ft + 3]]),
       HAIR, { ridge: Q([[-hw * .4, ft - 4], [-hw * .6, ft + 3]]), contrast: .26, step: 7 * s });
-    if (sp.deferArms) return drawArms;
-    drawArms(); return () => {};
+    if (turn) out.push('</g>');
+    if (headT) out.push('</g>');
+    if (leanT) out.push('</g>');
+    const arms = () => G2(leanT, drawArms);
+    if (sp.deferArms) return arms;
+    arms(); return () => {};
   }
 
   /** group(transform, fn) — draw fn inside an SVG transform, e.g. 'translate(20 0) scale(1.2)' or 'rotate(-20 400 380)' (posing limbs). */

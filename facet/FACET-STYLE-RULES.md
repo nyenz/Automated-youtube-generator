@@ -137,6 +137,14 @@ F.person({
 });
 ```
 
+**Posing for movement** (all optional; leave them out for the normal studio pose):
+```js
+  stride: { L: [outDeg, lift], R: [outDeg, lift] },  // swing a leg out (deg) or lift it for a step (units, 0–4)
+  head: { tilt: deg, turn: -1..1, nod: units },      // tilt the head, turn it left (-) / right (+), drop it for a nod (0–3)
+  lean: deg,                                         // lean the upper body sideways (pivot at the hips)
+```
+No blur, glow, sparks or other effects are ever added for movement.
+
 Arm poses: hanging `[7, 2]` · hands on hips `[35, -110]` · holding something in front `[-5, -90]` · waving `[150, 30]` ·
 carrying a child on the hip: near arm `[30, -122]` (under the child), far arm `[-2, -62]` (across to the child's back).
 

@@ -23,8 +23,10 @@ async function makeScene() {
                   top: '#d3ccbd', vest: '#6c6052', tie: '#cc5321', bottom: { type: 'trousers', colour: '#4e5242' }, shoes: '#5a3124' },
         moves: [
           { at: 0.2, for: 2.6, do: 'walk', to: 300 },
+          { at: 2.7, for: 2.6, do: 'look', dir: 'R' },
           { at: 3.0, for: 1.8, do: 'wave', arm: 'R' },
           { at: 5.4, for: 1.6, do: 'hips' },
+          { at: 6.2, for: 1.0, do: 'sad' },
           { at: 7.3, for: 1.4, do: 'nod' }
         ] },
       { id: 'mum', seed: 5, height: 560, x: 810, ground: 1560,
@@ -32,8 +34,10 @@ async function makeScene() {
                   top: '#d3ccbd', bottom: { type: 'skirt', colour: '#4e5242' }, shoes: '#5a3124' },
         moves: [
           { at: 1.0, for: 1.6, do: 'hold' },
+          { at: 2.4, for: 3.0, do: 'look', dir: 'L' },
           { at: 3.4, for: 1.4, do: 'nod' },
           { at: 5.0, for: 1.8, do: 'shrug' },
+          { at: 6.0, for: 1.0, do: 'shake' },
           { at: 7.1, for: 1.6, do: 'cheer' }
         ] },
       { id: 'fox', draw: fox, origin: [540, 950], scale: .42, x: 552, ground: 1615, seed: 2,

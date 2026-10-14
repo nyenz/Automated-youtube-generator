@@ -1,7 +1,7 @@
 /* =========================================================================
-   FACET MOTION — makes Facet Kit drawings move.  Does NOT change facet-kit.js.
-   It only uses what the kit already has:
-     - people: F.person(spec) with different arm angles each frame
+   FACET MOTION — makes Facet Kit drawings move.
+   It only uses what the kit has:
+     - people: F.person(spec) with a new pose each frame (arms, legs, head tilt/turn/nod, lean)
      - any asset: its own draw(F), drawn once, then moved as a whole
        (slide, hop, rock, breathe) with plain SVG transforms
    No blur, glow, haze or any other effect is added here.
@@ -23,7 +23,8 @@
      bounce{ height }                                     small happy hops for the whole time
      wave  { arm: 'L'|'R' }      cheer        point { arm }
      hips  (hands on hips)       hold (both hands in front)   shrug
-     sad   (droop)               shake (rock "no")      nod (bob "yes")
+     sad   (head drops + tilts)  shake (head turns "no")  nod (head bobs "yes")
+     look  { dir: 'L'|'R' }      tilt { deg }           lean { deg }
      shiver (cold / scared)      arms { L:[up,fore], R:[up,fore] }  (any pose by hand)
    camera: [{ at, for, zoom: 1, x, y }]  — x,y = the point to look at (default the middle)
    ========================================================================= */
@@ -53,7 +54,8 @@
 
   /** where the actor is and how it stands at time t */
   function pose(c, t) {
-    const P = { x: c.x || 0, dy: 0, rot: 0, sx: 1, sy: 1, dx: 0, arms: { L: (c.arms && c.arms.L) || HANG, R: (c.arms && c.arms.R) || HANG } };
+    const P = { x: c.x || 0, dy: 0, rot: 0, sx: 1, sy: 1, dx: 0, arms: { L: (c.arms && c.arms.L) || HANG, R: (c.arms && c.arms.R) || HANG },
+      legs: { L: [0, 0], R: [0, 0] }, head: { tilt: 0, turn: 0, nod: 0 }, lean: 0 };
     // idle: slow breathing + a tiny sway, so nobody is ever frozen
     const ph = (c.seed || 1) * 1.7;
     P.sy = 1 + .007 * Math.sin(t * 2 * Math.PI / 3.1 + ph);
@@ -66,7 +68,9 @@
         if (t >= a && t <= a + d) {
           P.x = lerp(from, to, ease(k));
           const ph2 = (t - a) * (m.steps || 2) * Math.PI, s = Math.sin(ph2);
-          P.rot += 4 * s * w; P.dy -= Math.abs(s) * (c.height || 500) * .018 * w;
+          P.rot += 1.6 * s * w; P.dy -= Math.abs(s) * (c.height || 500) * .01 * w;
+          P.legs.L = [2 * w, Math.max(0, s) * 4 * w]; P.legs.R = [2 * w, Math.max(0, -s) * 4 * w];   // real steps
+          P.head.tilt += -2 * s * w;
           P.arms.L = mix(P.arms.L, [12 + 8 * s, 2], w); P.arms.R = mix(P.arms.R, [12 - 8 * s, 2], w);
         } else if (t > a + d) P.x = to;
         x = to; return;
@@ -77,14 +81,21 @@
         P.dy -= Math.sin(Math.PI * k) * h;
         const land = Math.max(0, 1 - Math.min(k, 1 - k) * 8);                // squash at take-off and landing
         P.sy *= 1 - .06 * land; P.sx *= 1 + .05 * land;
-        P.arms.L = mix(P.arms.L, [40, 10], Math.sin(Math.PI * k)); P.arms.R = mix(P.arms.R, [40, 10], Math.sin(Math.PI * k));
+        const up = Math.sin(Math.PI * k);
+        P.arms.L = mix(P.arms.L, [40, 10], up); P.arms.R = mix(P.arms.R, [40, 10], up);
+        P.legs.L = [10 * up, 2 * up]; P.legs.R = [10 * up, 2 * up];
       }
       if (m.do === 'bounce') { const s = Math.abs(Math.sin((t - a) * Math.PI * 2.4)); P.dy -= s * (m.height || (c.height || 500) * .05) * w; }
-      if (m.do === 'shake') P.rot += 3.5 * Math.sin((t - a) * Math.PI * 5) * w;
-      if (m.do === 'nod') P.sy *= 1 - .025 * Math.abs(Math.sin((t - a) * Math.PI * 3)) * w;
+      if (m.do === 'shake') P.head.turn += .45 * Math.sin((t - a) * Math.PI * 4) * w;
+      if (m.do === 'nod') P.head.nod += 2.4 * Math.abs(Math.sin((t - a) * Math.PI * 2.4)) * w;
+      if (m.do === 'look') P.head.turn += (m.dir === 'L' ? -.7 : m.dir === 'R' ? .7 : (+m.turn || 0)) * w;
+      if (m.do === 'tilt') P.head.tilt += (m.deg == null ? 8 : m.deg) * w;
+      if (m.do === 'lean') P.lean += (m.deg == null ? 6 : m.deg) * w;
+      if (m.do === 'cheer') { P.legs.L = [6 * w, 0]; P.legs.R = [6 * w, 0]; P.head.tilt -= 4 * w; }
+      if (m.do === 'wave') P.head.tilt += (m.arm === 'L' ? 5 : -5) * w;
       if (m.do === 'shiver') P.dx += 2.2 * Math.sin(t * 2 * Math.PI * 11) * w * (c.height || 500) / 500;
-      if (m.do === 'sad') { P.sy *= 1 - .03 * w; P.dy += (c.height || 500) * .01 * w; }
-      if (m.do === 'shrug') P.dy -= (c.height || 500) * .012 * w * Math.abs(Math.sin((t - a) * Math.PI / Math.max(.4, d)));
+      if (m.do === 'sad') { P.sy *= 1 - .02 * w; P.head.nod += 3 * w; P.head.tilt += 6 * w; }
+      if (m.do === 'shrug') { P.dy -= (c.height || 500) * .012 * w * Math.abs(Math.sin((t - a) * Math.PI / Math.max(.4, d))); P.head.tilt += 8 * w; }
       const fn = ARMS[m.do];
       if (fn) ['L', 'R'].forEach(side => { const tg = fn(m, t - a, side); if (tg) P.arms[side] = mix(P.arms[side], tg, w); });
     });
@@ -99,12 +110,15 @@
     return svg.slice(a, b).replace(/id="f(\d+)"/g, 'id="' + prefix + 'f$1"').replace(/url\(#f(\d+)\)/g, 'url(#' + prefix + 'f$1)');
   }
   const cache = new Map();
-  function personBody(c, arms) {
-    const key = c.id + '|' + arms.L.map(Math.round) + '|' + arms.R.map(Math.round);
+  const r = (v, k) => Math.round(v / k) * k;
+  function personBody(c, Pz) {
+    const arms = Pz.arms, legs = { L: Pz.legs.L.map(v => r(v, .5)), R: Pz.legs.R.map(v => r(v, .5)) };
+    const head = { tilt: r(Pz.head.tilt, .5), turn: r(Pz.head.turn, .05), nod: r(Pz.head.nod, .2) }, lean = r(Pz.lean, .5);
+    const key = c.id + '|' + arms.L.map(Math.round) + '|' + arms.R.map(Math.round) + '|' + legs.L + '|' + legs.R + '|' + [head.tilt, head.turn, head.nod, lean];
     if (cache.has(key)) return cache.get(key);
     F.begin({ width: 1080, height: 1080, seed: c.seed || 3 });
     F.person(Object.assign({}, c.person, { x: 540, ground: 1000, height: c.height || 500,
-      arms: { L: arms.L.map(Math.round), R: arms.R.map(Math.round) } }));
+      arms: { L: arms.L.map(Math.round), R: arms.R.map(Math.round) }, stride: legs, head, lean }));
     const s = '<g transform="translate(-540 -1000)">' + bodyOf(F.render(), 'p' + cache.size + '_') + '</g>';
     if (cache.size > 4000) cache.clear();
     cache.set(key, s); return s;
@@ -143,7 +157,7 @@
       if (c.person) {
         const lift = Math.max(0, -P.dy) / (c.height || 500);
         g += `<g transform="translate(${f(P.x + (c.height || 500) * .02)} ${f(G)}) scale(${f(1 - lift * 1.2)} 1)">${shadowBody((c.height || 500) * .42)}</g>`;
-        g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(P.sx)} ${f(P.sy)})">${personBody(c, P.arms)}</g>`;
+        g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(P.sx)} ${f(P.sy)})">${personBody(c, P)}</g>`;
       } else if (c.draw) {
         const o = c.origin || [540, 1000], sc = c.scale || 1;
         g += `<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(sc * P.sx)} ${f(sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${assetBody(c)}</g>`;
