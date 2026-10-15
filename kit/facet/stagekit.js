@@ -192,19 +192,42 @@
     camList.forEach(function (k, i) {
       var tg = k.on != null ? target(k.on) : [k.x, k.y], z = typeof k.zoom === 'string' ? ZOOM[k.zoom] : k.zoom;
       if (typeof k.zoom === 'string' && !z) warn(r.id, 'camera zoom "' + k.zoom + '" is unknown (use a number or wide/full/medium/close/detail).');
-      var m = { at: i === 0 && k.at == null && k.word == null ? 0 : timeOf(r, k, 'camera'), for: k.for, zoom: z, x: tg[0], y: tg[1] };
+      var m = { at: i === 0 && k.at == null && k.word == null ? 0 : timeOf(r, k, 'camera'), for: k.for, zoom: z, x: tg[0], y: tg[1], cut: !!k.cut };
       if (m.x == null) delete m.x; if (m.y == null) delete m.y; cam.push(m);
     });
+    cameraGrammar(r, cam);
     (sp.moves || []).forEach(function (m, i) {
       var b = byName[m.who]; if (!b) { warn(r.id, 'move ' + (i + 1) + ': who "' + m.who + '" is not in the cast.'); return }
       var mv = Object.assign({}, m); delete mv.who; delete mv.word; mv.at = timeOf(r, m, 'move ' + (i + 1)); mv.for = m.for || 1.2;
       if (mv.do === 'walk' && typeof mv.to === 'string') mv.to = place(mv.to, m.who)[0];
       b.c.moves.push(mv);
     });
-    var focus = (sp.focus || []).map(function (f) { var o = Object.assign({}, f); o.at = timeOf(r, f, 'focus'); delete o.word; return o });
+    var focus = (sp.focus || []).map(function (f) { var o = Object.assign({}, f); o.at = timeOf(r, f, 'focus'); delete o.word; return o });   // focus can cut too (cut: true)
     return { id: r.id, from: r.from, to: r.to, bg: sp.bg || sa.bg || '#c0612c', far: sa.far, set: sa.set, front: sa.front,
       grade: sp.grade || sa.grade, focus: focus, handheld: sp.handheld == null ? 2 : sp.handheld, cast: cast, camera: cam,
       light: sp.light || sa.light || null, weather: sp.weather || sa.weather || null };
+  }
+  /* CAMERA GRAMMAR check: sizes change with cuts; inside one framing only pans/tilts and ONE slow push or pull */
+  function cameraGrammar(r, cam) {
+    var z = cam[0] && cam[0].zoom || 1, dir = 0, moves = 0, segStart = 0, dur = r.to - r.from;
+    cam.forEach(function (m, i) {
+      if (i === 0) return;
+      if (m.cut || !m.for) {
+        if (m.at - segStart < 1.2) warn(r.id, 'A framing is held only ' + (m.at - segStart).toFixed(1) + ' s before the next cut — hold each framing at least 1.5 s.');
+        segStart = m.at; dir = 0; moves = 0; if (m.zoom != null) z = m.zoom; return;
+      }
+      if (m.zoom == null) return;
+      var dz = m.zoom - z, d = Math.abs(dz) < .05 ? 0 : dz > 0 ? 1 : -1, sec = Math.max(.1, m.for || .1);
+      if (d) {
+        moves++;
+        if (dir && d !== dir) warn(r.id, 'The camera zooms ' + (dir > 0 ? 'in' : 'out') + ' and then ' + (d > 0 ? 'in' : 'out') + ' again inside one framing — cut to the new size instead (camera: { ..., cut: true }).');
+        if (Math.abs(dz) / sec > .45) warn(r.id, 'A zoom of ' + Math.abs(dz).toFixed(2) + ' in ' + sec.toFixed(1) + ' s is too fast — make it slower (about 0.1–0.3 per second) or cut.');
+        dir = d;
+      }
+      z = m.zoom;
+    });
+    if (moves > 1) warn(r.id, moves + ' zoom moves inside one framing — use one slow push or pull per framing; follow action with pans (on: ...) and change size with cuts.');
+    if (dur > 0 && segStart > 0 && dur - segStart < 1.2) warn(r.id, 'The last framing is held only ' + (dur - segStart).toFixed(1) + ' s.');
   }
   function placeholderShot(r, msg) {
     return { id: r.id, from: r.from, to: r.to, bg: '#2a2a30', cast: [], camera: [{ at: 0, zoom: 1 }],

@@ -256,20 +256,24 @@
         light: { side: 'L', rim: '#dfe9f2', width: 3, shadow: .2 },  // moonlight from the left: rim edge + cast shadow
         weather: { kind: 'snow', amount: 70, speed: .8 },
         grade: { far: ['#24344a', .4] },                             // the far bank sinks into the night
+        // CAMERA GRAMMAR: four framings joined by cuts (close → medium → wide → medium); inside each one only a pan/tilt and one slow push
         focus: [
-          { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },            // close on the reading: everything behind it soft
-          { at: 2.3, for: 1.8, far: 4, set: 1.5 },
-          { at: 4.4, for: 1.0, far: 4, set: .8 },                     // at the thigh
-          { at: 6.0, for: 1.1, far: 1.2, set: 0, front: 1.5 },        // pull out: the scene comes into focus
-          { at: 7.1, for: 2.0, far: 3, set: .6, front: 2 }            // in close on the boy's face
+          { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },                         // A: close on the reading — everything behind it soft
+          { at: 2.34, cut: true, far: 4, set: 1.5, cast: 0, front: 2 },           // B: medium on the hand and the device
+          { at: 4.4, for: 1.0, far: 4, set: .8 },
+          { at: 6.0, cut: true, far: 1.2, set: 0, cast: 0, front: 1.5 },          // C: wide — the whole scene sharp
+          { at: 7.1, for: 1.9, far: 3, set: .6, front: 2 },                       //    pushing slowly toward his face
+          { at: 9.0, cut: true, far: 3.5, set: 1, cast: 0, front: 2 }             // D: medium on the hand at his wrist
         ],
         camera: [
-          { at: 0, zoom: 3.2, x: 600, y: 1282 },                   // the screen counts down to 7.0 °C: "7 degrees Celsius"
-          { at: 2.3, for: 1.8, zoom: 2.0, x: 565, y: 1300 },       // "an infrared thermometer": the hand and the device
-          { at: 4.4, for: 1.0, zoom: 2.4, x: 645, y: 1372 },       // follow its aim: "against the thigh"
-          { at: 6.0, for: 1.1, zoom: 1.4, x: 600, y: 1360 },       // "of an 8-year-old boy": pull out, the whole scene
-          { at: 7.1, for: 2.0, zoom: 2.3, x: 850, y: 1420 },       // "He is cold as the ice": glide in to his face
-          { at: 9.3, for: 1.4, zoom: 1.85, x: 735, y: 1415 }       // "without a pulse": ease back to see the fingers on his wrist
+          { at: 0, zoom: 3.2, x: 600, y: 1282 },                   // A "7 degrees Celsius": close on the screen counting down
+          { at: .1, for: 2.2, zoom: 3.32, x: 600, y: 1282 },       //   one slow creep in
+          { at: 2.34, cut: true, zoom: 2.1, x: 565, y: 1300 },     // B "an infrared thermometer": CUT to the hand and the device
+          { at: 4.4, for: 1.2, zoom: 2.22, x: 645, y: 1372 },      //   pan down along its aim: "against the thigh"
+          { at: 6.0, cut: true, zoom: 1.3, x: 600, y: 1352 },      // C "8-year-old boy": CUT wide — where we are
+          { at: 6.4, for: 2.6, zoom: 1.85, x: 830, y: 1415 },      //   one slow push toward his face: "He is cold as the ice"
+          { at: 9.0, cut: true, zoom: 2.1, x: 730, y: 1412 },      // D "limp and without a pulse": CUT to the hand on his wrist
+          { at: 9.1, for: 1.9, zoom: 2.18, x: 735, y: 1415 }       //   holds, barely moving
         ],
         cast: [
           { id: 'board', draw: backboard, origin: [540, 1000], x: 760, ground: 1500, scale: .56, z: 1490 },
@@ -317,15 +321,19 @@
         light: { side: 'L', rim: '#e6e1cf', width: 2.5, shadow: .18 },  // moonlight through the window on the left
         grade: { far: ['#25524a', .3] },
         focus: [
-          { at: 0, far: 4, set: 0, cast: 0, front: 2.5 },            // the lamp is sharp for the match cut…
-          { at: .3, for: 1.4, set: 2.4 },                              // …then, on the doctor, the room behind him goes soft
-          { at: 3.4, for: 2.6, far: 2, set: 0, cast: 1.6, front: 2 }  // rack focus to the boy in the bed; the doctor goes soft
+          { at: 0, far: 4, set: 0, cast: 0, front: 2.5 },            // A: the lamp is sharp for the match cut…
+          { at: .3, for: 1.4, set: 2.4 },                              //   …then, on the doctor, the room behind him goes soft
+          { at: 1.82, cut: true, far: 5, set: 3, cast: 0, front: 3 },  // B: the page
+          { at: 3.37, cut: true, far: 2, set: 1.6, cast: 0, front: 2 },// C: wide…
+          { at: 3.6, for: 2.6, set: 0, cast: 1.6 }                     //   …rack focus to the boy as we pan to him
         ],
         camera: [
-          { at: 0, zoom: 1.9, x: 337, y: 780 },                    // match cut: the lamp sits exactly where the hole in the ice was
-          { at: .2, for: 1.6, zoom: 1.9, x: 330, y: 1240 },         // tilt down to the doctor: "This is not folklore."
-          { at: 1.8, for: .8, zoom: 3.4, x: 300, y: 1335 },         // "It is a case report.": close enough to read the page
-          { at: 3.4, for: 3.8, zoom: 1.22, x: 610, y: 1240 }        // pull out to the bed: "the longest ice water survival on record"
+          { at: 0, zoom: 1.9, x: 337, y: 780 },                    // A match cut: the lamp sits where the hole in the ice was
+          { at: .2, for: 1.6, zoom: 1.9, x: 330, y: 1240 },         //   tilt down (no zoom) to the doctor: "This is not folklore."
+          { at: 1.82, cut: true, zoom: 5.2, x: 318, y: 1332 },      // B "It is a case report.": CUT to the page — readable
+          { at: 1.9, for: 1.45, zoom: 5.4, x: 318, y: 1332 },       //   one slow creep in
+          { at: 3.37, cut: true, zoom: 1.28, x: 420, y: 1240 },     // C "And its authors say…": CUT wide on the room
+          { at: 3.5, for: 3.9, zoom: 1.34, x: 610, y: 1240 }        //   slow pan to the boy in the bed (barely any zoom)
         ],
         cast: [
           { id: 'ecmo', plane: 'back', draw: ecmo, origin: [540, 960], x: 560, ground: 1440, scale: .5, z: 1400 },

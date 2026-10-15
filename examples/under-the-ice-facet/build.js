@@ -63,18 +63,20 @@ const shots = {
   handheld: 3,
   light: { side: 'L', rim: '#dfe9f2', width: 3, shadow: .2 },   // moonlight from the left
   weather: { kind: 'snow', amount: 70, speed: .8 },
-  camera: [
-    { at: 0, zoom: 3.2, on: [600, 1282] },                   // open on the reading counting down to 7.0 °C
-    { word: 'infrared', for: 1.4, zoom: 2.0, on: [565, 1300] }, // "an infrared thermometer": the hand and the device
-    { word: 'against', for: 1.0, zoom: 2.4, on: [645, 1372] },// follow its aim: "against the thigh"
-    { word: 'boy', for: 1.0, zoom: 1.4, on: [600, 1360] },    // pull out: the whole scene
-    { word: 'He', for: 1.9, zoom: 2.3, on: [850, 1420] }      // glide in to his face
+  camera: [                                                    // framings joined by cuts; pans + one slow push inside each
+    { at: 0, zoom: 3.2, on: [600, 1282] },                     // A close: the reading counts down to 7.0 °C
+    { at: .1, for: 2.0, zoom: 3.32, on: [600, 1282] },
+    { word: 'That', cut: true, zoom: 2.1, on: [565, 1300] },    // B CUT medium: "an infrared thermometer"
+    { word: 'against', for: 1.2, zoom: 2.22, on: [645, 1372] },// pan down along its aim: "against the thigh"
+    { word: 'boy', cut: true, zoom: 1.3, on: [600, 1352] },    // C CUT wide: "8-year-old boy"
+    { word: 'He', for: 1.9, zoom: 1.85, on: [830, 1415] }      // one slow push toward his face: "cold as the ice"
   ],
   focus: [
     { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },
-    { word: 'That', for: 1.8, far: 4, set: 1.5 },
+    { word: 'That', cut: true, far: 4, set: 1.5, cast: 0, front: 2 },
+    { word: 'infrared', for: 1.0, far: 4.5, set: 1.8 },        // the device in sharp focus as it is named
     { word: 'thigh', for: .6, far: 4, set: .8 },
-    { word: 'boy', for: 1.0, far: 1.2, set: 0, front: 1.5 },
+    { word: 'boy', cut: true, far: 1.2, set: 0, cast: 0, front: 1.5 },
     { word: 'He', for: 1.9, far: 3, set: .6, front: 2 }
   ],
   cast: {
@@ -123,15 +125,19 @@ const shots = {
   handheld: 2,
   light: { side: 'L', rim: '#e6e1cf', width: 2.5, shadow: .18 },   // moonlight through the window
   camera: [
-    { at: 0, zoom: 1.9, on: [337, 780] },                   // match cut: the lamp is where the hole in the ice was
-    { at: .2, for: 1.6, zoom: 1.9, on: [330, 1240] },        // tilt down to the doctor
-    { word: 'case', for: .7, zoom: 3.4, on: [300, 1335] },   // close enough to read CASE REPORT
-    { word: 'And', for: 3.8, zoom: 1.22, on: [610, 1240] }   // pull out to the boy in the bed
+    { at: 0, zoom: 1.9, on: [337, 780] },                     // A match cut: the lamp is where the hole in the ice was
+    { at: .2, for: 1.6, zoom: 1.9, on: [330, 1240] },          //   tilt down (no zoom) to the doctor
+    { word: 'It', cut: true, zoom: 5.2, on: [318, 1332] },     // B CUT to the page on "It is a case report": readable
+    { word: 'case', for: 1.0, zoom: 5.35, on: [318, 1332] },
+    { word: 'And', cut: true, zoom: 1.28, on: [420, 1240] },   // C CUT wide on the room…
+    { word: 'And', after: .15, for: 3.8, zoom: 1.34, on: [610, 1240] }   // …slow pan to the boy in the bed
   ],
   focus: [
     { at: 0, far: 4, set: 0, cast: 0, front: 2.5 },
     { at: .3, for: 1.4, set: 2.4 },
-    { word: 'And', for: 2.6, far: 2, set: 0, cast: 1.6, front: 2 }   // rack focus: the doctor goes soft, the boy sharp
+    { word: 'It', cut: true, far: 5, set: 3, cast: 0, front: 3 },
+    { word: 'And', cut: true, far: 2, set: 1.6, cast: 0, front: 2 },
+    { word: 'And', after: .2, for: 2.6, set: 0, cast: 1.6 }     // rack focus: the doctor goes soft, the boy sharp
   ],
   cast: {
     'heart-lung-machine': { at: 'machine', plane: 'back', z: 1400 },
