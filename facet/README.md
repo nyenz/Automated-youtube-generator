@@ -1,6 +1,7 @@
 # Facet style
 
 - `facet-kit.js` — the style engine (the backbone). People can now be posed: `stride` (leg steps), `head` (tilt/turn/nod), `lean`. No blur or effects.
+- `FACET-HOUSE.md` — the HOUSE STYLE: the one-page rule set every Facet video follows (uniform look, sound, camera, story logic, acting).
 - `FACET-STYLE-RULES.md` — the rules for AIs that draw assets (how things look).
 - `FACET-FILM-RULES.md` — the rules for AIs that make films (shots, cuts, camera, acting, depth, details, captions).
 - `FACET-KIT-FULL.md` — everything in one file (rules + engine + film rules) to paste into an AI.

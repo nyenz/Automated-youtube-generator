@@ -27,7 +27,8 @@ Pick the style on the Project page. New projects start in **Facet**; older proje
 - **Facet** (default): people are a short description (`F.person`) drawn in fixed exaggerated proportions; props and sets are drawn with big lit facets (`F.part`).
   Sets have three layers (far, ground, dark near silhouettes) so the camera shows depth. Shots are forms: camera keyframes on spoken words, subtle focus and rack focus,
   aerial perspective, acting on the words, held props, silhouettes, small looping details (breath, drips, blinking lights). Narration only — no generated music or sound effects.
-  Rules: `facet/FACET-STYLE-RULES.md` (look) and `facet/FACET-FILM-RULES.md` (film). Demo: "Under the Ice (Facet)" with the real narration.
+  Rules: `facet/FACET-HOUSE.md` (the one-page house style every video follows), `facet/FACET-STYLE-RULES.md` (look) and `facet/FACET-FILM-RULES.md` (film).
+  The app fills in house defaults (light, focus, camera drift, shot sizes) and warns when a rule is broken, so all videos come out uniform. Demo: "Under the Ice (Facet)" with the real narration.
 - **Low-Poly Paper**: people, props and sets are painted as flat faceted pictures (one light, no outlines). Everything is a cut-out, so the AI only draws pictures and the kit does the rest: jointed people with live faces (12 emotions), walking, waving, pointing, holding things, sitting. The camera is a real camera in a 2.5D world: parallax, depth-of-field blur and focus pulls, fog, floating dust, light shafts, blurred foreground shapes, film grain / gate weave / halation, mood grading, attention spotlight, flow continuity between shots, composition with room in front of the face, captions that move away from faces. Same SHOT forms, same sound, same export.
 - **Dark Paper Cinema**: the original dark 3D paper cut-out look.
 Changing the style after assets exist means the assets must be made again (the shots can stay, but check them in Watch & fix).

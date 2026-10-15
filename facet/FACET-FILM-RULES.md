@@ -1,6 +1,6 @@
 # FACET FILM RULES — how to turn a narration into a film (v1)
 
-Use these together with `FACET-STYLE-RULES.md` (how things LOOK). This file is how things MOVE, how the
+Use these together with `FACET-STYLE-RULES.md` (how things LOOK). The one-page summary every video follows is `FACET-HOUSE.md`. This file is how things MOVE, how the
 camera behaves and how shots are cut. The engine is `facet-motion.js` (`FM`). Every rule here was learned
 from a real test video, so follow all of them.
 
@@ -51,7 +51,8 @@ Zooming in and out over and over looks like a nervous amateur. Films change the 
 - **Inside one framing:** follow with **pans and tilts** (change `on`, keep `zoom` nearly the same) and at most **one slow push-in or pull-out**
   (about 0.1–0.3 zoom per second). Never zoom in and then out again inside the same framing.
 - **Hold each framing at least 1.5–2 s.** Let it breathe; the handheld drift keeps it alive.
-- **Inserts:** documents, screens and readings get their own very close framing (zoom 4–6), cut in on the word and held long enough to read.
+- **House shot sizes** (use them for every cut, so all videos frame the same way): establishing 1.0 · wide 1.3 · full 1.6 · medium 2.1 · close 3.0 · insert 5.2 (`size: 'medium'`).
+- **Inserts:** documents, screens and readings get their own very close framing (`size: 'insert'`), cut in on the word and held long enough to read.
 - **Focus cuts with the camera:** a focus keyframe with `cut: true` snaps at the same moment.
 - The app checks this: it warns about zoom in-and-out inside a framing, zooms that are too fast, too many zoom moves and framings held too briefly.
 
