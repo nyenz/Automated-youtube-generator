@@ -70,20 +70,35 @@
   }
   K.size = function () { return [W, H] };
   /** draw the picture at time t; returns a promise (the SVG becomes an image first) */
-  var drawing = Promise.resolve();
+  var drawing = Promise.resolve(), lastSvg = null, GRAIN = null, grainJob = null;
+  var GRAIN_RE = /<rect width="\d+" height="\d+" filter="url\(#grain\)"\/>/;
   K.frame = function (tq, t) {
     var time = t === undefined ? tq : t;
     var svg = FILM ? FM.frame(FILM, time) : null;              // building the picture is synchronous: errors throw here
     if (!svg) return Promise.resolve();
-    drawing = svgToCanvas(svg);
+    if (svg === lastSvg) return drawing;                        // nothing changed: keep the last picture
+    lastSvg = svg;
+    // SPEED: the paper grain is the same on every frame, so draw it once and lay it on top instead of recalculating it
+    if (!grainJob) grainJob = makeGrain(svg);
+    var body = svg.replace(GRAIN_RE, '');
+    drawing = grainJob.then(function () { return svgToCanvas(body) });
     return drawing;
   };
-  function svgToCanvas(svg) {
+  function makeGrain(svg) {
+    var m = /<filter id="grain"[\s\S]*?<\/filter>/.exec(svg); if (!m) return Promise.resolve();
+    var g = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '"><defs>' + m[0] + '</defs><rect width="' + W + '" height="' + H + '" filter="url(#grain)"/></svg>';
+    return loadImg(g).then(function (img) { if (!img) return; GRAIN = document.createElement('canvas'); GRAIN.width = cv.width; GRAIN.height = cv.height; GRAIN.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height) });
+  }
+  function loadImg(svg) {
     return new Promise(function (res) {
       var url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })), img = new Image();
-      img.onload = function () { cx.clearRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); res() };
-      img.onerror = function () { URL.revokeObjectURL(url); res() };
-      img.src = url;
+      img.onload = function () { URL.revokeObjectURL(url); res(img) }; img.onerror = function () { URL.revokeObjectURL(url); res(null) }; img.src = url;
+    });
+  }
+  function svgToCanvas(svg) {
+    return loadImg(svg).then(function (img) {
+      if (!img) return; cx.clearRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height);
+      if (GRAIN) cx.drawImage(GRAIN, 0, 0);
     });
   }
   K.start = function (so) {
@@ -143,8 +158,11 @@
     }
     var cast = [], byName = {};
     Object.keys(sp.cast || {}).forEach(function (name) {
-      var e = sp.cast[name] || {}, a = K.make(e.asset || name), pos = place(e.at, name), c = { id: r.id + ':' + name, x: pos[0], ground: pos[1], seed: e.seed || hash(name), moves: [] };
-      ['z', 'layer', 'plane', 'opacity', 'cycle', 'blink', 'flip', 'rot', 'silhouette', 'shadow', 'lying', 'idle', 'arms', 'head', 'lean', 'stride', 'from', 'until', 'value'].forEach(function (k) { if (e[k] !== undefined) c[k] = e[k] });
+      var e = Object.assign({}, sp.cast[name] || {});
+      ['fade', 'value'].forEach(function (k) { if (e[k] && typeof e[k] === 'object' && e[k].word != null) e[k] = Object.assign({}, e[k], { at: timeOf(r, e[k], name + ' ' + k) }) });   // timed on a spoken word
+      if (e.hold) { var hd = {}; Object.keys(e.hold).forEach(function (sd) { var hv = e.hold[sd]; if (hv && typeof hv === 'object') { hv = Object.assign({}, hv); ['from', 'to'].forEach(function (k) { if (typeof hv[k] === 'string') hv[k] = timeOf(r, { word: hv[k] }, name + ' hold') }); if (hv.value && hv.value.word != null) hv.value = Object.assign({}, hv.value, { at: timeOf(r, hv.value, name + ' value') }) } hd[sd] = hv }); e.hold = hd }
+      var a = K.make(e.asset || name), pos = place(e.at, name), c = { id: r.id + ':' + name, x: pos[0], ground: pos[1], seed: e.seed || hash(name), moves: [] };
+      ['z', 'layer', 'plane', 'opacity', 'cycle', 'blink', 'flip', 'rot', 'silhouette', 'shadow', 'lying', 'idle', 'arms', 'head', 'lean', 'stride', 'from', 'until', 'value', 'colour', 'fade', 'breath', 'rim'].forEach(function (k) { if (e[k] !== undefined) c[k] = e[k] });
       if (a.kind === 'character') {
         c.person = Object.assign({}, a.person || {}, e.view ? { view: e.view } : {}, e.face ? { face: e.face } : {});
         c.height = (e.size || a.size || 2.6) * U;
@@ -185,7 +203,8 @@
     });
     var focus = (sp.focus || []).map(function (f) { var o = Object.assign({}, f); o.at = timeOf(r, f, 'focus'); delete o.word; return o });
     return { id: r.id, from: r.from, to: r.to, bg: sp.bg || sa.bg || '#c0612c', far: sa.far, set: sa.set, front: sa.front,
-      grade: sp.grade || sa.grade, focus: focus, handheld: sp.handheld == null ? 2 : sp.handheld, cast: cast, camera: cam };
+      grade: sp.grade || sa.grade, focus: focus, handheld: sp.handheld == null ? 2 : sp.handheld, cast: cast, camera: cam,
+      light: sp.light || sa.light || null, weather: sp.weather || sa.weather || null };
   }
   function placeholderShot(r, msg) {
     return { id: r.id, from: r.from, to: r.to, bg: '#2a2a30', cast: [], camera: [{ at: 0, zoom: 1 }],

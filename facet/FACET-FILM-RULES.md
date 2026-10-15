@@ -115,6 +115,27 @@ The viewer checks the picture against the words. When the narration names a deta
 - A move must never cancel another one that is still going (do not use 'sad', which drops both arms, while a hand is busy; use a head tilt).
 - **Captions are never cut off:** long groups wrap to two lines or shrink to fit (built in). Still prefer short groups.
 
+## 6c. The detail pass (every video)
+
+Before any shot is written, the plan lists **what each narration line names that the picture must show** (`details` in the plan:
+`{ line, word, show }`). Every shot then shows each of its details **on its word**; the app warns about any detail a shot misses.
+What counts as a detail:
+- **Numbers and readings** → an instrument shows them (counting to the value).
+- **Body parts and places** → the action happens exactly there ("thigh", "chest", "under the pond").
+- **Body states** → visible: cold (pale blue-grey, blue lips), limp (no tension, arms flat), not breathing (`breath: 0`), recovering (colour back, breathing).
+- **Time** → show it passing: light dims or changes colour, frost grows over a hole, a clock moves, shadows stretch (`fade` over time).
+- **Documents and names** → readable: a page that says CASE REPORT, a sign, a label (F.text), and the camera goes close enough to read it.
+- **Outcomes** → show the result, not just the event: survival = the heart line comes alive, colour returns, the chest rises.
+
+## 6d. Light, weather and life (every place)
+
+- **One light per place, used consistently:** `light: { side, rim, shadow }` gives every person a thin flat rim edge on the lit side
+  (moon blue-white, lamp warm, warning lights red/blue) and a cast shadow on the floor away from the light. Flat shapes, never glow.
+- **Weather that fits the place:** snow on a winter night, rain in a storm, dust in a dry room, ash near fire (`weather: { kind, amount }`),
+  in three depths; the near flakes are slightly soft (front focus).
+- **Breathing tells the truth:** the living breathe (default); someone without a pulse does not (`breath: 0`); recovery brings it back (`breath` move).
+- **States carry over between shots:** if he was cold at the pond, he starts cold in the hospital (`colour: {...}`), then warms when the story says so.
+
 ## 7. Colour across the film
 
 - Each place has its own colour world (`bg`): cold blue outside at night, deep blue under water, teal in the hospital.
@@ -135,6 +156,8 @@ The viewer checks the picture against the words. When the narration names a deta
 - [ ] Each place has `far`, `set` and `front` layers and at least 2 small details.
 - [ ] Lying people face up; wet things look wet; cold shows breath.
 - [ ] Every detail the narration names is shown literally on that word (where it is aimed, what it reads, how the body looks).
+- [ ] The plan has a detail pass and every shot times its details on their words (no app warnings).
+- [ ] Each place has light (rim + cast shadow), fitting weather if outdoors, and body states that carry over between shots.
 - [ ] Anything too hard or too dark to show is a silhouette.
 - [ ] Captions sit in the empty top area and only key words are coloured.
 - [ ] Far layers are graded into the world colour; the subject has the strongest contrast.

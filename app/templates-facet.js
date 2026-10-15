@@ -58,7 +58,9 @@ KIT.asset('asset-name', function (F) {
     far: function (F, W, H) {...},     // distant things: hills, trees, a window — the camera moves them slowly
     set: function (F, W, H) {...},     // the ground the cast stands on, walls, things at the cast's distance
     front: function (F, W, H) {...},   // 2–3 DARK flat silhouettes at the frame EDGES very close to the camera (snow bank, reeds, curtain edge, pole)
-    spots: { name: [x, groundY], ... } }   // where things stand, in pixels of the 1080 × 1920 frame
+    spots: { name: [x, groundY], ... },   // where things stand, in pixels of the 1080 × 1920 frame
+    light: { side: 'L' | 'R', rim: colour, width: 3, shadow: .2 },   // the place's light (moon, lamp, window): rim edge + cast shadow
+    weather: { kind: 'snow' | 'rain' | 'dust' | 'ash', amount: 70 } }  // outdoors only
   Each layer function draws the WHOLE frame: F.begin({ width: W, height: H, bg, seed }); ...; return F.render('...').
   Draw ground and backgrounds bigger than the frame (x from -400 to 1480, y down to 2700) so camera moves never show an edge.
   grade (aerial perspective): night ['#24344a', .4] · under water ['#0f1e2c', .35] · indoors a darker wall colour at .25–.3 · fog/day a lighter colour.
@@ -142,6 +144,8 @@ KIT.asset('pond', function (F) {
 SHOT('M01', {
   set: 'pond',                       // one set from the asset list
   handheld: 3,                       // a slow slight drift (2–3) so the camera is never frozen
+  light: { side: 'L', rim: '#dfe9f2', width: 3, shadow: .2 },   // one light per place: flat rim edge on the lit side + cast shadow
+  weather: { kind: 'snow', amount: 70 },                         // outdoors: snow | rain | dust | ash (leave out indoors)
   camera: [                          // keyframes; the first one is the start
     { at: 0, zoom: 3.0, on: 'thermometer' },              // on: a cast name or [x, y] in the frame
     { word: 'That', for: 4.0, zoom: 1.3, on: [570, 1340] },  // starts on a spoken word, eases over 'for' seconds
@@ -173,12 +177,14 @@ SHOT('M01', {
   Arm poses (front): hang [7, 2] · hands on hips [35, −110] · hold in front [−5, −90] · wave [150, 30]. (side): reach forward [80, 0] · reach down [42, 22].
 - Things: size, flip, rot, opacity, layer: 'far' (moves with the distance), plane: 'back' (furniture behind the action: shares the background focus),
   cycle: { period, phase, grow: [a, b], fade: [a, b], dx, dy, fall: true } (breath puffs, drips, bubbles) · blink: { period, on, phase } (warning lights) ·
-  value: 7 or { from: 9.6, to: 7.0, at: 0, for: 1.6, step: .1 } (a live number for instruments: the asset's draw(F, v) shows it — also on hold entries)
+  value: 7 or { from: 9.6, to: 7.0, at: 0, for: 1.6, step: .1 } or { word: 'seven', ... } (a live number for instruments: the asset's draw(F, v) shows it — also on hold entries) ·
+  fade: { from: 0, to: 1, word: 'hours', for: 3 } (fade something in or out: frost growing, light dimming, a dark overlay for night falling) ·
+  colour: { skin: '#cdd8de', lips: '#8d8fae' } (starting body colour — keep states from the shot before) · breath: 0 (not breathing) · rim: false
 - z: draw order (bigger = in front). Default: by ground y.
 ### MOVES (do:)
 walk { to: spot | x } · hop · bounce · wave { arm } · cheer · point { arm } · hips · hold (hands in front) · shrug · sad · shake (head "no") · nod ·
 look { dir: 'L' | 'R' } · tilt { deg } · lean { deg } · shiver · kneel · sit · chair · reach { arm, deg, bend } · arms { L, R } · legs { L, R } ·
-drift { dx, dy, rot } (slow float/sink over 'for' seconds) · colour { skin, lips, top, shoes } (the body changes colour and keeps it: cold → skin '#cdd8de', lips '#8d8fae').
+drift { dx, dy, rot } (slow float/sink over 'for' seconds) · breath { amount: 1 } (breathing comes back over 'for' seconds) · colour { skin, lips, top, shoes } (the body changes colour and keeps it: cold → skin '#cdd8de', lips '#8d8fae').
 Never start a move that cancels a busy one ('sad' drops both arms — while a hand is busy use tilt instead). Every pose change winds up, overshoots a little and settles by itself.
 camera zoom words: wide 1 · full 1.25 · medium 1.6 · close 2.2 · detail 3 (or any number).
 
@@ -186,6 +192,9 @@ camera zoom words: wide 1 · full 1.25 · medium 1.6 · close 2.2 · detail 3 (o
 - ONE PLACE = ONE SHOT: inside a place, move the camera (open close, pull out, glide in) instead of cutting. A 20 s piece has 2–4 places.
 - Open on what the narration names first (the narrator says "7 degrees" → open on the thermometer screen).
 - Every camera move has a reason (follow the action, reveal the place, come closer for a feeling). Leave look-room in front of faces.
+- MUST SHOW lists (from the plan's detail pass) are required: time every one on its word. The app warns about any you miss.
+- Show time passing when the words mention time; make documents readable and go close; show outcomes (recovery: colour back, breath, heart line).
+- Every place: light (rim + cast shadow), weather outdoors, body states carried over from the shot before (colour, breath).
 - SHOW EXACTLY WHAT THE WORDS SAY: aim the prop at the named place ("against the thigh" → aimed at the thigh, camera follows on that word);
   instruments count to the number the narrator says (value); bodies change colour with the story (colour: cold, fear, effort).
 - Acting matches the words (on the word): a check on "pulse", head drops after bad news, a shake on "not", a nod on "yes", look at whoever is talked about.
@@ -208,12 +217,18 @@ camera zoom words: wide 1 · full 1.25 · medium 1.6 · close 2.2 · detail 3 (o
 - [ ] Every word: '...' is spoken in THAT shot (see its words list).
 - [ ] The camera opens on what the narration names; every move has a reason; handheld 2–3.
 - [ ] Acting lands on the right words; only one person acts at a time.
-- [ ] At least 2 small details; focus never on blur of the subject; no glow, sparks or title cards.`;
+- [ ] At least 2 small details; focus never on blur of the subject; no glow, sparks or title cards.
+- [ ] Every MUST SHOW item is timed on its word. light is set; weather outdoors; body states (colour, breath) carried over.`;
 
   var PLANNOTES = `   - Facet style: a person is just a description (cheap). Sets have 3 layers and are the most work.
    - difficulty: 1 = simple (a person, a small prop, a puff of breath, a light), 2 = medium (a vehicle, a machine, a bed, an animal), 3 = hard (a set, a complex creature or machine).
    - Plan the small logical details as fx assets too (breath, drips, bubbles, a blinking light, a far vehicle).
    - moves: leave empty — the Facet kit already has every move (walk, kneel, sit, reach, look, nod, shake, sad, wave, hold, drift...).
+   - "details" (top level) — the DETAIL PASS, the most important part of the plan: for every line, list what the words NAME that the picture
+     must show on that word: numbers and readings ("7 degrees" → the thermometer reads 7.0 °C), body parts ("thigh" → aimed at the thigh),
+     body states ("cold", "limp", "pale", "breathing"), time ("two hours" → the light changes, frost grows), objects and documents ("case report"
+     → a readable page that says CASE REPORT), outcomes ("survival" → he recovers: colour back, breathing, a living heart line).
+     Format: "details": { "<cut id>": [ { "line": 1, "word": "thigh", "show": "..." } ] }. Aim for 1–3 per line. The app checks every shot against it.
    - "keys" (top level): the key words for the captions — numbers, names and the facts that matter (e.g. ["7", "degrees", "pulse", "hours", "record"]).
    - Shots: one place = one shot (cover several lines; move the camera inside it). Only cut when the place or time changes.`;
 

@@ -70,6 +70,16 @@
       if (!a.look) warns.push('asset "' + a.name + '" has no "look".');
       if (!(+a.size > 0)) warns.push('asset "' + a.name + '" has no "size".');
     });
+    // DETAIL PASS: what the narration names that the picture must show ({ cut: [{ line, word, show }] })
+    if (Array.isArray(plan.details)) { var one = {}; one[(cuts && cuts[0] && cuts[0].id) || 'main'] = plan.details; plan.details = one }
+    if (plan.details && typeof plan.details === 'object') Object.keys(plan.details).forEach(function (cid) {
+      var cut = (cuts || []).filter(function (c) { return c.id === cid })[0], L = Array.isArray(plan.details[cid]) ? plan.details[cid] : [];
+      plan.details[cid] = L.filter(function (d, i) {
+        if (!d || d.line == null || !d.word || !d.show) { warns.push('details.' + cid + ' #' + (i + 1) + ' needs line, word and show.'); return false }
+        if (cut && cut.lines && (d.line < 0 || d.line >= cut.lines.length)) { warns.push('details.' + cid + ': line ' + d.line + ' does not exist.'); return false }
+        return true;
+      });
+    });
     var C = plan.cuts || {};
     (cuts || []).forEach(function (c) {
       var list = C[c.id];
@@ -111,6 +121,17 @@
       if (best) best.b.push(it); else bins.push([it]);
     });
     return bins;
+  };
+
+  /** the details a shot must show (its lines) and which of them its SHOT code does not time on their word */
+  PL.shotDetails = function (plan, cid, shot) {
+    var L = (plan && plan.details && plan.details[cid]) || [];
+    return shot && shot.lines ? L.filter(function (d) { return d.line >= shot.lines[0] && d.line <= shot.lines[1] }) : [];
+  };
+  PL.missingDetails = function (code, details) {
+    var norm = function (w) { return String(w).toLowerCase().replace(/[^a-z0-9]/g, '') }, used = [], re = /word\s*:\s*(['"`])([^'"`]+)\1/g, m;
+    while ((m = re.exec(code || ''))) used.push(norm(m[2].split(/\s+/)[0]));
+    return details.filter(function (d) { var w = norm(String(d.word).split(/\s+/)[0]); return !used.some(function (u) { return u && (u.indexOf(w) === 0 || w.indexOf(u) === 0) }) });
   };
 
   /* AUTO BATCHING by complexity: hard assets get a chat of their own, medium ones go in pairs,

@@ -38,6 +38,12 @@
      cycle: { period, phase, grow: [from, to], fade: [from, to], dx, dy, fall } — a repeating detail (breath puff, drip)
      value: { from, to, at, for, step } — a live number passed to draw(F, value) (a reading counting down); also on hold entries
    move colour { skin, lips, top, shoes } — the body slowly changes colour and STAYS (cold → pale blue-grey skin, blue lips)
+   colour: { skin, lips } — a starting body colour (still cold when the shot begins)
+   breath: 1 normal · 0 not breathing; move breath { amount } changes it over 'for' seconds (recovery) — lying people breathe too
+   fade: { from: 0, to: 1, at, for } — fade a thing in or out over time (frost growing, light dimming)
+   rim: false — no rim light on this one (rim: true on a prop to give it one)
+   shot.light: { side: 'L'|'R', rim: '#e8eef3', width: 3, shadow: .2, length: .24, angle: 52 } — a flat rim edge on the lit side and a cast shadow away from it
+   shot.weather: { kind: 'snow'|'rain'|'dust'|'ash', amount: 70, speed: 1, wind: 0 } — falling things in three depths
      plane: 'back' — a cast item that belongs to the background plane (furniture, machines): it gets the set's focus and grade
    shot.grade: { far: [colour, amount], set: [colour, amount] } — aerial perspective: far things sink into the world colour
    shot.focus: [{ at, for, far, set, cast, front }] — subtle depth of field in screen pixels (0–5). The subject is never blurred.
@@ -95,7 +101,7 @@
      value: 7 (fixed) or { from: 11.4, to: 7.0, at: 0, for: 1.8, step: 0.1 } — the asset's draw(F, value) gets the number. */
   function valueAt(v, t) {
     if (v == null) return undefined; if (typeof v !== 'object') return v;
-    const k = Math.min(1, Math.max(0, (t - (v.at || 0)) / (v.for || 1))), e = 1 - (1 - k) ** 3, x = lerp(v.from, v.to, e), st = v.step || .1;
+    const k = Math.min(1, Math.max(0, (t - (v.at || 0)) / (v.for || 1))), e = v.ease === 'linear' ? k : 1 - (1 - k) ** 3, x = lerp(v.from, v.to, e), st = v.step || .1;
     return +(Math.round(x / st) * st).toFixed(4);
   }
   const hex2 = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), toHex = c => '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
@@ -110,7 +116,12 @@
     const sideV = isSide(c);
     // idle: slow breathing + a tiny sway, so nobody is ever frozen
     const ph = (c.seed || 1) * 1.7;
-    P.sy = 1 + .007 * Math.sin(t * 2 * Math.PI / 3.1 + ph);
+    // breathing: c.breath = 1 normal, 0 = not breathing (no pulse); a 'breath' move changes it over time (recovery)
+    let br = c.breath == null ? 1 : c.breath;
+    (c.moves || []).forEach(m => { if (m.do === 'breath') { const k = ease(Math.min(1, Math.max(0, (t - (m.at || 0)) / (m.for || 1)))); br = lerp(br, m.amount == null ? 1 : m.amount, k) } });
+    const bw = Math.sin(t * 2 * Math.PI / 3.1 + ph);
+    P.sy = 1 + .007 * br * bw; P.bk = br * Math.max(0, bw);
+    if (c.colour) Object.keys(c.colour).forEach(k => { P.paint[k] = c.colour[k] });   // a starting body colour (e.g. still cold)
     P.rot = .5 * Math.sin(t * 2 * Math.PI / 4.3 + ph);
     if (c.idle && c.idle.lean) P.lean += c.idle.lean * Math.sin(t * 2 * Math.PI / (c.idle.period || 3.6) + ph);   // shifting weight
     let x = c.x || 0;
@@ -134,6 +145,7 @@
         } else if (t > a + d) P.x = to;
         x = to; return;
       }
+      if (m.do === 'breath') return;
       if (m.do === 'colour' || m.do === 'color') {                     // a body change that stays: cold skin, a blush, going pale
         const k = Math.round(ease(Math.min(1, Math.max(0, (t - a) / d))) * 12) / 12; if (!k) return;
         Object.keys(m).forEach(key => { if (!BASE.hasOwnProperty(key) || typeof m[key] !== 'string') return;
@@ -255,26 +267,57 @@
         cx = (C.dx || 0) * k; cy = (C.dy || 0) * (C.fall ? k * k : k);
       }
       if (c.blink) { const B = c.blink, k = (((t + (B.phase || 0)) % B.period) + B.period) % B.period / B.period; if (k > (B.on || .5)) return; }
+      if (c.fade) { const Fd = c.fade, k = ease(Math.min(1, Math.max(0, (t - (Fd.at || 0)) / (Fd.for || 1)))); op = lerp(Fd.from == null ? 0 : Fd.from, Fd.to == null ? 1 : Fd.to, k) * (op == null ? 1 : op); if (op <= .005) return; }
+      const L = S._light || null, tint = (svg, col) => svg.replace(/fill="#[0-9a-fA-F]{3,6}"/g, 'fill="' + col + '"');
+      const rimOn = L && L.rim && c.rim !== false && !c.silhouette && (c.person || c.rim);
       const wrap = svg => op != null && op < 1 ? `<g opacity="${f(Math.max(0, op))}">${svg}</g>` : svg;
       if (c.person) {
         c.holdNow = null;
         if (c.hold) { c.holdNow = {}; Object.keys(c.hold).forEach(k => { const hh = c.hold[k]; if (!hh || (hh.from != null && t < hh.from) || (hh.to != null && t >= hh.to)) return; c.holdNow[k] = Object.assign({}, hh, { _v: valueAt(hh.value, t) }); }); }
         if (c.lying) {                                                   // lying on the back, face UP: head to the left, or to the right with lying: 'right'
           const dir = c.lying === 'right' ? 1 : -1;
-          g += wrap(`<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy - h * .145)}) rotate(${f(dir * 90 + P.rot)})">${sil(personBody(c, P))}</g>`);
+          const bodyL = personBody(c, P), tr = `translate(${f(P.x + P.dx)} ${f(G + P.dy - h * .145)}) rotate(${f(dir * 90 + P.rot)}) scale(${f(1 + .03 * P.bk)} 1)`;
+          if (rimOn) g += `<g transform="translate(0 ${f(-(L.width || 3))})"><g transform="${tr}">${tint(bodyL, L.rim)}</g></g>`;   // rim: a thin light edge on top
+          g += wrap(`<g transform="${tr}">${sil(bodyL)}</g>`);
           return;
         }
+        const body = personBody(c, P), tr = `translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(P.sx)} ${f(P.sy)})`;
         if (c.shadow !== false) {
           const lift = Math.max(0, -P.dy) / h;
+          if (L && L.shadow) {                                          // a cast shadow on the floor, away from the light (flat, see-through)
+            const sk = (L.side === 'R' ? 1 : -1) * (L.angle || 52);
+            g += `<g opacity="${L.shadow}" transform="translate(${f(P.x + P.dx)} ${f(G)}) skewX(${sk}) scale(${f(P.sx)} ${f((L.length || .24) * (1 - lift))})">${tint(body, L.shadowColour || '#1b1712')}</g>`;
+          }
           g += `<g transform="translate(${f(P.x + h * .02)} ${f(G)}) scale(${f(1 - lift * 1.2)} 1)">${shadowBody(h * .42)}</g>`;
         }
-        g += wrap(`<g transform="translate(${f(P.x + P.dx)} ${f(G + P.dy)}) rotate(${f(P.rot)}) scale(${f(P.sx)} ${f(P.sy)})">${sil(personBody(c, P))}</g>`);
+        if (rimOn) { const wd = L.width || 3, sd = L.side === 'R' ? 1 : -1; g += `<g transform="translate(${f(sd * wd)} ${f(-wd * .6)})"><g transform="${tr}">${tint(body, L.rim)}</g></g>` }   // rim light on the lit side
+        g += wrap(`<g transform="${tr}">${sil(body)}</g>`);
       } else if (c.draw) {
         const o = c.origin || [540, 1000], sc = c.scale || 1;
-        g += wrap(`<g transform="translate(${f(P.x + P.dx + cx)} ${f(G + P.dy + cy)}) rotate(${f(P.rot + (c.rot || 0))}) scale(${f(cs * sc * P.sx * (c.flip ? -1 : 1))} ${f(cs * sc * P.sy)}) translate(${-o[0]} ${-o[1]})">${sil(assetBody(c, valueAt(c.value, t)))}</g>`);
+        const body = assetBody(c, valueAt(c.value, t)), tr = `translate(${f(P.x + P.dx + cx)} ${f(G + P.dy + cy)}) rotate(${f(P.rot + (c.rot || 0))}) scale(${f(cs * sc * P.sx * (c.flip ? -1 : 1))} ${f(cs * sc * P.sy)}) translate(${-o[0]} ${-o[1]})`;
+        if (rimOn) { const wd = L.width || 3, sd = L.side === 'R' ? 1 : -1; g += wrap(`<g transform="translate(${f(sd * wd)} ${f(-wd * .6)})"><g transform="${tr}">${tint(body, L.rim)}</g></g>`) }
+        g += wrap(`<g transform="${tr}">${sil(body)}</g>`);
       }
     });
     return g;
+  }
+  /* WEATHER: snow, rain, dust or ash in three depths (far small and slow, near big and fast — the near ones get the
+     front focus). Flat shapes only. weather: { kind: 'snow', amount: 70, speed: 1, colour, wind } */
+  function weather(Wd, S, t, cam) {
+    if (!Wd) return ['', '', ''];
+    const kind = Wd.kind || 'snow', n = Wd.amount || 60, sp = Wd.speed || 1, wind = Wd.wind || 0, W = S.width, H = S.height;
+    const col = Wd.colour || (kind === 'rain' ? '#c9d6e3' : kind === 'ash' ? '#6b6560' : kind === 'dust' ? '#e6dcc8' : '#f4f6f6');
+    let seed = 13; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646 };
+    const out = ['', '', ''], depth = [[.45, .5, .55], [1, 1, .8], [1.9, 1.7, .9]];   // [size, speed, opacity] for far / mid / near
+    for (let i = 0; i < n; i++) {
+      const d = i % 3 === 0 ? 2 : i % 3 === 1 ? 1 : 0, D = depth[d], x0 = rnd() * W, y0 = rnd() * H, ph = rnd() * 6.28, r0 = .6 + rnd() * .8;
+      const fall = (kind === 'rain' ? 900 : kind === 'dust' ? 18 : 70) * sp * D[1], px = (cam.x - W / 2) * (d === 0 ? .3 : d === 1 ? .8 : 1.4);
+      let y = ((y0 + fall * t) % (H + 120)) - 60; if (kind === 'dust') y = y0 + Math.sin(t * .4 + ph) * 30;
+      const x = ((x0 + Math.sin(t * .9 + ph) * (kind === 'rain' ? 0 : 14) + wind * t * D[1] * 40 - px) % W + W) % W;
+      if (kind === 'rain') out[d] += `<path d="M${f(x)},${f(y)} l${f(-6 - wind * 6)},${f(34 * D[0])}" stroke="${col}" stroke-width="${f(2 * D[0])}" opacity="${f(.45 * D[2])}"/>`;
+      else { const r = (kind === 'dust' ? 1.6 : 3.4) * D[0] * r0; out[d] += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="${col}" opacity="${f((kind === 'dust' ? .35 : .8) * D[2])}"/>` }
+    }
+    return out;
   }
   /** one shot: its own colour world, set, cast and camera. t = seconds since the shot started. */
   function shotSVG(S, sh, t) {
@@ -293,13 +336,15 @@
     };
     // AERIAL PERSPECTIVE: far things lose contrast and sink into the world colour (darker at night, bluer under water)
     const grade = gr => gr ? `<rect x="-6000" y="-6000" width="14000" height="14000" fill="${gr[0]}" opacity="${gr[1]}"/>` : '';
+    S._light = sh.light || null;
     const cast = sh.cast || [], farCast = cast.filter(c => c.layer === 'far'),
       backCast = cast.filter(c => c.layer !== 'far' && c.plane === 'back'), mainCast = cast.filter(c => c.layer !== 'far' && c.plane !== 'back');
     let g = '';
-    if (sh.far) g += soft(foc.far, 'f', camT(sh.farDepth || .45) + setBody(sh.id + '|far', sh.far, S) + castSVG(S, farCast, t) + grade(sh.grade && sh.grade.far) + '</g>');
+    const wx = weather(sh.weather, S, t, cam);
+    if (sh.far) g += soft(foc.far, 'f', camT(sh.farDepth || .45) + setBody(sh.id + '|far', sh.far, S) + castSVG(S, farCast, t) + grade(sh.grade && sh.grade.far) + '</g>' + wx[0]);
     g += soft(foc.set, 's', camT(1) + (sh.set ? setBody(sh.id + '|back', sh.set, S) : '') + castSVG(S, backCast, t) + grade(sh.grade && sh.grade.set) + '</g>');
-    g += soft(foc.cast, 'c', camT(1) + castSVG(S, mainCast, t) + '</g>');
-    if (sh.front) g += soft(foc.front, 'n', camT(sh.frontDepth || 1.3) + setBody(sh.id + '|front', sh.front, S) + '</g>');
+    g += soft(foc.cast, 'c', camT(1) + castSVG(S, mainCast, t) + '</g>' + wx[1]);
+    g += soft(foc.front, 'n', (sh.front ? camT(sh.frontDepth || 1.3) + setBody(sh.id + '|front', sh.front, S) + '</g>' : '') + wx[2]);
     return { head: shell.slice(0, cut) + g, tail: shell.slice(cut) };
   }
   /* captions: a few words at a time, the spoken word in the accent colour. Plain solid text — no glow, no blur. */

@@ -272,6 +272,7 @@
     function read() {
       try { var plan = PLAN.json(P.planRaw) } catch (e) { planCheck = { errors: ['Could not read JSON: ' + e.message], warnings: [] }; return rerender() }
       planCheck = PLAN.validate(plan, P.cuts);
+      if (styleOf() === 'facet' && !(plan.details && Object.keys(plan.details).some(function (k) { return (plan.details[k] || []).length }))) planCheck.warnings.push('No "details" (detail pass): list what each line names that the picture must show — copy the fix prompt to add it.');
       if (!planCheck.errors.length) { applyPlan(plan); toast('Plan accepted: ' + plan.assets.length + ' assets.') }
       rerender();
     }
@@ -283,7 +284,7 @@
         h('div', { className: 'row' }, h('button', { disabled: !ready, on: { click: function () { promptBox('Plan prompt', TPL.plan(P), 'Plan prompt') } } }, 'Copy plan prompt')),
         field('Paste the plan (JSON)', h('textarea', { value: P.planRaw, style: 'min-height:160px', on: { input: function () { P.planRaw = this.value; save() } } })),
         h('div', { className: 'row' }, h('button', { className: 'blue', on: { click: read } }, 'Read plan'),
-          planCheck && planCheck.errors.length ? h('button', { className: 'ghost', on: { click: function () { promptBox('Plan fix prompt', TPL.planFix(P, planCheck.errors), 'Fix prompt') } } }, 'Copy fix prompt') : null),
+          planCheck && (planCheck.errors.length || planCheck.warnings.some(function (w) { return /detail pass/.test(w) })) ? h('button', { className: 'ghost', on: { click: function () { promptBox('Plan fix prompt', TPL.planFix(P, planCheck.errors.concat(planCheck.warnings.filter(function (w) { return /detail pass/.test(w) }))), 'Fix prompt') } } }, 'Copy fix prompt') : null),
         planCheck ? msgs(planCheck.errors, planCheck.warnings) : null),
       P.plan ? planSummary() : null,
       P.plan ? nextBtn('assets', 'Next: Assets →') : null);
@@ -297,7 +298,9 @@
       P.cuts.map(function (c) {
         var list = P.plan.cuts[c.id] || [];
         return h('div', { className: 'card' }, h('h3', null, c.label + ' — ' + list.length + ' shots'),
-          h('table', null, list.map(function (s) { return h('tr', null, h('td', null, s.id), h('td', null, 'lines ' + s.lines.join('–')), h('td', null, s.set), h('td', null, (s.cast || []).join(', ')), h('td', { className: 'muted' }, s.show), h('td', null, s.mood || '')) })));
+          h('table', null, list.map(function (s) { return h('tr', null, h('td', null, s.id), h('td', null, 'lines ' + s.lines.join('–')), h('td', null, s.set), h('td', null, (s.cast || []).join(', ')), h('td', { className: 'muted' }, s.show), h('td', null, s.mood || '')) })),
+          (P.plan.details && P.plan.details[c.id] && P.plan.details[c.id].length) ? h('div', { style: 'margin-top:10px' }, h('b', null, 'Must show (detail pass): '),
+            h('ul', { className: 'small' }, P.plan.details[c.id].map(function (d) { return h('li', null, 'line ' + d.line + ' · "' + d.word + '" → ' + d.show) }))) : null);
       }));
   }
 
@@ -442,7 +445,13 @@
   }
   function checkShots(cid, ids) {
     return stage({ mode: 'check-shots', sky: sky(), assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), ids: ids, res: 240 }, 'check-shots').then(function (m) {
-      Object.keys(m.results).forEach(function (id) { var x = (P.shots[cid] || {})[id]; if (!x) return; var r = m.results[id]; x.check = r; x.status = r.ok ? (x.status === 'approved' ? 'approved' : 'checked') : 'error' });
+      Object.keys(m.results).forEach(function (id) {
+        var x = (P.shots[cid] || {})[id]; if (!x) return; var r = m.results[id];
+        // detail pass: every detail the narration names in this shot must be timed on its word
+        var s = (P.plan.cuts[cid] || []).filter(function (q) { return q.id === id })[0];
+        PLAN.missingDetails(x.code, PLAN.shotDetails(P.plan, cid, s)).forEach(function (d) { r.warnings.push('Detail not shown on its word "' + d.word + '": ' + d.show + " — time it with word: '" + d.word + "'.") });
+        x.check = r; x.status = r.ok ? (x.status === 'approved' ? 'approved' : 'checked') : 'error';
+      });
       save(true); return m.results;
     });
   }
