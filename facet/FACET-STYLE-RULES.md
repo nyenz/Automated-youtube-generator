@@ -226,6 +226,12 @@ Casting rule: characters are white by default (skin `pale` or `warm`); use other
 18. A thermometer frozen on 7.0 looks dead → instruments count to the value the narrator says (`value`), then settle.
 19. "Cold as the ice" with a normal face missed the point → bodies change colour with the story (`colour` move: cold skin, blue lips) and keep it.
 20. Captions wider than the frame were cut off → captions wrap to two lines and shrink to fit (built in).
+21. Details were only caught by eye → the plan has a DETAIL PASS (`details`) and the app warns about every shot that misses one.
+22. "More than two hours" showed no time → show time passing (light dims, frost grows: `fade` over the shot).
+23. "It is a case report" over a blank clipboard → documents are readable (F.text) and the camera goes close enough to read them.
+24. "Longest survival on record" never showed survival → show outcomes: colour comes back, breathing returns, the heart line comes alive.
+25. Characters blended into dark backgrounds → one light per place: a flat rim edge on the lit side and a cast shadow away from it (`light`).
+26. A winter night with still air felt dead → weather in three depths (`weather`).
 
 ---
 

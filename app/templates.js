@@ -446,7 +446,7 @@ ${cutText}
 ## REPLY WITH JSON ONLY (one code block, no comments, double quotes, no trailing commas)
 {
   "title": "...",
-  "sky": "night",${TP.PLANNOTES ? '\n  "keys": ["7", "degrees", "pulse"],' : ''}
+  "sky": "night",${TP.PLANNOTES ? '\n  "keys": ["7", "degrees", "pulse"],\n  "details": { "' + (cuts[0] ? cuts[0].id : 'main') + '": [ { "line": 1, "word": "thigh", "show": "the thermometer is aimed at the boy\'s thigh; the camera follows its aim" }, { "line": 3, "word": "cold", "show": "his face drains to a pale blue-grey, lips bluish" } ] },' : ''}
   "assets": [
     { "name": "tug-cabin", "kind": "set", "difficulty": 2, "size": 14, "look": "...", "parts": [], "moves": [], "spots": ["door", "center", "corner"] },
     { "name": "diver", "kind": "character", "difficulty": 3, "size": 3, "look": "...", "parts": ["helmet"], "moves": [] },
@@ -553,7 +553,7 @@ set: ${s.set} · cast: ${(s.cast || []).join(', ') || '(none)'}
 what we see: ${s.show}
 camera idea: ${s.camera || '-'} · mood: ${s.mood || 'normal'} · transition: ${s.transition || (prev && prev.set === s.set ? 'flow' : 'cut')}
 before: ${prev ? prev.id + ' — ' + prev.show : '(start of video)'}${prev && ticket.ids.indexOf(prev.id) < 0 && p.shots && p.shots[cut.id] && p.shots[cut.id][prev.id] && p.shots[cut.id][prev.id].code ? '\n(the shot before is already made — keep continuity: same places and positions where it makes sense)\n' + p.shots[cut.id][prev.id].code.slice(0, 1500) : ''}
-after: ${next ? next.id + ' — ' + next.show : '(end of video)'}`;
+after: ${next ? next.id + ' — ' + next.show : '(end of video)'}${mustShow(p, cut.id, s)}`;
     }).join('\n\n');
     return `You are the shot director of a narrated ${cut.aspect === '16:9' ? 'landscape (16:9)' : 'vertical (9:16)'} video in a locked ${TP.NAME} style. You write each shot as a simple FORM. Other chats write the other shots, so follow the rules EXACTLY.
 
@@ -578,6 +578,11 @@ ${TP.SHOTCHECK || `- [ ] One SHOT('<id>', {...}) per shot above, with the exact 
 
 ## REPLY WITH ONE JAVASCRIPT CODE BLOCK containing only the SHOT(...) calls.`;
   };
+  function mustShow(p, cid, s) {
+    var D = window.PLAN && PLAN.shotDetails ? PLAN.shotDetails(p.plan, cid, s) : [];
+    return D.length ? '\nMUST SHOW — time each one on its word (camera, a move, a value or a colour change on that word):\n' + D.map(function (d) { return "- word: '" + d.word + "' → " + d.show }).join('\n') : '';
+  }
+  TP.mustShow = mustShow;
   function shotWords(cut, s, t0, t1) {
     return (cut.words || []).filter(function (w) { return w[1] >= t0 - .05 && w[1] < t1 }).map(function (w) { return w[0].replace(/[^\w'’-]/g, '') + '@' + (w[1] - t0).toFixed(1) }).join(' ');
   }
@@ -596,7 +601,7 @@ ${assetList(p)}
 ## THE SHOT ${shotId}  (${(t1 - t0).toFixed(1)} s)
 narration: "${ls.map(function (l) { return l.text }).join(' ')}"
 words with time from shot start: ${s.lines ? shotWords(cut, s, t0, t1) : ''}
-planned: ${s.show || ''} · set: ${s.set || ''} · cast: ${(s.cast || []).join(', ')}
+planned: ${s.show || ''} · set: ${s.set || ''} · cast: ${(s.cast || []).join(', ')}${mustShow(p, cut.id, s)}
 before: ${plan[i - 1] ? plan[i - 1].show : '-'} · after: ${nx ? nx.show : '-'}
 
 ## CURRENT CODE

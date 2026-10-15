@@ -27,7 +27,10 @@
     F.begin({ width: 1080, height: 1080, seed: 22 });
     F.part([[330, 200], [750, 200], [760, 900], [320, 900]], '#9a7a52', { ridge: [[400, 210], [390, 890]], contrast: .22, step: 160 });
     F.part([[360, 260], [720, 260], [725, 860], [355, 860]], '#efe8da', { ridge: [[420, 270], [410, 850]], contrast: .12, step: 200 });
-    [340, 400, 460, 520, 580, 640].forEach((y, i) => F.flat([[400, y], [i % 2 ? 620 : 680, y], [i % 2 ? 620 : 680, y + 18], [400, y + 18]], '#b9b0a0'));
+    F.text(540, 370, 'CASE', 84, '#3a2a24'); F.text(540, 455, 'REPORT', 84, '#3a2a24');          // readable: "It is a case report"
+    F.flat([[400, 490], [680, 490], [680, 500], [400, 500]], '#b0482a');
+    F.text(540, 550, 'Pediatric hypothermia', 30, '#5a4a40', 'middle', 400); F.text(540, 590, 'Pennsylvania · December', 30, '#5a4a40', 'middle', 400);
+    [640, 690, 740, 790].forEach((y, i) => F.flat([[400, y], [i % 2 ? 620 : 680, y], [i % 2 ? 620 : 680, y + 16], [400, y + 16]], '#b9b0a0'));
     F.part([[460, 170], [620, 170], [640, 250], [440, 250]], '#6b6b6b', { contrast: .2, step: 60 });
     return F.render('clipboard');
   }
@@ -104,6 +107,29 @@
   function tint(colour) {            // the warning lights colour the snow on the bank (flat, see-through — no glow)
     return function (F) { F.begin({ width: 1080, height: 1080, seed: 46 });
       F.flat([[-400, 1300], [-400, 1120], [180, 1080], [420, 1110], [700, 1060], [960, 1100], [1480, 1070], [1480, 1300]], colour, .14); return F.render('light on snow'); };
+  }
+
+  function frost(F) {                // frost slowly closing over the hole (time passing) — scene coordinates
+    F.begin({ width: 1080, height: 1080, seed: 47 });
+    F.flat([[420, 250], [540, 200], [680, 220], [740, 300], [670, 380], [520, 395], [430, 340]], '#a9c2cf', .9);
+    [[[470, 260], [600, 330], [700, 290]], [[450, 330], [560, 300], [650, 370]], [[520, 220], [560, 380]]].forEach(c =>
+      c.slice(1).forEach((p, i) => F.flat([c[i], p, [p[0] + 5, p[1] + 5], [c[i][0] + 5, c[i][1] + 5]], '#e6eef1')));
+    return F.render('frost over the hole');
+  }
+  function dim(F) { F.begin({ width: 1080, height: 1080, seed: 48 }); F.flat([[-2000, -2000], [4000, -2000], [4000, 4000], [-2000, 4000]], '#081018'); return F.render('the light fading') }
+  function monitorLive(F, v) {        // the heart monitor: a flat line that comes alive (v = seconds)
+    F.begin({ width: 1080, height: 1080, seed: 49 });
+    F.flat([[878, 638], [1012, 638], [1012, 742], [878, 742]], '#1d2826');
+    const alive = v > 4.6, pts = [];
+    for (let x = 884; x <= 1006; x += 2) {
+      const ph = ((x - 884) / 122 * 2 - v * 1.4) % 1, q = (ph + 1) % 1;
+      const y = !alive ? 700 : q < .08 ? 700 - Math.sin(q / .08 * Math.PI) * 30 : q < .12 ? 700 + 10 : 700;
+      pts.push([x, y]);
+    }
+    const line = pts.concat(pts.slice().reverse().map(([x, y]) => [x, y + 3]));
+    F.flat(line, alive ? '#9fe0b4' : '#5f8a74');
+    F.text(1000, 660, alive ? 'HR 42' : 'HR 0', 18, alive ? '#9fe0b4' : '#5f8a74', 'end');
+    return F.render('heart monitor');
   }
 
   /* ---------------- sets: (F, W, H) → a whole-frame drawing ----------------
@@ -218,7 +244,7 @@
     top: '#3c4660', vest: '#e6ded1', tie: null, bottom: { type: 'trousers', colour: '#3e3f42' }, shoes: '#3a2a24' };
 
   const PROP = { therm: { id: 'therm', draw: thermometer, grip: [420, 860], scale: .2, rot: -6 },
-                 clip: { id: 'clip', draw: clipboard, grip: [540, 250], scale: .2 } };
+                 clip: { id: 'clip', draw: clipboard, grip: [330, 620], scale: .2 } };
   const bubbles = [[600, 620, .1, 0], [640, 560, .07, .4], [575, 500, .06, 1.1], [655, 680, .08, 1.7], [610, 760, .05, 2.3]].map(([x, y, sc, at], i) =>
     ({ id: 'bub' + i, draw: bubble, origin: [540, 540], x, ground: y, scale: sc, z: 5 + i, moves: [{ at: 0, for: 3.9, do: 'drift', dx: (i % 2 ? 14 : -10), dy: -520 - i * 40 }] }));
 
@@ -227,6 +253,8 @@
     captions: { words: window.ICE_WORDS, y: 330, size: 80, keys: ['7', 'degrees', 'celsius', '8-year-old', 'pulse', 'two', 'hours', 'folklore', 'case', 'report', 'longest', 'record'] },
     shots: [
       { id: 'pond', from: 0, to: 11.0, bg: NIGHT, far: pondFar, set: pond, front: pondFront, handheld: 3,
+        light: { side: 'L', rim: '#dfe9f2', width: 3, shadow: .2 },  // moonlight from the left: rim edge + cast shadow
+        weather: { kind: 'snow', amount: 70, speed: .8 },
         grade: { far: ['#24344a', .4] },                             // the far bank sinks into the night
         focus: [
           { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },            // close on the reading: everything behind it soft
@@ -256,7 +284,7 @@
           { id: 'tintB', layer: 'far', draw: tint('#4f86d8'), origin: [0, 0], x: 0, ground: 0, z: 0, blink: { period: .8, on: .5, phase: .4 } },
           { id: 'breath1', draw: breath, origin: [440, 540], x: 482, ground: 1200, scale: .13, z: 1510, cycle: { period: 2.6, grow: [.4, 1.6], fade: [.8, 0], dx: 46, dy: -40 } },
           { id: 'breath2', draw: breath, origin: [440, 540], x: 482, ground: 1200, scale: .13, z: 1510, cycle: { period: 2.6, phase: 1.3, grow: [.4, 1.6], fade: [.8, 0], dx: 46, dy: -40 } },
-          { id: 'boy', person: wetBoy, height: 420, x: 578, ground: 1484, lying: 'right', seed: 7, z: 1495,
+          { id: 'boy', person: wetBoy, height: 420, x: 578, ground: 1484, lying: 'right', seed: 7, z: 1495, breath: 0,   // no pulse: no breathing
             arms: { L: [-4, 0], R: [-4, 0] },
             moves: [{ at: 7.4, for: 1.8, do: 'colour', skin: '#cdd8de', lips: '#8d8fae' }] },   // "cold as the ice": his face drains to a cold blue-grey
           { id: 'medic', person: medic, height: 600, x: 390, ground: 1500, seed: 3, z: 1500, stride: { R: [80, 95], L: [-5, 100] },
@@ -271,17 +299,22 @@
             ] }
         ] },
       { id: 'under', from: 11.0, to: 14.9, bg: DEEP, far: underFar, set: underIce, front: underFront, handheld: 2,
+        weather: { kind: 'dust', amount: 45, colour: '#b9cfda' },
         grade: { far: ['#0f1e2c', .35] },                            // deep water swallows the distance
         focus: [{ at: 0, far: 2.5, set: 0, cast: 0, front: 3 }],
         camera: [{ at: 0, zoom: 1.75, x: 570, y: 500 }, { at: 0, for: 3.9, zoom: 1.6, x: 570, y: 560 }],
         cast: [
           { id: 'sled', draw: sled, origin: [540, 880], x: 330, ground: 470, scale: .36, z: 1, silhouette: '#1f2f3e' },
+          // "more than two hours": the hole frosts over and the light slowly fades
+          { id: 'frost', draw: frost, origin: [0, 0], x: 0, ground: 0, z: 0, fade: { from: 0, to: .92, at: .9, for: 2.8 } },
+          { id: 'dim', draw: dim, origin: [0, 0], x: 0, ground: 0, z: 50, fade: { from: 0, to: .42, at: 1.2, for: 2.6 } },
           // the boy: only a dark shape against the light, sinking away from the hole
           { id: 'boyUnder', person: Object.assign({}, boy, { view: 'front' }), height: 470, x: 560, ground: 700, seed: 7, z: 2, shadow: false,
             silhouette: '#132131', arms: { L: [148, 18], R: [138, 26] }, stride: { L: [8, 3], R: [4, 0] }, head: { tilt: -8, nod: 1 },
             moves: [{ at: 0, for: 3.9, do: 'drift', dy: 430, dx: 40, rot: 22 }] }
         ].concat(bubbles) },
       { id: 'ward', from: 14.9, to: 22.41, bg: WARD, far: wardFar, set: ward, front: wardFront, handheld: 2,
+        light: { side: 'L', rim: '#e6e1cf', width: 2.5, shadow: .18 },  // moonlight through the window on the left
         grade: { far: ['#25524a', .3] },
         focus: [
           { at: 0, far: 4, set: 0, cast: 0, front: 2.5 },            // the lamp is sharp for the match cut…
@@ -290,14 +323,18 @@
         ],
         camera: [
           { at: 0, zoom: 1.9, x: 337, y: 780 },                    // match cut: the lamp sits exactly where the hole in the ice was
-          { at: .2, for: 1.6, zoom: 1.9, x: 330, y: 1240 },         // tilt down to the doctor: "This is not folklore. It is a case report."
+          { at: .2, for: 1.6, zoom: 1.9, x: 330, y: 1240 },         // tilt down to the doctor: "This is not folklore."
+          { at: 1.8, for: .8, zoom: 3.4, x: 300, y: 1335 },         // "It is a case report.": close enough to read the page
           { at: 3.4, for: 3.8, zoom: 1.22, x: 610, y: 1240 }        // pull out to the bed: "the longest ice water survival on record"
         ],
         cast: [
           { id: 'ecmo', plane: 'back', draw: ecmo, origin: [540, 960], x: 560, ground: 1440, scale: .5, z: 1400 },
           { id: 'bed', plane: 'back', draw: bedBack, origin: [540, 990], x: 760, ground: 1460, scale: .62, z: 1410 },
           { id: 'boyBed', plane: 'back', person: boy, height: 360, x: 640, ground: 1312, lying: 'right', seed: 7, z: 1420, shadow: false,
-            arms: { L: [-4, 0], R: [-4, 0] } },
+            arms: { L: [-4, 0], R: [-4, 0] }, colour: { skin: '#cdd8de', lips: '#8d8fae' }, breath: 0,      // still cold from the pond
+            moves: [{ at: 3.6, for: 3.4, do: 'colour', skin: '#ece3d6', lips: '#c98a7e' },                  // "survival": colour comes back…
+                    { at: 4.8, for: 1.6, do: 'breath', amount: 1.4 }] },                                      // …and he breathes again
+          { id: 'monitor', plane: 'back', draw: monitorLive, origin: [0, 0], x: 0, ground: 0, z: 1399, value: { from: 0, to: 7.5, at: 0, for: 7.5, step: 1 / 15, ease: 'linear' } },
           { id: 'blanket', plane: 'back', draw: blanket, origin: [540, 790], x: 750, ground: 1342, scale: .62, z: 1430 },
           { id: 'tubes', plane: 'back', draw: tubes, origin: [0, 700], x: 590, ground: 1300, scale: .35, z: 1425 },
           { id: 'doc', person: doctor, height: 560, x: 290, ground: 1540, seed: 9, z: 1540,

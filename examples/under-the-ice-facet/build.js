@@ -32,7 +32,10 @@ const assets = {
   'boy-wet': person('boy-wet', 1.83, `{ build: 'child', skin: '#ece3d6', eyes: 'slits', hair: { style: 'tuft', colour: '#5a3a24' }, top: '#4c443a', bottom: { type: 'trousers', colour: '#283044' }, shoes: '#3c2418' }`),
   'doctor': person('doctor', 2.43, `{ build: 'adult', skin: '#ece3d6', hair: { style: 'cap', colour: '#9a948c' }, glasses: '#5e3326', top: '#3c4660', vest: '#e6ded1', bottom: { type: 'trousers', colour: '#3e3f42' }, shoes: '#3a2a24' }`),
   'thermometer': prop('thermometer', 'thermometer', `{ kind: 'prop', size: .44, origin: [540, 880], top: 380, grip: [420, 860], draw: DRAW }`),
-  'clipboard': prop('clipboard', 'clipboard', `{ kind: 'prop', size: .64, origin: [540, 900], top: 170, grip: [540, 250], draw: DRAW }`),
+  'clipboard': prop('clipboard', 'clipboard', `{ kind: 'prop', size: .64, origin: [540, 900], top: 170, grip: [330, 620], draw: DRAW }`),
+  'frost': prop('frost', 'frost', `{ kind: 'fx', size: 1, origin: [0, 0], top: -230, draw: DRAW }`),
+  'dim': prop('dim', 'dim', `{ kind: 'fx', size: 1, origin: [0, 0], top: -230, draw: DRAW }`),
+  'heart-monitor': prop('heart-monitor', 'monitorLive', `{ kind: 'fx', size: 1, origin: [0, 0], top: -230, draw: DRAW }`),
   'backboard': prop('backboard', 'backboard', `{ kind: 'prop', size: .17, origin: [540, 1000], top: 930, draw: DRAW }`),
   'sled': prop('sled', 'sled', `{ kind: 'prop', size: .1, origin: [540, 880], top: 820, draw: DRAW }`),
   'hospital-bed': prop('hospital-bed', 'bedBack', `{ kind: 'prop', size: 1.27, origin: [540, 990], top: 520, draw: DRAW }`),
@@ -58,9 +61,11 @@ const shots = {
   M01: `SHOT('M01', {
   set: 'pond',
   handheld: 3,
+  light: { side: 'L', rim: '#dfe9f2', width: 3, shadow: .2 },   // moonlight from the left
+  weather: { kind: 'snow', amount: 70, speed: .8 },
   camera: [
     { at: 0, zoom: 3.2, on: [600, 1282] },                   // open on the reading counting down to 7.0 °C
-    { word: 'That', for: 1.8, zoom: 2.0, on: [565, 1300] },   // "an infrared thermometer": the hand and the device
+    { word: 'infrared', for: 1.4, zoom: 2.0, on: [565, 1300] }, // "an infrared thermometer": the hand and the device
     { word: 'against', for: 1.0, zoom: 2.4, on: [645, 1372] },// follow its aim: "against the thigh"
     { word: 'boy', for: 1.0, zoom: 1.4, on: [600, 1360] },    // pull out: the whole scene
     { word: 'He', for: 1.9, zoom: 2.3, on: [850, 1420] }      // glide in to his face
@@ -68,16 +73,16 @@ const shots = {
   focus: [
     { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },
     { word: 'That', for: 1.8, far: 4, set: 1.5 },
-    { word: 'against', for: 1.0, far: 4, set: .8 },
+    { word: 'thigh', for: .6, far: 4, set: .8 },
     { word: 'boy', for: 1.0, far: 1.2, set: 0, front: 1.5 },
     { word: 'He', for: 1.9, far: 3, set: .6, front: 2 }
   ],
   cast: {
     'wet-ice': { at: [750, 1512], z: 1480 },
     backboard: { at: 'board', z: 1490 },
-    'boy-wet': { at: 'boy', view: 'side', lying: 'right', z: 1495, arms: { L: [-4, 0], R: [-4, 0] } },
+    'boy-wet': { at: 'boy', view: 'side', lying: 'right', z: 1495, breath: 0, arms: { L: [-4, 0], R: [-4, 0] } },   // no pulse: not breathing
     medic: { at: 'medic', view: 'side', pose: 'kneel', z: 1500, arms: { R: [36, 28], L: [30, 20] }, head: { tilt: 6 }, idle: { lean: 1.5, period: 3.4 },
-             hold: { R: { item: 'thermometer', to: 6.6, rot: 52, value: { from: 9.6, to: 7.0, at: .05, for: 1.55, step: .1 } },   // aimed at the thigh, the reading counts down
+             hold: { R: { item: 'thermometer', to: 6.6, rot: 52, value: { from: 9.6, to: 7.0, word: '7', for: 1.4, step: .1 } },   // aimed at the thigh, the reading counts down
                      L: { item: 'thermometer', from: 6.6, value: 7 } } },
     breath: { at: [482, 1200], z: 1510, cycle: { period: 2.6, grow: [.4, 1.6], fade: [.8, 0], dx: 46, dy: -40 } },
     drip: { at: [660, 1500], z: 1491, cycle: { period: 1.4, dy: 30, fall: true, fade: [1, 0] } },
@@ -98,10 +103,14 @@ const shots = {
   M02: `SHOT('M02', {
   set: 'under-ice',
   handheld: 2,
+  weather: { kind: 'dust', amount: 45, colour: '#b9cfda' },
   camera: [{ at: 0, zoom: 1.75, on: [570, 500] }, { at: 0, for: 6.1, zoom: 1.6, on: [570, 560] }],
   focus: [{ at: 0, far: 2.5, set: 0, cast: 0, front: 3 }],
   cast: {
     sled: { at: [330, 470], z: 1, silhouette: '#1f2f3e' },
+    // "more than two hours": the hole frosts over and the light fades
+    frost: { at: [0, 0], z: 0, fade: { from: 0, to: .92, word: 'more', for: 2.8 } },
+    dim: { at: [0, 0], z: 50, fade: { from: 0, to: .42, word: 'two', for: 2.6 } },
     // the boy is only a dark shape against the light, sinking away from the hole
     boy: { at: 'below', view: 'front', size: 2.04, z: 2, shadow: false, silhouette: '#132131',
            arms: { L: [148, 18], R: [138, 26] }, stride: { L: [8, 3], R: [4, 0] }, head: { tilt: -8, nod: 1 } },
@@ -112,9 +121,11 @@ const shots = {
   M03: `SHOT('M03', {
   set: 'ward',
   handheld: 2,
+  light: { side: 'L', rim: '#e6e1cf', width: 2.5, shadow: .18 },   // moonlight through the window
   camera: [
     { at: 0, zoom: 1.9, on: [337, 780] },                   // match cut: the lamp is where the hole in the ice was
     { at: .2, for: 1.6, zoom: 1.9, on: [330, 1240] },        // tilt down to the doctor
+    { word: 'case', for: .7, zoom: 3.4, on: [300, 1335] },   // close enough to read CASE REPORT
     { word: 'And', for: 3.8, zoom: 1.22, on: [610, 1240] }   // pull out to the boy in the bed
   ],
   focus: [
@@ -125,7 +136,9 @@ const shots = {
   cast: {
     'heart-lung-machine': { at: 'machine', plane: 'back', z: 1400 },
     'hospital-bed': { at: 'bed', plane: 'back', z: 1410 },
-    boy: { at: [640, 1312], view: 'side', lying: 'right', size: 1.57, plane: 'back', z: 1420, shadow: false, arms: { L: [-4, 0], R: [-4, 0] } },
+    boy: { at: [640, 1312], view: 'side', lying: 'right', size: 1.57, plane: 'back', z: 1420, shadow: false, arms: { L: [-4, 0], R: [-4, 0] },
+           colour: { skin: '#cdd8de', lips: '#8d8fae' }, breath: 0 },                 // still cold from the pond, not breathing
+    'heart-monitor': { at: [0, 0], plane: 'back', z: 1399, value: { from: 0, to: 7.3, at: 0, for: 7.3, step: 1 / 15, ease: 'linear' } },
     tubes: { at: [590, 1300], plane: 'back', z: 1425 },
     blanket: { at: [750, 1342], plane: 'back', z: 1430 },
     doctor: { at: 'doctor', z: 1540, arms: { R: [-5, -90], L: [7, 2] }, hold: { R: 'clipboard' } }
@@ -133,12 +146,14 @@ const shots = {
   moves: [
     { word: 'not', who: 'doctor', do: 'shake', for: 1.3 },
     { word: 'case', who: 'doctor', do: 'nod', for: 1.2 },
-    { word: 'And', who: 'doctor', do: 'look', dir: 'R', for: 4 }
+    { word: 'And', who: 'doctor', do: 'look', dir: 'R', for: 4 },
+    { word: 'And', who: 'boy', do: 'colour', for: 3.4, skin: '#ece3d6', lips: '#c98a7e' },   // survival: his colour comes back…
+    { word: 'longest', who: 'boy', do: 'breath', for: 1.6, amount: 1.4 }                     // …and he breathes again
   ]
 });`
 };
 
-const kindOf = n => /pond|under-ice|ward/.test(n) && !/tint/.test(n) ? 'set' : /medic|boy|doctor/.test(n) ? 'character' : /breath|drip|wet-ice|bubble|light|tint/.test(n) ? 'fx' : 'prop';
+const kindOf = n => /pond|under-ice|ward/.test(n) && !/tint/.test(n) ? 'set' : /medic|boy|doctor/.test(n) ? 'character' : /breath|drip|wet-ice|bubble|light|tint|frost|dim|heart-monitor/.test(n) ? 'fx' : 'prop';
 const planAssets = Object.keys(assets).map(n => {
   const k = kindOf(n), m = /size: ([\d.]+)/.exec(assets[n]);
   const o = { name: n, kind: k, difficulty: k === 'set' ? 3 : /bed|machine|ambulance|thermometer/.test(n) ? 2 : 1, size: k === 'set' ? 1 : +(m ? m[1] : 1), look: n.replace(/-/g, ' '), parts: [], moves: [] };
@@ -152,6 +167,16 @@ const demo = {
   words: WORDS, duration: 22.4, audio: 'facet/films/under-the-ice-20/narration.wav',
   plan: { title: 'Under the Ice', sky: 'night', keys: ['7', 'degrees', 'celsius', '8-year-old', 'pulse', 'two', 'hours', 'folklore', 'case', 'report', 'longest', 'record'],
     assets: planAssets,
+    details: { main: [
+      { line: 0, word: '7', show: 'the thermometer screen counts down and settles on 7.0 °C' },
+      { line: 1, word: 'infrared', show: 'the infrared thermometer in the medic\'s hand' },
+      { line: 1, word: 'thigh', show: 'the thermometer is aimed at the boy\'s thigh; the camera follows its aim' },
+      { line: 3, word: 'cold', show: 'his face drains to a pale blue-grey, lips bluish; the medic checks his wrist' },
+      { line: 4, word: 'more', show: 'time passing under the ice: the hole frosts over' },
+      { line: 4, word: 'two', show: 'the light slowly fades' },
+      { line: 7, word: 'case', show: 'a readable page that says CASE REPORT' },
+      { line: 8, word: 'longest', show: 'he recovers: colour comes back, he breathes, the heart line comes alive' }
+    ] },
     cuts: { main: [
       { id: 'M01', lines: [0, 3], set: 'pond', cast: ['medic', 'boy-wet', 'backboard', 'thermometer'], show: 'Close on the thermometer reading 7.0 °C, pull out to the medic kneeling by the boy on the frozen pond, glide in to the boy.', mood: 'cold', difficulty: 3, transition: 'cut' },
       { id: 'M02', lines: [4, 5], set: 'under-ice', cast: ['boy', 'sled'], show: 'Under the ice: the boy, a dark silhouette, sinks away from the bright hole.', mood: 'dark', difficulty: 2, transition: 'cut' },
