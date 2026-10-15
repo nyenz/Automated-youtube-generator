@@ -26,7 +26,8 @@
      sad   (head drops + tilts)  shake (head turns "no")  nod (head bobs "yes")
      look  { dir: 'L'|'R' }      tilt { deg }           lean { deg }
      shiver (cold / scared)      arms { L:[up,fore], R:[up,fore] }  (any pose by hand)
-   camera: [{ at, for, zoom: 1, x, y }]  — x,y = the point to look at (default the middle)
+   camera: [{ at, for, zoom: 1, x, y, cut }]  — x,y = the point to look at (default the middle); cut: true jumps to the framing
+     CAMERA GRAMMAR: change shot size with cuts; inside a framing pan/tilt/slide and at most ONE slow push or pull (never in and out)
 
    SHOTS (a film with cuts): { width, height, duration, captions: { words: [[word, start, end], ...] },
      shots: [{ id, from, to, bg, far, set, front: (F, W, H) => drawing, cast: [...], camera: [...], handheld: px }] }
@@ -225,8 +226,8 @@
   function camAt(S, t) {
     let cam = { zoom: 1, x: S.width / 2, y: S.height / 2 };
     (S.camera || []).forEach(m => {
-      const a = m.at || 0, d = m.for || .001, k = ease((t - a) / d);
-      if (t < a) return;
+      const a = m.at || 0, d = m.for || .001; if (t < a) return;
+      const k = m.cut ? 1 : ease((t - a) / d);                         // cut: true = a clean cut to a new framing (no zoom)
       const to = { zoom: m.zoom == null ? cam.zoom : m.zoom, x: m.x == null ? cam.x : m.x, y: m.y == null ? cam.y : m.y };
       cam = { zoom: lerp(cam.zoom, to.zoom, k), x: lerp(cam.x, to.x, k), y: lerp(cam.y, to.y, k) };
     });
@@ -237,7 +238,7 @@
   function focusAt(list, t) {
     let v = { far: 0, set: 0, cast: 0, front: 0 };
     (list || []).forEach(m => {
-      const a = m.at || 0, d = m.for || .001; if (t < a) return; const k = ease((t - a) / d);
+      const a = m.at || 0, d = m.for || .001; if (t < a) return; const k = m.cut ? 1 : ease((t - a) / d);
       const to = {}; Object.keys(v).forEach(n => { to[n] = m[n] == null ? v[n] : m[n]; });
       Object.keys(v).forEach(n => { v[n] = lerp(v[n], to[n], k); });
     });

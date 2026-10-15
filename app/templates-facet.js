@@ -146,14 +146,17 @@ SHOT('M01', {
   handheld: 3,                       // a slow slight drift (2–3) so the camera is never frozen
   light: { side: 'L', rim: '#dfe9f2', width: 3, shadow: .2 },   // one light per place: flat rim edge on the lit side + cast shadow
   weather: { kind: 'snow', amount: 70 },                         // outdoors: snow | rain | dust | ash (leave out indoors)
-  camera: [                          // keyframes; the first one is the start
-    { at: 0, zoom: 3.0, on: 'thermometer' },              // on: a cast name or [x, y] in the frame
-    { word: 'That', for: 4.0, zoom: 1.3, on: [570, 1340] },  // starts on a spoken word, eases over 'for' seconds
-    { word: 'He', for: 2.0, zoom: 'close', on: 'boy' }
+  camera: [                          // framings joined by CUTS; inside a framing: pan/tilt + at most one slow push
+    { at: 0, zoom: 3.2, on: 'thermometer' },                       // A close: the reading (on: a cast name or [x, y])
+    { at: .1, for: 2.2, zoom: 3.32, on: 'thermometer' },           //   one slow creep in
+    { word: 'That', cut: true, zoom: 2.1, on: [565, 1300] },        // B CUT to medium: the hand and the device
+    { word: 'against', for: 1.2, zoom: 2.2, on: [645, 1372] },     //   pan down along its aim (zoom almost the same)
+    { word: 'boy', cut: true, zoom: 1.3, on: [600, 1352] },        // C CUT wide: where we are
+    { word: 'He', for: 2.6, zoom: 1.85, on: 'boy' }                //   one slow push toward his face
   ],
   focus: [                           // subtle depth of field, in pixels: far 1–4, set 0–2.5, front 1.5–3, cast 0 (never blur the subject)
     { at: 0, far: 5, set: 3, cast: 0, front: 2.5 },
-    { word: 'That', for: 3, far: 1.2, set: 0, front: 1.5 }
+    { word: 'boy', cut: true, far: 1.2, set: 0, front: 1.5 }        // focus cuts together with the camera
   ],
   cast: {                            // everything visible: name: { at: spot name or [x, groundY], ... }
     boy: { at: 'boy', view: 'side', lying: 'right' },
@@ -189,7 +192,9 @@ Never start a move that cancels a busy one ('sad' drops both arms — while a ha
 camera zoom words: wide 1 · full 1.25 · medium 1.6 · close 2.2 · detail 3 (or any number).
 
 ### FILM RULES (follow all)
-- ONE PLACE = ONE SHOT: inside a place, move the camera (open close, pull out, glide in) instead of cutting. A 20 s piece has 2–4 places.
+- ONE PLACE = ONE SHOT, but inside it CHANGE SIZE WITH CUTS (cut: true): close → medium → wide → close. Never zoom in and then out again.
+  Inside a framing follow with pans/tilts (change 'on', keep zoom) and at most ONE slow push or pull (0.1–0.3 per second). Hold each framing ≥ 1.5 s.
+  Documents, screens and readings get an insert (zoom 4–6) cut in on their word. The app warns about camera grammar mistakes. A 20 s piece has 2–4 places.
 - Open on what the narration names first (the narrator says "7 degrees" → open on the thermometer screen).
 - Every camera move has a reason (follow the action, reveal the place, come closer for a feeling). Leave look-room in front of faces.
 - MUST SHOW lists (from the plan's detail pass) are required: time every one on its word. The app warns about any you miss.
@@ -216,6 +221,7 @@ camera zoom words: wide 1 · full 1.25 · medium 1.6 · close 2.2 · detail 3 (o
 - [ ] set and every cast name come from ASSETS. Every 'at' / 'to' spot exists in that set (or is [x, groundY]).
 - [ ] Every word: '...' is spoken in THAT shot (see its words list).
 - [ ] The camera opens on what the narration names; every move has a reason; handheld 2–3.
+- [ ] Sizes change with cuts (cut: true); inside a framing only pans/tilts + one slow push; each framing held ≥ 1.5 s.
 - [ ] Acting lands on the right words; only one person acts at a time.
 - [ ] At least 2 small details; focus never on blur of the subject; no glow, sparks or title cards.
 - [ ] Every MUST SHOW item is timed on its word. light is set; weather outdoors; body states (colour, breath) carried over.`;

@@ -19,8 +19,8 @@ from a real test video, so follow all of them.
 
 ## 1. Shots and cuts
 
-- **One place = one shot.** While the story stays in the same place, do NOT cut: move the camera instead
-  (start close, pull out, glide in). A 20-second piece should have about 2–4 places, so 1–3 cuts.
+- **One place = one shot.** While the story stays in the same place it is one SHOT, but inside it the framing changes by clean cuts
+  (close → medium → wide), never by zooming back and forth (see 2b). A 20-second piece should have about 2–4 places, so 1–3 cuts.
 - **Cut at the end of a sentence**, or at least at a natural pause where the subject changes
   ("…without a pulse, | after more than two hours under the pond"). Never in the middle of a phrase.
 - **Cut during a movement**, not after everything has stopped. The eye carries the motion over the cut.
@@ -42,6 +42,18 @@ from a real test video, so follow all of them.
 - **Angle tells the feeling:** look down on someone helpless or small (the boy), slightly up at someone capable
   (the medic, the doctor).
 - **Use the 3 depth layers** (see 4) so camera moves show depth.
+
+## 2b. Camera grammar (the most important camera rule)
+
+Zooming in and out over and over looks like a nervous amateur. Films change the shot size by CUTTING, and move the camera mostly sideways.
+- **A shot is a sequence of framings** (close, medium, wide, insert) joined by **clean cuts** (`camera: [{ word: 'boy', cut: true, zoom: 1.3, on: ... }]`).
+  Cut on a sentence end, on a key word, or on an action. Alternate sizes: never cut wide → wide or close → close of the same thing.
+- **Inside one framing:** follow with **pans and tilts** (change `on`, keep `zoom` nearly the same) and at most **one slow push-in or pull-out**
+  (about 0.1–0.3 zoom per second). Never zoom in and then out again inside the same framing.
+- **Hold each framing at least 1.5–2 s.** Let it breathe; the handheld drift keeps it alive.
+- **Inserts:** documents, screens and readings get their own very close framing (zoom 4–6), cut in on the word and held long enough to read.
+- **Focus cuts with the camera:** a focus keyframe with `cut: true` snaps at the same moment.
+- The app checks this: it warns about zoom in-and-out inside a framing, zooms that are too fast, too many zoom moves and framings held too briefly.
 
 ## 3. Acting and movement
 
@@ -153,6 +165,7 @@ What counts as a detail:
 - [ ] Every cut is at a sentence end or a clear pause, and the same place never cuts to itself.
 - [ ] The first shot opens on what the narration names first.
 - [ ] Every camera move has a reason; every shot has `handheld`.
+- [ ] Sizes change with cuts; inside a framing only pans/tilts and one slow push; every framing held ≥ 1.5 s (no app camera warnings).
 - [ ] Each place has `far`, `set` and `front` layers and at least 2 small details.
 - [ ] Lying people face up; wet things look wet; cold shows breath.
 - [ ] Every detail the narration names is shown literally on that word (where it is aimed, what it reads, how the body looks).

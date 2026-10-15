@@ -232,6 +232,7 @@ Casting rule: characters are white by default (skin `pale` or `warm`); use other
 24. "Longest survival on record" never showed survival → show outcomes: colour comes back, breathing returns, the heart line comes alive.
 25. Characters blended into dark backgrounds → one light per place: a flat rim edge on the lit side and a cast shadow away from it (`light`).
 26. A winter night with still air felt dead → weather in three depths (`weather`).
+27. Many zoom-ins and zoom-outs in a row felt nervous → camera grammar: change size with cuts, pan/tilt inside a framing, at most one slow push per framing, hold ≥ 1.5 s.
 
 ---
 
