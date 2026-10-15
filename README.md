@@ -39,7 +39,10 @@ Changing the style after assets exist means the assets must be made again (the s
 - The plan gives every asset a **contract**: its exact name, size, parts, moves and set spots. Shots only use those names, so pieces made in different chats fit together.
 - The app **checks every answer** for wrong names, missing parts, wrong size, colours outside the palette, crashes, and words that aren't spoken in the shot. If something fails, it writes the fix prompt for you.
 
-## Using it step by step
+## Easy mode (start here)
+Click **⚡ Easy mode** in the top bar. You get 5 steps: **Start** (pick the style, upload your audio, script optional: the app listens and writes the words if you leave it empty), **Plan** (one prompt for Claude), **Assets** (grouped into a few "chat groups", one per free chat), **Shots** (one Claude Opus chat does them all), **Watch & fix** and **Export**. A gold box at the top of every page always says what to do next.
+
+## Using it step by step (full control)
 1. Click **+ New**. Fill in the Project page.
 2. **Topic**: load trending lists → **Copy topic prompt** → paste it into Claude → paste the answer back → click **Use** on an idea.
 3. **Script**: add your links and notes (and a transcript from a channel whose style you like) → **Copy script prompt** → paste it into Claude → paste the answer back → **Read the answer**.

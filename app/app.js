@@ -5,6 +5,8 @@
     ['project', 'Project'], ['topic', 'Topic'], ['script', 'Script'], ['voice', 'Voice & timing'], ['plan', 'Plan'],
     ['assets', 'Assets'], ['shots', 'Shots'], ['watch', 'Watch & fix'], ['export', 'Export'], ['publish', 'Publish']
   ];
+  var STEPS_EASY = [['start', 'Start', '1'], ['plan', 'Plan', '2'], ['assets', 'Assets', '3'], ['shots', 'Shots', '4'], ['watch', 'Watch & fix', '5'], ['export', 'Export', '⬇']];
+  function stepList() { return P && P.easy ? STEPS_EASY : STEPS }
   var CATS = ['survival', 'history', 'science', 'mystery', 'nature', 'space', 'true crime', 'disasters', 'animals', 'human body', 'technology', 'other'];
 
   /* ---------------- tiny DOM helper ---------------- */
@@ -76,6 +78,7 @@
   function done(step) {
     if (!P) return false;
     switch (step) {
+      case 'start': return P.cuts.every(function (c) { return c.lines && c.lines.length });
       case 'project': return !!P.settings.topic;
       case 'topic': return !!P.settings.topic;
       case 'script': return P.cuts.every(function (c) { return c.text });
@@ -88,15 +91,17 @@
   }
   function renderNav() {
     var nav = document.getElementById('steps'); nav.innerHTML = '';
-    STEPS.forEach(function (s, i) {
-      nav.appendChild(h('a', { className: (STEP === s[0] ? 'on ' : '') + (done(s[0]) ? 'done' : ''), on: { click: function () { go(s[0]) } } }, h('span', { className: 'n' }, done(s[0]) ? '✓' : i + 1), h('span', { className: 't' }, s[1])));
+    stepList().forEach(function (s, i) {
+      nav.appendChild(h('a', { className: (STEP === s[0] ? 'on ' : '') + (done(s[0]) ? 'done' : ''), on: { click: function () { go(s[0]) } } }, h('span', { className: 'n' }, done(s[0]) ? '✓' : (s[2] || i + 1)), h('span', { className: 't' }, s[1])));
     });
   }
   function go(step) { if (PLAYER && step !== 'watch') { PLAYER.remove(); PLAYER = null } STEP = step; render() }
   function render() {
     renderNav(); $main.innerHTML = '';
     if (!P) { $main.appendChild(welcome()); return }
-    var fn = { project: vProject, topic: vTopic, script: vScript, voice: vVoice, plan: vPlan, assets: vAssets, shots: vShots, watch: vWatch, export: vExport, publish: vPublish }[STEP];
+    if (P.easy && !{ start: 1, plan: 1, assets: 1, shots: 1, watch: 1, export: 1 }[STEP]) STEP = 'start';
+    if (P.easy) $main.appendChild(easyBanner());
+    var fn = { start: vEasyStart, project: vProject, topic: vTopic, script: vScript, voice: vVoice, plan: vPlan, assets: vAssets, shots: vShots, watch: vWatch, export: vExport, publish: vPublish }[STEP];
     $main.appendChild(fn());
   }
   function welcome() {
@@ -106,9 +111,59 @@
       ['Watch & fix', 'Play it with audio + captions. Click a bad shot, copy the fix prompt, paste the answer.'], ['Export', 'Frame-perfect MP4 at 1080 × 1920 (or 1920 × 1080).'], ['Publish', 'Thumbnail, title, description, tags and chapters.']];
     return h('div', null, h('h1', null, 'Welcome to Paper Cinema Studio'),
       h('p', { className: 'lead' }, 'Make narrated YouTube videos in a low-poly paper figurine style (Facet), filmed like a movie — all free. AI chats do the writing and building; this app keeps everything consistent, checks it, and renders the video.'),
-      h('div', { className: 'row' }, h('button', { on: { click: function () { document.getElementById('newBtn').click() } } }, '+ Start a new video'), h('button', { className: 'ghost', on: { click: function () { document.getElementById('demoBtn').click() } } }, 'See the demo first')),
+      h('div', { className: 'row' }, h('button', { className: 'ok', on: { click: function () { document.getElementById('easyBtn').click() } } }, '⚡ Easy mode (audio in, video out)'), h('button', { className: 'ghost', on: { click: function () { document.getElementById('newBtn').click() } } }, '+ Full control'), h('button', { className: 'ghost', on: { click: function () { document.getElementById('demoBtn').click() } } }, 'See the demo first')),
       h('div', { className: 'card', style: 'margin-top:16px' }, h('h3', null, 'How it works'), h('table', null, steps.map(function (x, i) { return h('tr', null, h('td', { style: 'width:28px' }, h('span', { className: 'badge' }, i + 1)), h('td', { style: 'width:130px' }, h('b', null, x[0])), h('td', { className: 'muted' }, x[1])) }))),
       h('p', { className: 'muted small' }, 'Everything is saved in this browser. Use Export → Export project to back up.'));
+  }
+  /* =================================================================
+     EASY MODE: audio in, style, then the app tells you the next thing to do
+     ================================================================= */
+  function easyNext() {
+    if (!P.cuts.every(function (c) { return c.lines && c.lines.length })) return { step: 'start', text: 'Choose your style, upload your audio and click Start. The app listens and finds every word.' };
+    if (!P.plan) return { step: 'plan', text: 'Click Copy plan prompt, paste it into Claude, paste the answer back here and click Read plan.' };
+    var A = P.plan.assets, aOk = A.filter(function (a) { return (P.assets[a.name] || {}).status === 'approved' }).length;
+    if (aOk < A.length) return { step: 'assets', text: 'Assets ' + aOk + ' of ' + A.length + ' approved. For each chat group: Copy prompt, paste it in a NEW chat, paste the answer back, click Check, then Approve.' };
+    var open = P.cuts.filter(function (c) { return (P.plan.cuts[c.id] || []).some(function (s) { return ((P.shots[c.id] || {})[s.id] || {}).status !== 'approved' }) })[0];
+    if (open) return { step: 'shots', text: 'Click Copy prompt, paste it into one Claude Opus chat, paste the answer back, click Check, then Approve all.' };
+    return { step: 'watch', text: 'Everything is ready. Press Play to watch it, fix any bad shot, then click Export.' };
+  }
+  function easyBanner() {
+    var n = easyNext(), on = STEP === n.step;
+    return h('div', { className: 'card', style: 'border-color:#7a6231;background:#2e2616' }, h('div', { className: 'row' }, badge('⚡ Easy mode · what to do now', 'b-warn'), h('span', { className: 'grow' }),
+      on ? null : h('button', { className: 'small', on: { click: function () { go(n.step) } } }, 'Take me there →')),
+      h('p', { style: 'margin:8px 0 0;font-size:16px' }, n.text));
+  }
+  var easyFile = null;
+  function vEasyStart() {
+    var s = P.settings, c = P.cuts[0], st = h('div', { className: 'muted small', style: 'margin-top:8px' }), fileName = h('span', { className: 'muted small' }, c.hasAudio ? 'audio: ' + (c.audioName || 'saved') : 'no audio chosen'),
+      fileIn = h('input', { type: 'file', accept: 'audio/*', hidden: true }), script = h('textarea', { value: c.text || '', placeholder: 'Paste your script here. Or leave this empty and the app will listen to the audio and write the words itself.', style: 'min-height:140px' }), btn;
+    fileIn.onchange = function () { easyFile = fileIn.files[0] || null; if (easyFile) fileName.textContent = 'chosen: ' + easyFile.name };
+    function start() {
+      if (!easyFile && !c.hasAudio) return toast('Click Upload audio first.');
+      btn.disabled = true; var useScript = script.value.trim();
+      var blobP = easyFile ? DB.putFile(P.id + ':' + c.id, easyFile).then(function () { c.hasAudio = true; c.audioName = easyFile.name; return easyFile }) : DB.getFile(P.id + ':' + c.id);
+      blobP.then(function (blob) {
+        if (!blob) throw new Error('No audio found. Upload it again.');
+        var job = useScript ? TIMING.run(useScript, blob, function (m) { st.textContent = m }, true) : TIMING.transcribe(blob, function (m) { st.textContent = m });
+        return job.then(function (r) {
+          c.text = useScript || r.text; c.words = r.words; c.duration = r.duration; c.lines = TIMING.lines(r.words); c.timing = r.method || 'whisper';
+          s.minutes = Math.max(.25, Math.round(r.duration / 6) / 10); s.topic = s.topic || P.name; P.title = P.title || P.name; syncCuts();
+          save(true); toast('Done: ' + c.lines.length + ' lines, ' + c.duration.toFixed(1) + ' s.', 4000); go('plan');
+        });
+      }).catch(function (e) { st.textContent = 'Error: ' + e.message; btn.disabled = false });
+    }
+    btn = h('button', { on: { click: start } }, c.lines && c.lines.length ? 'Start again' : 'Start');
+    function sel(key, opts, cb) { return h('select', { on: { change: function () { s[key] = this.value; if (cb) cb(); syncCuts(); save(); rerender() } } }, opts.map(function (o) { return h('option', { value: o[0], selected: String(s[key]) === String(o[0]) }, o[1]) })) }
+    return h('div', null, h('h1', null, 'Start'), h('p', { className: 'lead' }, 'Pick the style, upload your audio, and click Start. That is all this page needs.'),
+      h('div', { className: 'card g2' },
+        field('Video name', h('input', { value: P.name, on: { input: function () { P.name = this.value; s.topic = this.value; save() } } })),
+        field('Style', sel('style', (TPL.styleList || []).map(function (x) { return [x.id, x.name + ' — ' + x.note] }))),
+        field('Video shape', sel('vshape', [['short', 'Vertical 9:16 (Shorts, TikTok)'], ['long', 'Wide 16:9 (normal YouTube video)']], function () { if (s.vshape === 'long') { s.type = 'long'; s.longAspect = '16:9'; s.shorts = 0 } else s.type = 'short' }))),
+      h('div', { className: 'card' }, h('h3', null, 'Your audio'),
+        h('div', { className: 'row' }, h('button', { className: 'ghost', on: { click: function () { fileIn.click() } } }, 'Upload audio'), fileIn, fileName),
+        field('Script (optional)', script)),
+      h('div', { className: 'row' }, btn), st,
+      c.lines && c.lines.length ? h('div', { className: 'card', style: 'margin-top:12px' }, badge('✓ ' + c.lines.length + ' lines · ' + c.duration.toFixed(1) + ' s', 'b-ok'), nextBtn('plan', 'Next: Plan →')) : null);
   }
   function rerender() { var y = window.scrollY; render(); window.scrollTo(0, y) }
   function nextBtn(step, label) { return h('div', { className: 'row', style: 'margin-top:18px' }, h('button', { on: { click: function () { go(step) } } }, label || 'Next →')) }
@@ -406,7 +461,7 @@
       checkAssets(t.names).then(function () { t.status = t.names.every(function (n) { return (P.assets[n] || {}).status !== 'error' }) ? 'checked' : 'error'; save(true); rerender() }).catch(function (e) { out.textContent = 'Error: ' + e.message });
     }
     return h('div', { className: 'card' },
-      h('div', { className: 'row' }, h('h3', null, 'Ticket ' + t.n), badge(t.label || pts + ' pts', t.label && /hard/.test(t.label) ? 'b-warn' : ''), statusBadge(t.status), h('span', { className: 'grow' }),
+      h('div', { className: 'row' }, h('h3', null, (P.easy ? 'Chat group ' + t.n + ' of ' + P.assetTickets.length : 'Ticket ' + t.n)), badge(t.label || pts + ' pts', t.label && /hard/.test(t.label) ? 'b-warn' : ''), statusBadge(t.status), h('span', { className: 'grow' }),
         h('button', { on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Asset ticket ' + t.n, TPL.assetTicket(P, t), 'Ticket ' + t.n); renderNav() } } }, 'Copy prompt')),
       A.map(function (a) { return assetRow(a) }),
       ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue', on: { click: check } }, 'Check'),
@@ -781,8 +836,11 @@
       LIST.forEach(function (p) { sel.appendChild(h('option', { value: p.id, selected: P && p.id === P.id }, p.name)) });
     });
   }
-  function openProject(id) { return DB.get(id).then(function (p) { if (!p) return; P = p; CUT = null; syncCuts(); localStorage.setItem('lastProject', id); render() }) }
+  function openProject(id) { return DB.get(id).then(function (p) { if (!p) return; P = p; CUT = null; syncCuts(); if (P.easy) STEP = easyNext().step; localStorage.setItem('lastProject', id); render() }) }
   document.getElementById('projSel').onchange = function () { if (PLAYER) { PLAYER.remove(); PLAYER = null } openProject(this.value) };
+  document.getElementById('easyBtn').onclick = function () {
+    P = newProject('Video ' + (LIST.length + 1)); P.easy = true; P.claudeShots = true; P.settings.mascot = 'none'; P.settings.vshape = 'short'; syncCuts(); STEP = 'start'; save(true); localStorage.setItem('lastProject', P.id); render();
+  };
   document.getElementById('newBtn').onclick = function () { P = newProject('Video ' + (LIST.length + 1)); syncCuts(); STEP = 'project'; save(true); localStorage.setItem('lastProject', P.id); render() };
   document.getElementById('delBtn').onclick = function () {
     if (!P || !confirm('Delete "' + P.name + '"? This cannot be undone.')) return;

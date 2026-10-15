@@ -136,4 +136,16 @@
       });
     });
   };
+
+  /* no script? listen to the audio and write the words ourselves (Easy mode) */
+  TM.transcribe = function (blob, onStatus) {
+    onStatus && onStatus('Reading the audio…');
+    return TM.decode(blob).then(function (d) {
+      return TM.whisper(d.pcm, onStatus).then(function (heard) {
+        if (!heard.length) throw new Error('No speech found in the audio.');
+        var words = heard.map(function (w) { return [w[0].replace(/\s+/g, ' '), +(+w[1]).toFixed(3), +Math.max(+w[1] + .05, +w[2]).toFixed(3)] });
+        return { words: words, duration: d.duration, method: 'whisper', text: words.map(function (w) { return w[0] }).join(' ') };
+      }, function (e) { throw new Error('Could not listen to the audio here (' + (e && e.message || e) + '). Paste your script in the box and try again.') });
+    });
+  };
 })();
