@@ -145,7 +145,16 @@
     return +e.at || +e.sec || 0;
   }
   var POSES = { stand: null, kneel: { R: [80, 95], L: [-5, 100] }, sit: { R: [85, 0], L: [85, 0] }, chair: { R: [85, 85], L: [85, 85] } };
-  var ZOOM = { wide: 1, full: 1.25, medium: 1.6, close: 2.2, detail: 3 };
+  // HOUSE SHOT SIZES — every Facet video uses the same sizes, so framing is uniform across videos
+  var ZOOM = { establishing: 1, wide: 1.3, full: 1.6, medium: 2.1, close: 3, insert: 5.2, detail: 5.2 };
+  // HOUSE DEFAULTS — used when a shot leaves something out, so no video drops below the house look
+  var HOUSE = { handheld: 2, light: { side: 'L', rim: '#e8e6df', width: 2.5, shadow: .16 } };
+  function houseFocus(cam) {                     // focus that follows the framing size, cutting with the camera
+    return cam.filter(function (m, i) { return i === 0 || m.cut || !m.for }).map(function (m) {
+      var z = m.zoom || 1, f = z >= 4 ? { far: 5, set: 3, front: 3 } : z >= 2.5 ? { far: 4.5, set: 2, front: 2.5 } : z >= 1.8 ? { far: 3.5, set: 1, front: 2 } : { far: 1.2, set: 0, front: 1.5 };
+      return Object.assign({ at: m.at, cut: true, cast: 0 }, f);
+    });
+  }
 
   function buildShot(r) {
     var sp = r.spec, sa = K.make(sp.set || 'void');
@@ -191,7 +200,8 @@
     var camList = Array.isArray(sp.camera) ? sp.camera : [sp.camera || { zoom: 'full' }], cam = [];
     camList.forEach(function (k, i) {
       var tg = k.on != null ? target(k.on) : [k.x, k.y], z = typeof k.zoom === 'string' ? ZOOM[k.zoom] : k.zoom;
-      if (typeof k.zoom === 'string' && !z) warn(r.id, 'camera zoom "' + k.zoom + '" is unknown (use a number or wide/full/medium/close/detail).');
+      if (typeof k.zoom === 'string' && !z) warn(r.id, 'camera zoom "' + k.zoom + '" is unknown (use establishing / wide / full / medium / close / insert, or a number).');
+      if (k.size) { z = ZOOM[k.size]; if (!z) warn(r.id, 'camera size "' + k.size + '" is unknown (establishing / wide / full / medium / close / insert).') }
       var m = { at: i === 0 && k.at == null && k.word == null ? 0 : timeOf(r, k, 'camera'), for: k.for, zoom: z, x: tg[0], y: tg[1], cut: !!k.cut };
       if (m.x == null) delete m.x; if (m.y == null) delete m.y; cam.push(m);
     });
@@ -202,10 +212,10 @@
       if (mv.do === 'walk' && typeof mv.to === 'string') mv.to = place(mv.to, m.who)[0];
       b.c.moves.push(mv);
     });
-    var focus = (sp.focus || []).map(function (f) { var o = Object.assign({}, f); o.at = timeOf(r, f, 'focus'); delete o.word; return o });   // focus can cut too (cut: true)
+    var focus = sp.focus ? sp.focus.map(function (f) { var o = Object.assign({}, f); o.at = timeOf(r, f, 'focus'); delete o.word; return o }) : houseFocus(cam);   // focus can cut too (cut: true)
     return { id: r.id, from: r.from, to: r.to, bg: sp.bg || sa.bg || '#c0612c', far: sa.far, set: sa.set, front: sa.front,
-      grade: sp.grade || sa.grade, focus: focus, handheld: sp.handheld == null ? 2 : sp.handheld, cast: cast, camera: cam,
-      light: sp.light || sa.light || null, weather: sp.weather || sa.weather || null };
+      grade: sp.grade || sa.grade, focus: focus, handheld: sp.handheld == null ? HOUSE.handheld : sp.handheld, cast: cast, camera: cam,
+      light: sp.light === false ? null : (sp.light || sa.light || HOUSE.light), weather: sp.weather || sa.weather || null };
   }
   /* CAMERA GRAMMAR check: sizes change with cuts; inside one framing only pans/tilts and ONE slow push or pull */
   function cameraGrammar(r, cam) {

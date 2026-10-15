@@ -3,7 +3,19 @@
 (function () {
   var TP = window.TPL;
 
-  var STYLE = `## THE LOOK — "Facet" (low-poly paper figurines, filmed like a movie)
+  var HOUSE = `## HOUSE STYLE — every Facet video follows these (uniform across all videos)
+- Look: low-poly paper figurines, big lit facets, no outlines; people only via F.person; one colour world per place; ONE accent per shot.
+- Sound/text: narration only; captions top, key words coloured; no title cards; text only on real objects and readable.
+- Places: far / set / front layers; one light (rim edge + cast shadow); weather outdoors; 2+ small logical details.
+- Camera: house sizes establishing 1.0 · wide 1.3 · full 1.6 · medium 2.1 · close 3.0 · insert 5.2 (size: 'medium'); change size with CUTS;
+  pans/tilts inside a framing, at most one slow push; hold ≥ 1.5 s; open on what is named; inserts for pages, screens, readings.
+- Story: detail pass — show every named thing on its word (aim, readings, body states, time, documents, outcomes); states carry over.
+- Acting: on the words, one person at a time, never cancel a busy move.
+- Done = no app warnings.`;
+
+  var STYLE = HOUSE + `
+
+## THE LOOK — "Facet" (low-poly paper figurines, filmed like a movie)
 - Everything is flat 2D, but every shape is cut into a FEW BIG facets lit from the top-left, so it reads like a folded-paper figurine.
   You never draw triangles: you give an outline, a colour and a RIDGE (the shape's spine, about 1/3 in from the left); the kit cuts and lights it.
 - No outlines ever. Parts are separated by value and colour only. Matte paper grain is added by the kit.
@@ -139,7 +151,9 @@ KIT.asset('pond', function (F) {
 });
 \`\`\``;
 
-  var SHOTRULES = `## HOW A SHOT IS WRITTEN (a form — no animation code)
+  var SHOTRULES = HOUSE + `
+
+## HOW A SHOT IS WRITTEN (a form — no animation code)
 \`\`\`js
 SHOT('M01', {
   set: 'pond',                       // one set from the asset list
@@ -149,9 +163,9 @@ SHOT('M01', {
   camera: [                          // framings joined by CUTS; inside a framing: pan/tilt + at most one slow push
     { at: 0, zoom: 3.2, on: 'thermometer' },                       // A close: the reading (on: a cast name or [x, y])
     { at: .1, for: 2.2, zoom: 3.32, on: 'thermometer' },           //   one slow creep in
-    { word: 'That', cut: true, zoom: 2.1, on: [565, 1300] },        // B CUT to medium: the hand and the device
+    { word: 'That', cut: true, size: 'medium', on: [565, 1300] },   // B CUT to medium (house size): the hand and the device
     { word: 'against', for: 1.2, zoom: 2.2, on: [645, 1372] },     //   pan down along its aim (zoom almost the same)
-    { word: 'boy', cut: true, zoom: 1.3, on: [600, 1352] },        // C CUT wide: where we are
+    { word: 'boy', cut: true, size: 'wide', on: [600, 1352] },     // C CUT wide (house size): where we are
     { word: 'He', for: 2.6, zoom: 1.85, on: 'boy' }                //   one slow push toward his face
   ],
   focus: [                           // subtle depth of field, in pixels: far 1–4, set 0–2.5, front 1.5–3, cast 0 (never blur the subject)
@@ -189,7 +203,8 @@ walk { to: spot | x } · hop · bounce · wave { arm } · cheer · point { arm }
 look { dir: 'L' | 'R' } · tilt { deg } · lean { deg } · shiver · kneel · sit · chair · reach { arm, deg, bend } · arms { L, R } · legs { L, R } ·
 drift { dx, dy, rot } (slow float/sink over 'for' seconds) · breath { amount: 1 } (breathing comes back over 'for' seconds) · colour { skin, lips, top, shoes } (the body changes colour and keeps it: cold → skin '#cdd8de', lips '#8d8fae').
 Never start a move that cancels a busy one ('sad' drops both arms — while a hand is busy use tilt instead). Every pose change winds up, overshoots a little and settles by itself.
-camera zoom words: wide 1 · full 1.25 · medium 1.6 · close 2.2 · detail 3 (or any number).
+camera: size: 'establishing' 1.0 · 'wide' 1.3 · 'full' 1.6 · 'medium' 2.1 · 'close' 3.0 · 'insert' 5.2 — use these house sizes for every cut (zoom: number only for a slow push).
+House defaults if you leave them out: handheld 2, light from the left (rim + shadow), focus that follows the framing size. light: false turns the light off.
 
 ### FILM RULES (follow all)
 - ONE PLACE = ONE SHOT, but inside it CHANGE SIZE WITH CUTS (cut: true): close → medium → wide → close. Never zoom in and then out again.
