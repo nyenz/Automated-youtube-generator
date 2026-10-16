@@ -42,6 +42,12 @@ Changing the style after assets exist means the assets must be made again (the s
 ## Easy mode (start here)
 Click **⚡ Easy mode** in the top bar. You get 5 steps: **Start** (pick the style, upload your audio, script optional: the app listens and writes the words if you leave it empty), **Plan** (one prompt for Claude), **Assets** (grouped into a few "chat groups", one per free chat), **Shots** (one Claude Opus chat does them all), **Watch & fix** and **Export**. A gold box at the top of every page always says what to do next; **Show me** flashes the exact button, and the next button always has a gold ring. Hover any button for what it does and what comes after (turn this off with **Tips**). Long jobs (timing, checks, export) show a progress panel with the time left. **📋 Paste & read / Paste & check** paste the chat answer and check it in one click; in Easy mode anything that passes is approved by itself. If your script and audio don't match, the app tells you and offers to use what the audio says.
 
+## Publish package, library and level up
+- **The plan now includes the whole upload package**: 5+ titles (best first, with reasons), 3+ thumbnail options (text, best frame, image prompt), YouTube description, tags, hashtags and pinned comment, TikTok caption and hashtags, a hook check, the best time to post, follow-up video ideas and tips. It all shows on **Publish** with Copy buttons; **Make this thumbnail** renders that option from your own video.
+- **Asset library** (top bar → **Library**): every approved asset of every video is saved per art style and never deleted with a video. The planner is shown the library and reuses assets (no chat needed); the Plan page also suggests library matches (**♻ use …**). Download / restore a backup from the Library window.
+- **Detail level** (Start page): Lean (fewest chats, most reuse), Standard, Rich.
+- **Level up** (Shots and Export pages): if the baseline is not enough, one prompt adds new assets and richer shots; only the new parts cost chats.
+
 ## Using it step by step (full control)
 1. Click **+ New**. Fill in the Project page.
 2. **Topic**: load trending lists → **Copy topic prompt** → paste it into Claude → paste the answer back → click **Use** on an idea.

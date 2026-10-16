@@ -403,7 +403,26 @@ ${parts}`;
   /* =================================================================
      3) PLAN (assets + shots for every cut) — JSON
      ================================================================= */
-  TP.plan = function (p) {
+  /* detail level: how many NEW assets to plan (fewer = fewer chats) */
+  var DETAIL = {
+    lean: function (n) { return 'DETAIL LEVEL: LEAN (saves chats). Plan as FEW new assets as possible (about ' + (n > 1 ? '5–10' : '3–8') + ' new). Reuse library assets first, use one or two sets for the whole video, and fewer, longer shots.' },
+    standard: function (n) { return 'DETAIL LEVEL: STANDARD. Aim for ' + (n > 1 ? '10–24' : '6–14') + ' assets in total (library ones included).' },
+    rich: function (n) { return 'DETAIL LEVEL: RICH. Aim for ' + (n > 1 ? '18–32' : '12–24') + ' assets: background people, the small props the narration names, weather and fx, a second angle of key places. More shots and more close-ups.' }
+  };
+  function publishRules(cuts) {
+    var long = cuts.some(function (c) { return c.aspect === '16:9' }), secs = Math.round(cuts.reduce(function (m, c) { return Math.max(m, c.duration || 0) }, 0));
+    return `3. PUBLISH PACKAGE — everything needed to upload to YouTube${long ? ' (long video + Shorts)' : ' Shorts'} and TikTok, so the creator does nothing else. The video is ${secs} s long. If you can search the web, check which titles and hooks work right now for this topic and use what you learn. Follow current best practice:
+   - "titles": AT LEAST 5, best first. Under 60 characters (phones show about 40). A curiosity gap plus one concrete detail (a number, a place, a strange fact). Honest: the video must deliver it. Mix styles: question, statement, how/why, number. No all-caps sentences, at most 1 emoji. Each: { "text", "why" }.
+   - "thumbnails": AT LEAST 3 options. Each: "text" (2–4 huge words that ADD to the title, never repeat it), "shot" (the shot id whose frame works best: one face with strong emotion or one striking object, big and simple), "at" (0–1: where in that shot), "prompt" (a full image-generator prompt in this video's art style: subject, emotion, composition with empty space for the text, colours, light, ${long ? '16:9' : '9:16'}), "why".
+   - "youtube": "description" (the first 2 lines are the hook, they show above "more"; then 2–4 lines of context; then "Sources:"${long ? '; then the chapters with times' : ''}), "tags" (15–25, broad to specific, under 500 characters in total), "hashtags" (3; the first shows above the title), "pinned_comment" (a question people want to answer), "category".
+   - "tiktok": "caption" (hook + question, under 150 characters), "hashtags" (4–6, mix big and niche), "cover_text" (3–5 words).
+   - "hook_check": are the first 2 seconds strong enough to stop the scroll? If not, say what the first shot must show, and PLAN the first shot that way.
+   - "post_time": the best day and time to post for this audience (name the time zone).
+   - "series": 3 follow-up video ideas this one leads into (part 2, playlist).
+   - "recommendations": 3–6 short, concrete tips for THIS video (loop ending for Shorts, which line to show as text, comment bait, etc.).`;
+  }
+  TP.publishRules = publishRules;
+  TP.plan = function (p, lib) {
     TP.use(p);
     var s = p.settings, cuts = p.cuts || [];
     var cutText = cuts.map(function (c) { return 'CUT "' + c.id + '" (' + c.label + ', ' + (c.aspect || '9:16') + ', ' + (c.duration ? c.duration.toFixed(1) + ' s' : '') + ', shot ids start with ' + c.prefix + '):\n' + cutLinesText(c) }).join('\n\n');
@@ -418,7 +437,7 @@ ${TP.STYLE}
 ## WHAT TO PLAN
 1. ASSETS — every character, creature, prop, set and fx the video needs.
    - Reuse! One set used in many shots beats many sets. ${cuts.length > 1 ? 'The shorts must reuse the long video\'s assets (do not plan separate ones).' : ''}
-   - Aim for ${cuts.length > 1 ? '10–24' : '6–14'} assets. kato, nia and 'void' already exist: never list them.
+   - ${(DETAIL[s.detail] || DETAIL.standard)(cuts.length)} kato, nia and 'void' already exist: never list them.${lib ? '\n   - Check the ASSET LIBRARY below first: reuse whatever fits.' : ''}
    - name: lower-case-with-dashes. kind: character | creature | prop | set | fx.
 ${TP.PLANNOTES ? '' : '   - difficulty: 1 = simple (a rock, a cup, a sign), 2 = medium (a set, a vehicle, a prop with moving parts, a simple person), 3 = hard (a creature, a detailed person or costume).\n'}
    - size: height in kit units (see SCALE). For sets, the width.
@@ -439,7 +458,14 @@ ${TP.PLANNOTES ? TP.PLANNOTES + '\n' : ''}2. SHOTS — for each cut, split the n
    - transition: "flow" (same place, continuous take) or "cut" (new place/time or a shock). Group shots into scenes that flow.
    - No title cards or newspaper/headline shots: every shot shows the story with characters, places and objects.
    - Make it cinematic: vary shot sizes, wide to set the place, close for emotion, the mascot can appear as a host reacting or explaining.
+   - The first shot is the hook: it must grab attention in the first 2 seconds.
 
+${publishRules(cuts)}
+${lib ? `
+## ASSET LIBRARY — already built in this style. Reusing one costs nothing and saves a chat.
+Reuse an asset when it fits (a generic place, prop, animal, vehicle, background person). To reuse: put it in "assets" with its EXACT library name and "reuse": true, and copy its kind, size, spots and parts from here (do not change them). Never reuse a character to play a different real person.
+${lib}
+` : ''}
 ## NARRATION
 ${cutText}
 
@@ -450,13 +476,50 @@ ${cutText}
   "assets": [
     { "name": "tug-cabin", "kind": "set", "difficulty": 2, "size": 14, "look": "...", "parts": [], "moves": [], "spots": ["door", "center", "corner"] },
     { "name": "diver", "kind": "character", "difficulty": 3, "size": 3, "look": "...", "parts": ["helmet"], "moves": [] },
-    { "name": "torch", "kind": "prop", "difficulty": 1, "size": 0.5, "look": "...", "parts": [], "moves": [], "holdable": true }
+    { "name": "torch", "kind": "prop", "difficulty": 1, "size": 0.5, "look": "...", "parts": [], "moves": [], "holdable": true }${lib ? ',\n    { "name": "(a library name)", "kind": "prop", "reuse": true, "size": 1, "look": "(from the library)", "parts": [], "moves": [] }' : ''}
   ],
   "cuts": {
 ${cuts.map(function (c) { return '    "' + c.id + '": [ { "id": "' + c.prefix + '01", "lines": [0, 1], "set": "tug-cabin", "cast": ["diver"], "show": "...", "camera": "...", "mood": "cold", "difficulty": 2, "transition": "cut" } ]' }).join(',\n')}
+  },
+  "publish": {
+    "titles": [ { "text": "...", "why": "..." } ],
+    "thumbnails": [ { "text": "...", "shot": "${cuts[0] ? cuts[0].prefix : 'M'}03", "at": 0.5, "prompt": "...", "why": "..." } ],
+    "youtube": { "description": "...", "tags": ["..."], "hashtags": ["#..."], "pinned_comment": "...", "category": "..." },
+    "tiktok": { "caption": "...", "hashtags": ["#..."], "cover_text": "..." },
+    "hook_check": "...", "post_time": "...", "series": ["..."], "recommendations": ["..."]
   }
 }
 "sky" is "night" (cool, default) or "warm" (sunset). "lines" is [first line, last line] (inclusive).`;
+  };
+
+  /* LEVEL UP: more assets and richer shots on top of the baseline plan */
+  TP.levelUp = function (p, lib, size, wish) {
+    TP.use(p);
+    var n = size === 'big' ? '6–12' : '3–6';
+    var shots = (p.cuts || []).map(function (c) {
+      return 'CUT "' + c.id + '":\n' + ((p.plan.cuts[c.id]) || []).map(function (s) { var L = c.lines || []; return s.id + '  lines ' + s.lines.join('–') + '  set: ' + s.set + '  cast: ' + (s.cast || []).join(', ') + '\n   shows: ' + s.show + '\n   says: "' + L.slice(s.lines[0], s.lines[1] + 1).map(function (l) { return l.text }).join(' ') + '"' }).join('\n');
+    }).join('\n\n');
+    return `You planned this ${TP.NAME} video. The creator wants it RICHER than the baseline. Suggest ADDITIONS only: everything that exists stays.
+${wish ? '\nTHE CREATOR WANTS: ' + wish + '\n' : ''}
+TITLE: ${p.title || p.settings.topic || ''}
+
+## ASSETS THAT ALREADY EXIST
+${assetList(p, { looks: true })}
+${lib ? '\n## ASSET LIBRARY (already built in this style; reusing one is free: add it with its exact name and "reuse": true, copying kind, size, spots and parts)\n' + lib + '\n' : ''}
+## SHOTS
+${shots}
+
+## WHAT TO ADD
+- ${n} NEW assets that make the story clearer and more alive: the small props the narration names, background people, animals, weather and fx, a more detailed version of a key place. Prefer library assets when they fit.
+- Same asset format as the plan: name (lower-case-with-dashes, new name), kind, difficulty, size, look, parts, moves (only custom), spots (sets), holdable.
+- Every new asset must be used by at least one shot upgrade.
+- Shot upgrades: concrete. Who or what appears, what it does, on which spoken word. Only for shots that get better from it.
+
+## REPLY WITH JSON ONLY (one code block)
+{
+  "assets": [ { "name": "...", "kind": "prop", "difficulty": 1, "size": 0.6, "look": "...", "parts": [], "moves": [] } ],
+  "shots": { "${p.cuts && p.cuts[0] ? p.cuts[0].prefix : 'M'}03": "add ... : it ... when the narrator says '...'" }
+}`;
   };
 
   TP.planFix = function (p, errors) {

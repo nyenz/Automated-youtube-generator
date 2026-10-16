@@ -4,8 +4,8 @@
   function open() {
     if (dbp) return dbp;
     dbp = new Promise(function (res, rej) {
-      var r = indexedDB.open('auto-yt-generator', 1);
-      r.onupgradeneeded = function () { var d = r.result; if (!d.objectStoreNames.contains('projects')) d.createObjectStore('projects', { keyPath: 'id' }); if (!d.objectStoreNames.contains('files')) d.createObjectStore('files') };
+      var r = indexedDB.open('auto-yt-generator', 2);
+      r.onupgradeneeded = function () { var d = r.result; if (!d.objectStoreNames.contains('projects')) d.createObjectStore('projects', { keyPath: 'id' }); if (!d.objectStoreNames.contains('files')) d.createObjectStore('files'); if (!d.objectStoreNames.contains('library')) d.createObjectStore('library', { keyPath: 'key' }) };
       r.onsuccess = function () { res(r.result) }; r.onerror = function () { rej(r.error) };
     });
     return dbp;
@@ -25,4 +25,7 @@
   DB.putFile = function (key, blob) { return tx('files', 'readwrite', function (s) { s.put(blob, key) }) };
   DB.getFile = function (key) { return tx('files', 'readonly', function (s) { return s.get(key) }) };
   DB.delFile = function (key) { return tx('files', 'readwrite', function (s) { s.delete(key) }) };
+  /* ASSET LIBRARY — every approved asset of every video, kept per art style. Deleting a video never deletes these. */
+  DB.libAll = function () { return tx('library', 'readonly', function (s) { return s.getAll() }) };
+  DB.libPut = function (item) { return tx('library', 'readwrite', function (s) { s.put(item) }) };
 })();

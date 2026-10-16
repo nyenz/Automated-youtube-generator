@@ -5,7 +5,7 @@
     ['project', 'Project'], ['topic', 'Topic'], ['script', 'Script'], ['voice', 'Voice & timing'], ['plan', 'Plan'],
     ['assets', 'Assets'], ['shots', 'Shots'], ['watch', 'Watch & fix'], ['export', 'Export'], ['publish', 'Publish']
   ];
-  var STEPS_EASY = [['start', 'Start', '1'], ['plan', 'Plan', '2'], ['assets', 'Assets', '3'], ['shots', 'Shots', '4'], ['watch', 'Watch & fix', '5'], ['export', 'Export', '⬇']];
+  var STEPS_EASY = [['start', 'Start', '1'], ['plan', 'Plan', '2'], ['assets', 'Assets', '3'], ['shots', 'Shots', '4'], ['watch', 'Watch & fix', '5'], ['export', 'Export', '⬇'], ['publish', 'Publish', '⬆']];
   function stepList() { return P && P.easy ? STEPS_EASY : STEPS }
   var CATS = ['survival', 'history', 'science', 'mystery', 'nature', 'space', 'true crime', 'disasters', 'animals', 'human body', 'technology', 'other'];
 
@@ -60,7 +60,7 @@
   function newProject(name) {
     return {
       id: 'p' + Date.now().toString(36), name: name || 'New video', created: Date.now(),
-      settings: { topic: '', category: 'survival', type: 'short', minutes: 2.5, shorts: 2, shortMinutes: 1, mascot: 'both', voice: 'male', sky: 'auto', style: 'facet', refChannel: '' },
+      settings: { detail: 'standard', topic: '', category: 'survival', type: 'short', minutes: 2.5, shorts: 2, shortMinutes: 1, mascot: 'both', voice: 'male', sky: 'auto', style: 'facet', refChannel: '' },
       research: '', styleRef: '', topicAnswer: '', scriptRaw: '', title: '', voiceStyle: '', sources: '',
       cuts: [], plan: null, planRaw: '', assets: {}, assetInfo: {}, assetTickets: [], shots: {}, shotTickets: {},
       ptsAsset: 'auto', ptsShot: 4, claudeShots: false
@@ -79,7 +79,7 @@
   }
   function cutById(id) { return P.cuts.filter(function (c) { return c.id === id })[0] }
   var saveT = null;
-  function save(now) { clearTimeout(saveT); saveT = setTimeout(function () { DB.put(P).then(refreshProjects) }, now ? 0 : 400) }
+  function save(now) { clearTimeout(saveT); saveT = setTimeout(function () { libSync(P); DB.put(P).then(refreshProjects) }, now ? 0 : 400) }
   function styleOf() { return (P && P.settings && P.settings.style) || 'paper' }
   function stagePage() { var s = styleOf(); return s === 'facet' ? 'stage-facet.html' : s === 'lowpoly' ? 'stage-lp.html' : 'stage.html' }
   function sky() { return P.settings.sky !== 'auto' ? P.settings.sky : ((P.plan && P.plan.sky) || 'night') }
@@ -121,7 +121,7 @@
   function render() {
     renderNav(); $main.innerHTML = '';
     if (!P) { $main.appendChild(welcome()); return }
-    if (P.easy && !{ start: 1, plan: 1, assets: 1, shots: 1, watch: 1, export: 1 }[STEP]) STEP = 'start';
+    if (P.easy && !{ start: 1, plan: 1, assets: 1, shots: 1, watch: 1, export: 1, publish: 1 }[STEP]) STEP = 'start';
     if (P.easy) $main.appendChild(easyBanner());
     var fn = { start: vEasyStart, project: vProject, topic: vTopic, script: vScript, voice: vVoice, plan: vPlan, assets: vAssets, shots: vShots, watch: vWatch, export: vExport, publish: vPublish }[STEP];
     $main.appendChild(fn());
@@ -143,6 +143,174 @@
       h('div', { className: 'card', style: 'margin-top:16px' }, h('h3', null, 'How it works'), h('table', null, steps.map(function (x, i) { return h('tr', null, h('td', { style: 'width:28px' }, h('span', { className: 'badge' }, i + 1)), h('td', { style: 'width:130px' }, h('b', null, x[0])), h('td', { className: 'muted' }, x[1])) }))),
       h('p', { className: 'muted small' }, 'Everything is saved in this browser. Use Export → Export project to back up.'));
   }
+  /* =================================================================
+     ASSET LIBRARY: every approved asset is kept per art style, forever
+     ================================================================= */
+  var LIB = [];
+  function hash(s) { var x = 5381; for (var i = 0; i < s.length; i++) x = ((x << 5) + x + s.charCodeAt(i)) | 0; return (x >>> 0).toString(36) }
+  function loadLib() { return DB.libAll().then(function (l) { LIB = l || []; return LIB }).catch(function () { LIB = []; return LIB }) }
+  function libItem(p, style, a, x) {
+    return { key: style + ':' + a.name + ':' + hash(x.code), style: style, name: a.name, kind: a.kind, size: a.size, look: a.look || '', parts: a.parts || [], moves: a.moves || [], spots: a.spots || [], holdable: !!a.holdable, difficulty: a.difficulty,
+      info: (p.assetInfo || {})[a.name] || null, code: x.code, from: p.name, project: p.id, saved: Date.now() };
+  }
+  function libSync(p) {
+    if (!p || !p.plan) return; var st = (p.settings && p.settings.style) || 'paper';
+    p.plan.assets.forEach(function (a) {
+      var x = p.assets[a.name]; if (!x || x.status !== 'approved' || !x.code || x.reused) return;
+      var it = libItem(p, st, a, x); if (x.lib === it.key) return; x.lib = it.key;
+      DB.libPut(it).then(function () { if (!LIB.some(function (l) { return l.key === it.key })) LIB.push(it) });
+    });
+  }
+  function libBackfill() {
+    return DB.list().then(function (ps) {
+      var have = {}, jobs = []; LIB.forEach(function (l) { have[l.key] = 1 });
+      ps.forEach(function (p) {
+        if (!p.plan) return; var st = (p.settings && p.settings.style) || 'paper';
+        p.plan.assets.forEach(function (a) {
+          var x = (p.assets || {})[a.name]; if (!x || x.status !== 'approved' || !x.code || x.reused) return;
+          var it = libItem(p, st, a, x); it.saved = p.updated || p.created || Date.now();
+          if (!have[it.key]) { have[it.key] = 1; LIB.push(it); jobs.push(DB.libPut(it)) }
+        });
+      });
+      return Promise.all(jobs);
+    }).catch(function () { });
+  }
+  function libFor(style) {
+    var by = {}; LIB.filter(function (l) { return l.style === style }).forEach(function (l) { if (!by[l.name] || by[l.name].saved < l.saved) by[l.name] = l });
+    return Object.keys(by).map(function (k) { return by[k] });
+  }
+  function wordsOf(t) { return String(t || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (w) { return w.length > 2 }) }
+  function libIndex() {
+    var L = libFor(styleOf()); if (!L.length) return '';
+    var text = {}; P.cuts.forEach(function (c) { wordsOf(c.text).forEach(function (w) { text[w] = 1 }) });
+    L.forEach(function (l) { l._score = wordsOf(l.name + ' ' + l.look).filter(function (w) { return text[w] }).length + (l.kind === 'set' ? .5 : 0) });
+    L.sort(function (a, b) { return b._score - a._score || b.saved - a.saved });
+    return L.slice(0, 60).map(function (l) {
+      return '- ' + l.name + ' (' + l.kind + (l.size ? ', ' + l.size + (l.kind === 'set' ? ' wide' : ' tall') : '') + ')' + (l.spots && l.spots.length ? ' spots: ' + l.spots.join(', ') : '') +
+        (l.parts && l.parts.length && l.kind !== 'set' ? ' parts: ' + l.parts.join(', ') : '') + (l.holdable ? ' holdable' : '') + ' — ' + String(l.look).slice(0, 110);
+    }).join('\n');
+  }
+  function libFind(name) { return libFor(styleOf()).filter(function (l) { return l.name === name })[0] }
+  function libSimilar(a) {
+    var an = wordsOf(a.name), al = wordsOf(a.look);
+    return libFor(styleOf()).filter(function (l) { return l.kind === a.kind && l.name !== a.name }).map(function (l) {
+      var ln = wordsOf(l.name), ll = wordsOf(l.look);
+      return { l: l, s: an.filter(function (w) { return ln.indexOf(w) >= 0 }).length * 2 + al.filter(function (w) { return ll.indexOf(w) >= 0 }).length * .25 };
+    }).filter(function (x) { return x.s >= 2 }).sort(function (a, b) { return b.s - a.s }).slice(0, 2).map(function (x) { return x.l });
+  }
+  function useLib(a, l) {
+    var code = l.name === a.name ? l.code : l.code.replace(/KIT\.asset\s*\(\s*(['"`])[^'"`]+\1/, "KIT.asset('" + a.name + "'");
+    P.assets[a.name] = { code: code, versions: [], status: 'approved', reused: true, from: l.from };
+    a.reuse = true; a.size = l.size || a.size; if (l.spots && l.spots.length) a.spots = l.spots; a.parts = l.parts || a.parts; a.moves = l.moves || a.moves; a.holdable = l.holdable; a.look = l.look || a.look;
+    if (l.info) P.assetInfo[a.name] = l.info;
+  }
+  function applyReuse(assets, warn) {
+    assets.forEach(function (a) {
+      if (!a.reuse) return; var l = libFind(a.name);
+      if (l) useLib(a, l); else { a.reuse = false; if (a.kind === 'set' && !(a.spots && a.spots.length)) a.spots = ['center']; if (warn) warn('"' + a.name + '" is not in the library, so it will be built new.') }
+    });
+  }
+  function libraryModal() {
+    var styles = (TPL.styleList || []).map(function (x) { return x.id }), cur = P ? styleOf() : styles[0], q = '';
+    var body = h('div'), list = h('div', { className: 'grid', style: 'margin-top:10px' }), head = h('div', { className: 'row' });
+    function draw() {
+      head.innerHTML = '';
+      styles.forEach(function (sid) { var n = libFor(sid).length; head.appendChild(h('button', { className: sid === cur ? 'small' : 'ghost small', on: { click: function () { cur = sid; draw() } } }, ((TPL.styleList || []).filter(function (x) { return x.id === sid })[0] || { name: sid }).name + ' (' + n + ')')) });
+      head.appendChild(h('input', { placeholder: 'Search…', value: q, style: 'flex:1;min-width:140px', on: { input: function () { q = this.value.toLowerCase(); drawList() } } }));
+      head.appendChild(h('button', { className: 'ghost small', on: { click: function () { download('asset-library-' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(LIB)], { type: 'application/json' })); toast('Library backup saved.') } } }, 'Download backup'));
+      var fi = h('input', { type: 'file', accept: '.json', hidden: true, on: { change: function () { var f = this.files[0]; if (!f) return; f.text().then(function (t) { var a = JSON.parse(t); return Promise.all(a.map(function (it) { return DB.libPut(it) })) }).then(loadLib).then(function () { toast('Library restored.'); draw() }).catch(function (e) { toast('Could not read that file: ' + e.message, 5000) }) } } });
+      head.appendChild(h('button', { className: 'ghost small', on: { click: function () { fi.click() } } }, 'Restore backup')); head.appendChild(fi);
+      drawList();
+    }
+    function drawList() {
+      list.innerHTML = '';
+      var L = libFor(cur).filter(function (l) { return !q || (l.name + ' ' + l.look + ' ' + l.from).toLowerCase().indexOf(q) >= 0 }).sort(function (a, b) { return a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name) });
+      if (!L.length) list.appendChild(h('p', { className: 'muted' }, 'Nothing here yet. Every asset you approve in this style is saved here automatically and offered again in your next plans.'));
+      L.forEach(function (l) {
+        list.appendChild(h('div', { className: 'card', style: 'margin:0' }, h('div', { className: 'row' }, h('b', null, l.name), badge(l.kind)),
+          h('div', { className: 'muted small', style: 'margin:4px 0' }, String(l.look).slice(0, 140)),
+          h('div', { className: 'small muted' }, 'from "' + l.from + '" · ' + new Date(l.saved).toLocaleDateString()),
+          P && cur === styleOf() ? h('button', { className: 'ghost small', style: 'margin-top:6px', on: { click: function () { var box = h('div', { style: 'height:100%' }), codes = {}; codes[l.name] = l.code; modal('Library: ' + l.name + ' (drag to turn)', box); stage({ mode: 'preview', sky: sky(), assets: codes, name: l.name }, '__never', box).catch(function () { }) } } }, 'Preview') : null));
+      });
+    }
+    body.appendChild(h('p', { className: 'muted small', style: 'margin-top:0' }, 'Every approved asset from every video, kept per art style. Deleting a video never deletes these. The planner is told about them, so it reuses them instead of making new ones.'));
+    body.appendChild(head); body.appendChild(list); draw();
+    modal('Asset library', body);
+  }
+
+  /* =================================================================
+     LEVEL UP: add assets and richer shots on top of the baseline
+     ================================================================= */
+  function levelUpCard() {
+    if (!P.plan) return null;
+    var size = h('select', null, h('option', { value: 'small' }, 'A little more (3–6 new assets)'), h('option', { value: 'big' }, 'A lot more (6–12 new assets)'));
+    var wish = h('input', { placeholder: 'Optional: what you want more of (e.g. "more action in the rescue", "show the town")', style: 'flex:1;min-width:240px' });
+    var ta = h('textarea', { placeholder: 'Paste the level-up answer here…', style: 'min-height:70px' }), out = h('div');
+    function apply(text) {
+      var r; try { r = PLAN.json(text) } catch (e) { out.innerHTML = ''; out.appendChild(msgs(['Could not read JSON: ' + e.message])); return }
+      var have = {}, errs = [], added = 0, upg = 0; P.plan.assets.forEach(function (a) { have[a.name] = 1 });
+      (Array.isArray(r.assets) ? r.assets : []).forEach(function (a) {
+        if (!a || !a.name || !/^[a-z0-9][a-z0-9-]*$/.test(a.name)) return errs.push('skipped an asset with a bad name');
+        if (have[a.name] || ['kato', 'nia', 'void'].indexOf(a.name) >= 0) return errs.push('"' + a.name + '" already exists, skipped');
+        if (['character', 'creature', 'prop', 'set', 'fx'].indexOf(a.kind) < 0) return errs.push('"' + a.name + '" has an unknown kind, skipped');
+        a.difficulty = Math.max(1, Math.min(3, +a.difficulty || 2)); a.parts = Array.isArray(a.parts) ? a.parts : []; a.moves = Array.isArray(a.moves) ? a.moves : []; a.reuse = !!a.reuse;
+        if (a.kind === 'set' && !(Array.isArray(a.spots) && a.spots.length)) a.spots = ['center'];
+        have[a.name] = 1; P.plan.assets.push(a); applyReuse([a]); if (!P.assets[a.name]) P.assets[a.name] = { code: '', versions: [], status: 'todo' }; added++;
+      });
+      var S = r.shots && typeof r.shots === 'object' ? r.shots : {};
+      Object.keys(S).forEach(function (id) {
+        P.cuts.forEach(function (c) {
+          var s = (P.plan.cuts[c.id] || []).filter(function (x) { return x.id === id })[0]; if (!s) return;
+          s.show = s.show + ' LEVEL UP: ' + S[id]; upg++;
+          var x = (P.shots[c.id] || {})[id];
+          if (x && x.code) { x.status = 'error'; x.check = { errors: ['LEVEL UP — add this to the shot: ' + S[id]], warnings: [] } }
+        });
+      });
+      var fresh = P.plan.assets.filter(function (a) { var x = P.assets[a.name]; return x && !x.reused && x.status === 'todo' && !P.assetTickets.some(function (t) { return t.names.indexOf(a.name) >= 0 }) });
+      PLAN.batch(fresh).forEach(function (g) { P.assetTickets.push({ id: 'a' + P.assetTickets.length + Date.now().toString(36), n: P.assetTickets.length + 1, names: g.names, status: 'waiting', answer: '', label: g.label || null }) });
+      save(true); rerender();
+      toast('Level up added: ' + added + ' new assets, ' + upg + ' shots to improve.' + (errs.length ? ' (' + errs.length + ' skipped)' : ''), 5000);
+      if (P.easy) go(easyNext().step);
+    }
+    return h('div', { className: 'card' }, h('h3', null, '⬆ Level up (optional)'),
+      h('p', { className: 'muted small', style: 'margin:0 0 6px' }, 'Not happy with the baseline? Claude suggests extra assets and richer shots. Only the new parts cost chats; everything made so far stays.'),
+      h('div', { className: 'row' }, size, wish),
+      h('div', { className: 'row', style: 'margin-top:8px' }, h('button', { on: { click: function () { promptBox('Level-up prompt', TPL.levelUp(P, libIndex(), size.value, wish.value.trim()), 'Level-up prompt') } } }, 'Copy level-up prompt'),
+        h('button', { className: 'ghost', on: { click: function () { fromClipboard().then(function (t) { ta.value = t; apply(t) }).catch(pasteFail) } } }, '📋 Paste & add')),
+      h('details', { style: 'margin-top:8px' }, h('summary', { className: 'muted small' }, 'Or paste by hand'), ta, h('button', { className: 'blue small', style: 'margin-top:6px', on: { click: function () { apply(ta.value) } } }, 'Add')), out);
+  }
+
+  /* =================================================================
+     PUBLISH PACKAGE (written by the planner)
+     ================================================================= */
+  function copyBtn(text, what) { return h('button', { className: 'ghost small', on: { click: function () { copy(text, what) } } }, 'Copy') }
+  function pubRow(label, text, what) { if (!text) return null; return h('div', { style: 'border-top:1px solid var(--line);padding:8px 0' }, h('div', { className: 'row' }, h('b', null, label), h('span', { className: 'grow' }), copyBtn(text, what || label)), h('div', { style: 'white-space:pre-wrap;margin-top:4px' }, text)) }
+  function publishPackage(c, useThumb) {
+    var pb = P.plan && P.plan.publish; if (!pb) return null;
+    var yt = pb.youtube || {}, tt = pb.tiktok || {}, list = function (a) { return (a || []).join(', ') };
+    var times = PLAN.shotTimes(c, P.plan.cuts[c.id] || []);
+    return h('div', null,
+      h('div', { className: 'card' }, h('h3', null, 'Titles (best first)'),
+        (pb.titles || []).map(function (t, i) {
+          return h('div', { className: 'row', style: 'border-top:1px solid var(--line);padding:6px 0' }, badge(i === 0 ? '★ best' : '#' + (i + 1), i === 0 ? 'b-ok' : ''), h('span', { style: 'flex:1;min-width:200px' }, t.text),
+            h('span', { className: 'muted small' }, t.text.length + ' ch' + (t.text.length > 60 ? ' ⚠ long' : '')), copyBtn(t.text, 'Title'), t.why ? h('div', { className: 'muted small', style: 'flex-basis:100%' }, t.why) : null);
+        })),
+      (pb.thumbnails || []).length ? h('div', { className: 'card' }, h('h3', null, 'Thumbnail options'),
+        pb.thumbnails.map(function (t, i) {
+          var at = times.filter(function (x) { return x.id === t.shot })[0], sec = at ? at.from + (at.to - at.from) * Math.max(0, Math.min(1, t.at == null ? .5 : +t.at)) : null;
+          return h('div', { style: 'border-top:1px solid var(--line);padding:8px 0' }, h('div', { className: 'row' }, h('b', null, 'Option ' + (i + 1) + (t.text ? ': "' + t.text + '"' : '')), t.shot ? badge('frame: ' + t.shot) : null, h('span', { className: 'grow' }),
+            sec != null ? h('button', { className: 'small', on: { click: function () { useThumb(t.text || '', sec) } } }, 'Make this thumbnail') : null, t.prompt ? h('button', { className: 'ghost small', on: { click: function () { copy(t.prompt, 'Image prompt') } } }, 'Copy image prompt') : null),
+            t.why ? h('div', { className: 'muted small' }, t.why) : null, t.prompt ? h('div', { className: 'small', style: 'margin-top:4px;color:#d9cfbc' }, t.prompt) : null);
+        })) : null,
+      h('div', { className: 'card g2' },
+        h('div', null, h('h3', null, 'YouTube'), pubRow('Description', yt.description), pubRow('Tags', list(yt.tags)), pubRow('Hashtags', (yt.hashtags || []).join(' ')), pubRow('Pinned comment', yt.pinned_comment), pubRow('Category', yt.category)),
+        h('div', null, h('h3', null, 'TikTok'), pubRow('Caption', [tt.caption, (tt.hashtags || []).join(' ')].filter(Boolean).join('\n'), 'Caption'), pubRow('Cover text', tt.cover_text))),
+      h('div', { className: 'card' }, h('h3', null, 'Recommendations'),
+        pb.hook_check ? h('p', null, h('b', null, 'Hook: '), pb.hook_check) : null, pb.post_time ? h('p', null, h('b', null, 'Best time to post: '), pb.post_time) : null,
+        (pb.recommendations || []).length ? h('ul', null, pb.recommendations.map(function (r) { return h('li', null, r) })) : null,
+        (pb.series || []).length ? h('div', null, h('b', null, 'Next videos in this series:'), h('ul', null, pb.series.map(function (r) { return h('li', null, r) }))) : null));
+  }
+
   /* =================================================================
      EASY MODE: audio in, style, then the app tells you the next thing to do
      ================================================================= */
@@ -174,6 +342,7 @@
       var stx = !st || st.status === 'waiting' ? 'Copy prompt' : sbad ? 'Copy fix prompt' : '📋 Paste & check';
       return { step: 'shots', text: !st || st.status === 'waiting' ? 'Copy the shots prompt and paste it into one Claude Opus chat.' : sbad ? 'Some shots need a fix: Copy fix prompt, paste it into the SAME Claude chat, then Paste & check.' : 'When Claude finishes, copy its whole answer and click Paste & check.', target: st ? { sel: '#stk-' + open.id + '-' + st.n, text: stx } : { text: 'Copy prompt' } };
     }
+    if (P.cuts.every(function (c) { return c.exported })) return { step: 'publish', text: 'Video exported! On Publish: pick a title, make the thumbnail, and copy the description, tags and TikTok caption.', target: { text: 'Make this thumbnail' } };
     return { step: STEP === 'export' ? 'export' : 'watch', text: 'Everything is ready. Press Play to watch it, fix any bad shot, then go to Export and make the MP4.', target: STEP === 'export' ? { text: 'Export video' } : null };
   }
   function easyBanner() {
@@ -257,6 +426,7 @@
       h('div', { className: 'card' }, h('h3', null, '1. Style'), pick,
         h('div', { className: 'g2', style: 'margin-top:10px' },
           field('Video name', h('input', { value: P.name, on: { input: function () { P.name = this.value; s.topic = this.value; save() } } })),
+          field('Detail level', sel('detail', [['standard', 'Standard'], ['lean', 'Lean: fewest chats, reuses the library most'], ['rich', 'Rich: more detail, more chats']])),
           field('Video shape', sel('vshape', [['short', 'Vertical 9:16 (Shorts, TikTok)'], ['long', 'Wide 16:9 (normal YouTube video)']], function () { if (s.vshape === 'long') { s.type = 'long'; s.longAspect = '16:9'; s.shorts = 0 } else s.type = 'short' })))),
       h('div', { className: 'card' }, h('h3', null, '2. Your audio'), drop, info, player),
       h('div', { className: 'card' }, h('h3', null, '3. Your script (optional)'),
@@ -290,6 +460,7 @@
         field('Visual style', sel('style', (TPL.styleList || []).map(function (x) { return [x.id, x.name + ' — ' + x.note] }))),
         field('Mascot on screen', sel('mascot', [['both', 'Both (kato + nia)'], ['kato', 'kato (male)'], ['nia', 'nia (female)'], ['none', 'None']])),
         field('Narration voice', sel('voice', [['male', 'Male'], ['female', 'Female']])),
+        field('Detail level', sel('detail', [['standard', 'Standard'], ['lean', 'Lean: fewest chats, reuses the library most'], ['rich', 'Rich: more detail, more chats']])),
         field('Sky / colour mood', sel('sky', [['auto', 'Let the plan choose'], ['night', 'Night (cool)'], ['warm', 'Warm (sunset)']]))
       ),
       (P.plan || Object.keys(P.assets || {}).length) ? h('p', { className: 'muted small' }, 'Changing the style after the plan or assets exist means the assets must be made again in the new style (shots can stay).') : null,
@@ -418,6 +589,7 @@
   var planCheck = null;
   function applyPlan(plan) {
     P.plan = plan; P.planSig = planSig();
+    applyReuse(plan.assets, function (w) { if (planCheck) planCheck.warnings.push(w) });
     plan.assets.forEach(function (a) { if (!P.assets[a.name]) P.assets[a.name] = { code: '', versions: [], status: 'todo' } });
     makeAssetTickets(); P.cuts.forEach(function (c) { makeShotTickets(c.id) });
     save(true);
@@ -437,7 +609,7 @@
       !ready ? h('div', { className: 'card' }, badge('First finish Voice & timing for every cut.', 'b-warn')) : null,
       h('div', { className: 'card' },
         help(['Click <b>Copy plan prompt</b>, paste into Claude (or any chat).', 'Paste the JSON answer below, click <b>Read plan</b>.', 'If there are problems, click <b>Copy fix prompt</b>, paste it into the SAME chat, and paste the new answer.']),
-        h('div', { className: 'row' }, h('button', { disabled: !ready, on: { click: function () { PLANCOPIED = true; promptBox('Plan prompt', TPL.plan(P), 'Plan prompt'); afterRender() } } }, 'Copy plan prompt')),
+        h('div', { className: 'row' }, h('button', { disabled: !ready, on: { click: function () { PLANCOPIED = true; promptBox('Plan prompt', TPL.plan(P, libIndex()), 'Plan prompt'); afterRender() } } }, 'Copy plan prompt')),
         field('Paste the plan (JSON)', h('textarea', { value: P.planRaw, style: 'min-height:160px', on: { input: function () { P.planRaw = this.value; save() } } })),
         h('div', { className: 'row' }, h('button', { on: { click: function () { fromClipboard().then(function (t) { P.planRaw = t; save(); read() }).catch(pasteFail) } } }, '📋 Paste & read'), h('button', { className: 'blue', on: { click: read } }, 'Read plan'),
           planCheck && (planCheck.errors.length || planCheck.warnings.some(function (w) { return /detail pass/.test(w) })) ? h('button', { className: 'ghost', on: { click: function () { promptBox('Plan fix prompt', TPL.planFix(P, planCheck.errors.concat(planCheck.warnings.filter(function (w) { return /detail pass/.test(w) }))), 'Fix prompt') } } }, 'Copy fix prompt') : null),
@@ -445,12 +617,21 @@
       P.plan ? planSummary() : null,
       P.plan ? nextBtn('assets', 'Next: Assets →') : null);
   }
+  function reuseCell(a) {
+    var x = P.assets[a.name] || {};
+    if (x.reused) return h('div', null, badge('♻ from library' + (x.from ? ': ' + x.from : ''), 'b-ok'));
+    if (x.status === 'approved') return null;
+    var sim = libSimilar(a); if (!sim.length) return null;
+    return h('div', null, sim.map(function (l) {
+      return h('button', { className: 'ghost small', style: 'margin-top:4px', 'data-tip': 'Use the library asset "' + l.name + '" (from "' + l.from + '") instead of building a new one. Saves a chat.', on: { click: function () { useLib(a, l); makeAssetTickets(); save(true); rerender(); toast('Using "' + l.name + '" from the library for ' + a.name + '.') } } }, '♻ use ' + l.name);
+    }));
+  }
   function planSummary() {
     var A = P.plan.assets;
     return h('div', null,
       h('div', { className: 'card' }, h('h3', null, A.length + ' assets'),
         h('table', null, h('tr', null, h('th', null, 'name'), h('th', null, 'kind'), h('th', null, 'diff.'), h('th', null, 'size'), h('th', null, 'look')),
-          A.map(function (a) { return h('tr', null, h('td', null, a.name), h('td', null, a.kind), h('td', null, a.difficulty), h('td', null, a.size), h('td', { className: 'muted' }, a.look + (a.spots ? ' · spots: ' + a.spots.join(', ') : '') + (a.moves.length ? ' · moves: ' + a.moves.join(', ') : ''))) }))),
+          A.map(function (a) { return h('tr', null, h('td', null, a.name, reuseCell(a)), h('td', null, a.kind), h('td', null, a.difficulty), h('td', null, a.size), h('td', { className: 'muted' }, a.look + (a.spots ? ' · spots: ' + a.spots.join(', ') : '') + (a.moves.length ? ' · moves: ' + a.moves.join(', ') : ''))) }))),
       P.cuts.map(function (c) {
         var list = P.plan.cuts[c.id] || [];
         return h('div', { className: 'card' }, h('h3', null, c.label + ' — ' + list.length + ' shots'),
@@ -464,10 +645,11 @@
      TICKETS
      ================================================================= */
   function makeAssetTickets() {
-    var items = P.plan.assets.map(function (a) { return { name: a.name, difficulty: a.difficulty } });
+    var todo = P.plan.assets.filter(function (a) { var x = P.assets[a.name]; return !(x && x.reused) });
+    var items = todo.map(function (a) { return { name: a.name, difficulty: a.difficulty } });
     var old = {}; (P.assetTickets || []).forEach(function (t) { old[t.names.slice().sort().join(',')] = t });
     var auto = P.ptsAsset === 'auto' || P.ptsAsset == null;
-    var groups = auto ? PLAN.batch(P.plan.assets) : PLAN.pack(items, P.ptsAsset).map(function (b) { return { names: b.map(function (x) { return x.name }) } });
+    var groups = auto ? PLAN.batch(todo) : PLAN.pack(items, P.ptsAsset).map(function (b) { return { names: b.map(function (x) { return x.name }) } });
     P.assetTickets = groups.map(function (g, i) {
       var names = g.names, o = old[names.slice().sort().join(',')];
       var t = o ? Object.assign(o, { n: i + 1 }) : { id: 'a' + i + Date.now().toString(36), n: i + 1, names: names, status: 'waiting', answer: '' };
@@ -632,6 +814,7 @@
         h('button', { className: 'ok', on: { click: function () { approveAll(P.shots[CUT] || {}, plan.map(function (s) { return s.id })) } } }, 'Approve all ✓')),
       smartPaste('shot', CUT),
       (P.shotTickets[CUT] || []).map(function (t) { return shotTicketCard(CUT, t) }),
+      levelUpCard(),
       nextBtn('watch', 'Next: Watch & fix →'));
   }
   function shotTicketCard(cid, t) {
@@ -867,6 +1050,7 @@
     }
     return h('div', null,
       h('h1', null, 'Export'), h('p', { className: 'lead' }, 'Makes the final video file: every frame rendered at full quality (1080 × 1920, or 1920 × 1080 for 16:9), with narration, sound effects and captions. It does not depend on how fast your PC is — a slow PC just takes longer.'),
+      levelUpCard(),
       P.cuts.map(function (c) {
         var missing = P.plan ? (P.plan.cuts[c.id] || []).filter(function (s) { return !((P.shots[c.id] || {})[s.id] || {}).code }).length : 0;
         return h('div', { className: 'card' }, h('div', { className: 'row' }, h('h3', { style: 'margin:0' }, c.label), badge(c.aspect || '9:16'), c.hasAudio ? badge('audio ✓', 'b-ok') : badge('no audio — silent video', 'b-warn'), missing ? badge(missing + ' shots not made', 'b-warn') : null, c.exported ? badge('exported ✓', 'b-ok') : null, h('span', { className: 'grow' }),
@@ -918,13 +1102,14 @@
     }
     var ch = chapters(c), meta = TPL.publish(P, c, ch.map(function (x) { return ts(x.t) + ' ' + x.text }).join('\n'));
     return h('div', null,
-      h('h1', null, 'Publish'), h('p', { className: 'lead' }, 'A thumbnail from your own video, plus title, description, tags and chapters written by Claude.'),
+      h('h1', null, 'Publish'), h('p', { className: 'lead' }, P.plan && P.plan.publish ? 'Everything to upload, written by the planner: titles, thumbnails, YouTube and TikTok text, and tips. Click Copy and paste it in.' : 'A thumbnail from your own video, plus title, description, tags and chapters written by Claude.'),
       cutTabs(),
       h('div', { className: 'card' }, h('h3', null, 'Thumbnail'),
         h('div', { className: 'row' }, h('span', null, 'Frame at'), tSlider), field('Text on the thumbnail (short, 2–5 words works best)', thumbText),
         h('div', { className: 'row', style: 'margin-top:8px' }, h('button', { on: { click: grab } }, 'Make thumbnail')), out,
         c.aspect !== '16:9' ? h('p', { className: 'muted small' }, 'For Shorts, YouTube picks the thumbnail from a frame in the video (you can choose it in the YouTube app). This image is for the long video, or to use as the first frame.') : null),
-      h('div', { className: 'card' }, h('h3', null, 'Title, description, tags'),
+      publishPackage(c, function (txt, sec) { thumbText.value = String(txt).toUpperCase(); P.thumbText = thumbText.value; tSlider.value = sec; save(); grab() }),
+      h('div', { className: 'card' }, h('h3', null, P.plan && P.plan.publish ? 'Write it again (optional)' : 'Title, description, tags'),
         help(['Click <b>Copy publish prompt</b> → paste into Claude.', 'Copy its answer into YouTube Studio when you upload.']),
         h('button', { on: { click: function () { promptBox('Publish prompt', meta, 'Publish prompt') } } }, 'Copy publish prompt'),
         ch.length > 1 ? h('div', { style: 'margin-top:10px' }, h('b', null, 'Chapters (from the script paragraphs):'), h('div', { className: 'lines', style: 'margin-top:6px' }, ch.map(function (x) { return h('div', null, ts(x.t) + '  ' + x.text) }))) : null),
@@ -948,6 +1133,7 @@
   document.getElementById('easyBtn').onclick = function () {
     P = newProject('Video ' + (LIST.length + 1)); P.easy = true; try { var es = localStorage.getItem('easyStyle'); if (es && (TPL.styleList || []).some(function (x) { return x.id === es })) P.settings.style = es } catch (e) { } P.claudeShots = true; P.settings.mascot = 'none'; P.settings.vshape = 'short'; syncCuts(); STEP = 'start'; save(true); localStorage.setItem('lastProject', P.id); render();
   };
+  document.getElementById('libBtn').onclick = function () { loadLib().then(libraryModal) };
   var tipsBtn = document.getElementById('tipsBtn');
   if (tipsBtn) { tipsBtn.textContent = 'Tips: ' + (GUIDE.tipsOn() ? 'on' : 'off'); tipsBtn.onclick = function () { tipsBtn.textContent = 'Tips: ' + (GUIDE.toggleTips() ? 'on' : 'off') } }
   document.getElementById('newBtn').onclick = function () { P = newProject('Video ' + (LIST.length + 1)); syncCuts(); STEP = 'project'; save(true); localStorage.setItem('lastProject', P.id); render() };
@@ -983,6 +1169,7 @@
     if (D.audio) fetch(D.audio).then(function (r) { return r.blob() }).then(function (b) { return DB.putFile(P.id + ':' + c.id, b) }).then(function () { c.hasAudio = true; c.audioName = 'narration.wav'; done() }).catch(done); else done();
   }
 
+  loadLib().then(libBackfill);
   refreshProjects().then(function () {
     var last = localStorage.getItem('lastProject');
     if (last && LIST.some(function (p) { return p.id === last })) openProject(last); else if (LIST[0]) openProject(LIST[0].id); else render();

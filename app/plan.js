@@ -66,9 +66,9 @@
       if (KINDS.indexOf(a.kind) < 0) errs.push('asset "' + a.name + '": kind must be one of ' + KINDS.join(', ') + '.');
       a.difficulty = Math.max(1, Math.min(3, +a.difficulty || 2));
       a.parts = Array.isArray(a.parts) ? a.parts : []; a.moves = Array.isArray(a.moves) ? a.moves : [];
-      if (a.kind === 'set') { a.spots = Array.isArray(a.spots) && a.spots.length ? a.spots : (errs.push('set "' + a.name + '" needs "spots": ["center", ...].'), []) }
-      if (!a.look) warns.push('asset "' + a.name + '" has no "look".');
-      if (!(+a.size > 0)) warns.push('asset "' + a.name + '" has no "size".');
+      if (a.kind === 'set') { a.spots = Array.isArray(a.spots) && a.spots.length ? a.spots : a.reuse ? [] : (errs.push('set "' + a.name + '" needs "spots": ["center", ...].'), []) }
+      if (!a.look && !a.reuse) warns.push('asset "' + a.name + '" has no "look".');
+      if (!(+a.size > 0) && !a.reuse) warns.push('asset "' + a.name + '" has no "size".');
     });
     // DETAIL PASS: what the narration names that the picture must show ({ cut: [{ line, word, show }] })
     if (Array.isArray(plan.details)) { var one = {}; one[(cuts && cuts[0] && cuts[0].id) || 'main'] = plan.details; plan.details = one }
@@ -80,6 +80,22 @@
         return true;
       });
     });
+    // PUBLISH package (titles, thumbnails, YouTube + TikTok text, tips)
+    var pb = plan.publish;
+    function arr(v) { return Array.isArray(v) ? v : typeof v === 'string' && v.trim() ? v.split(/\s*,\s*/) : [] }
+    if (!pb || typeof pb !== 'object') warns.push('No "publish" package (titles, thumbnails, tags…). You can still make it later on the Publish page.');
+    else {
+      pb.titles = arr(pb.titles).map(function (t) { return typeof t === 'string' ? { text: t } : t }).filter(function (t) { return t && t.text });
+      if (pb.titles.length < 5) warns.push('publish: ' + pb.titles.length + ' titles (5 or more wanted).');
+      pb.titles.forEach(function (t) { if (t.text.length > 70) warns.push('publish: title "' + t.text.slice(0, 40) + '…" is ' + t.text.length + ' characters (keep under 60).') });
+      pb.thumbnails = arr(pb.thumbnails).map(function (t) { return typeof t === 'string' ? { prompt: t } : t }).filter(function (t) { return t && (t.text || t.prompt) });
+      if (pb.thumbnails.length < 3) warns.push('publish: ' + pb.thumbnails.length + ' thumbnail options (3 or more wanted).');
+      pb.youtube = pb.youtube || {}; pb.tiktok = pb.tiktok || {};
+      ['tags', 'hashtags'].forEach(function (k) { pb.youtube[k] = arr(pb.youtube[k]) }); pb.tiktok.hashtags = arr(pb.tiktok.hashtags);
+      if (pb.youtube.tags.join(',').length > 500) warns.push('publish: YouTube tags are over 500 characters; YouTube will refuse some.');
+      pb.series = arr(pb.series); pb.recommendations = arr(pb.recommendations);
+    }
+    A.forEach(function (a) { a.reuse = !!a.reuse });
     var C = plan.cuts || {};
     (cuts || []).forEach(function (c) {
       var list = C[c.id];
