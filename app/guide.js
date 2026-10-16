@@ -69,6 +69,10 @@
     'Open Claude': ['Opens claude.ai in a new tab.', 'Next: paste with Ctrl+V and send.'],
     'Open Qwen': ['Opens Qwen chat (free) in a new tab.', 'Next: paste with Ctrl+V and send.'],
     'Open DeepSeek': ['Opens DeepSeek chat (free) in a new tab.', 'Next: paste with Ctrl+V and send.'],
+    'Open this chat': ['Goes back to the chat that is making this group.', ''],
+    'Open chat': ['Goes back to the chat that is making this group.', ''],
+    'Go to': ['Scrolls to this group.', ''],
+    'Upload result files': ['Pick the files the chat gave you (.html, .js or .txt). The app finds the code in them and checks it.', 'Next: green = done.'],
     'Copy again': ['Copies the prompt again.', ''],
     'Export video': ['Renders the final MP4 at full quality. Keep the tab open until it finishes.', 'Next: upload it to YouTube.'],
     'Next:': ['Goes to the next step.', '']

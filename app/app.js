@@ -34,13 +34,13 @@
     function fb() { var t = h('textarea', { value: text, style: 'position:fixed;left:-9999px' }); document.body.appendChild(t); t.select(); try { document.execCommand('copy') } catch (e) { } t.remove() }
     (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text).catch(fb) : Promise.resolve(fb())).then(function () { toast((what || 'Prompt') + ' copied — paste it into the chat (Ctrl+V).') });
   }
-  function promptBox(title, text, what) { // show + copy
+  function promptBox(title, text, what, onOpen) { // show + copy
     copy(text, what);
-    modal(title, h('div', null, h('div', { className: 'row' }, h('button', { on: { click: function () { copy(text, what) } } }, 'Copy again'), h('span', { className: 'muted small' }, text.length.toLocaleString() + ' characters')), chatLinks(), h('textarea', { value: text, readOnly: true, style: 'min-height:70vh;margin-top:10px' })));
+    modal(title, h('div', null, h('div', { className: 'row' }, h('button', { on: { click: function () { copy(text, what) } } }, 'Copy again'), h('span', { className: 'muted small' }, text.length.toLocaleString() + ' characters')), chatLinks(onOpen), h('textarea', { value: text, readOnly: true, style: 'min-height:70vh;margin-top:10px' })));
   }
-  function chatLinks() {
+  function chatLinks(onOpen) {
     return h('div', { className: 'chatlinks' }, [['Open Claude', 'https://claude.ai/new'], ['Open Qwen', 'https://chat.qwen.ai/'], ['Open DeepSeek', 'https://chat.deepseek.com/']].map(function (x) {
-      return h('button', { className: 'ghost small', on: { click: function () { window.open(x[1], '_blank', 'noopener') } } }, x[0]);
+      return h('button', { className: 'ghost small', on: { click: function () { if (onOpen) onOpen(x[0].replace('Open ', '')); window.open(x[1], '_blank', 'noopener') } } }, x[0]);
     }));
   }
   function fromClipboard() {
@@ -731,7 +731,7 @@
         h('span', { className: 'grow' }), badge(nOk + ' / ' + P.plan.assets.length + ' approved', nOk === P.plan.assets.length ? 'b-ok' : 'b-blue'),
         h('button', { className: 'ok', on: { click: function () { approveAll(P.assets, P.plan.assets.map(function (a) { return a.name })) } } }, 'Approve all ✓'),
         h('button', { className: 'blue', on: { click: function () { sheetModal() } } }, 'Asset sheet')),
-      smartPaste('asset'),
+      chatBoard(P.assetTickets, 'asset'), smartPaste('asset'),
       T.map(assetTicketCard),
       nOk === P.plan.assets.length ? nextBtn('shots', 'Next: Shots →') : null);
   }
@@ -748,8 +748,9 @@
     }
     return h('div', { className: 'card', id: 'atk-' + t.n },
       h('div', { className: 'row' }, h('h3', null, (P.easy ? 'Chat group ' + t.n + ' of ' + P.assetTickets.length : 'Ticket ' + t.n)), badge(t.label || pts + ' pts', t.label && /hard/.test(t.label) ? 'b-warn' : ''), statusBadge(t.status), h('span', { className: 'grow' }),
-        h('button', { on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Asset ticket ' + t.n, TPL.assetTicket(P, t), 'Ticket ' + t.n); renderNav() } } }, 'Copy prompt')),
-      A.map(function (a) { return assetRow(a) }),
+        h('button', { on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Asset ticket ' + t.n, TPL.assetTicket(P, t), 'Ticket ' + t.n, noteChat(t)); renderNav() } } }, 'Copy prompt')),
+      chatRow(t), A.map(function (a) { return assetRow(a) }),
+      resultFiles(function (x) { t.answer = x; ta.value = x; save(); check() }),
       ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { on: { click: function () { fromClipboard().then(function (x) { t.answer = x; ta.value = x; save(); check() }).catch(pasteFail) } } }, '📋 Paste & check'), h('button', { className: 'blue', on: { click: check } }, 'Check'),
         h('button', { className: 'ok', on: { click: function () { t.names.forEach(function (n) { var x = P.assets[n]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() } } }, 'Approve all ✓')), out);
   }
@@ -812,7 +813,7 @@
         !P.claudeShots ? h('span', null, ' · points per chat: ', h('select', { on: { change: function () { P.ptsShot = +this.value; makeShotTickets(CUT); save(); rerender() } } }, [2, 3, 4, 6, 8].map(function (v) { return h('option', { value: v, selected: P.ptsShot === v }, v) }))) : null,
         h('span', { className: 'grow' }), badge(nOk + ' / ' + plan.length + ' approved', nOk === plan.length ? 'b-ok' : 'b-blue'),
         h('button', { className: 'ok', on: { click: function () { approveAll(P.shots[CUT] || {}, plan.map(function (s) { return s.id })) } } }, 'Approve all ✓')),
-      smartPaste('shot', CUT),
+      chatBoard(P.shotTickets[CUT], 'shot', CUT), smartPaste('shot', CUT),
       (P.shotTickets[CUT] || []).map(function (t) { return shotTicketCard(CUT, t) }),
       levelUpCard(),
       nextBtn('watch', 'Next: Watch & fix →'));
@@ -828,14 +829,15 @@
     }
     return h('div', { className: 'card', id: 'stk-' + cid + '-' + t.n },
       h('div', { className: 'row' }, h('h3', null, (P.easy ? 'Claude chat ' + t.n + ' of ' + (P.shotTickets[cid] || []).length : 'Ticket ' + t.n) + ' · ' + t.ids[0] + (t.ids.length > 1 ? '–' + t.ids[t.ids.length - 1] : '')), statusBadge(t.status), h('span', { className: 'grow' }),
-        h('button', { disabled: !Object.keys(assetCodes()).length, on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Shot ticket ' + t.n, TPL.shotTicket(P, c, t), 'Ticket ' + t.n) } } }, 'Copy prompt')),
-      t.ids.map(function (id) {
+        h('button', { disabled: !Object.keys(assetCodes()).length, on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Shot ticket ' + t.n, TPL.shotTicket(P, c, t), 'Ticket ' + t.n, noteChat(t)) } } }, 'Copy prompt')),
+      chatRow(t), t.ids.map(function (id) {
         var s = plan.filter(function (x) { return x.id === id })[0] || {}, x = S[id] || {};
         return h('div', { style: 'border-top:1px solid var(--line);padding:6px 0' }, h('div', { className: 'row' }, h('b', null, id), statusBadge(x.status || 'todo'), h('span', { className: 'muted small' }, s.show),
           x.status === 'checked' ? h('button', { className: 'ok small', on: { click: function () { x.status = 'approved'; save(true); rerender() } } }, 'Approve') : null),
           x.check ? msgs(x.check.errors, x.check.warnings) : null,
           x.status === 'error' || (x.check && x.check.warnings && x.check.warnings.length) ? h('button', { className: 'ghost small', on: { click: function () { promptBox('Fix ' + id, TPL.shotFix(P, c, id, x.code, x.check ? x.check.errors.concat(x.check.warnings) : [], ''), 'Fix prompt') } } }, 'Copy fix prompt') : null);
       }),
+      resultFiles(function (x) { t.answer = x; ta.value = x; save(); check() }),
       ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { on: { click: function () { fromClipboard().then(function (x) { t.answer = x; ta.value = x; save(); check() }).catch(pasteFail) } } }, '📋 Paste & check'), h('button', { className: 'blue', on: { click: check } }, 'Check'),
         h('button', { className: 'ok', on: { click: function () { t.ids.forEach(function (id) { var x = S[id]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() } } }, 'Approve all ✓')), out);
   }
@@ -889,9 +891,51 @@
       h('p', { className: 'small', style: 'margin:6px 0 0' }, 'Shot lines may not match the narration any more. Re-do the Plan (Copy plan prompt again), or click "Keep plan" if the lines are the same.'),
       h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'small', on: { click: function () { go('plan') } } }, 'Go to Plan'), h('button', { className: 'ghost small', on: { click: function () { P.planSig = planSig(); save(); rerender() } } }, 'Keep plan')));
   }
+  /* ---------- which chat makes which group, and result files from the chats ---------- */
+  function noteChat(t) { return function (model) { t.chat = t.chat || { model: '', label: '', link: '' }; if (!t.chat.model) t.chat.model = model; if (!t.chat.label) t.chat.label = model + ' ' + t.n; save() } }
+  function chatRow(t) {
+    var c = t.chat || (t.chat = { model: '', label: '', link: '' });
+    function set(k, v) { c[k] = v; save() }
+    return h('div', { className: 'row', style: 'margin:6px 0' }, h('span', { className: 'muted small' }, 'Made in:'),
+      h('select', { 'data-tip': 'Which AI is making this group. Filled in by itself when you use the Open buttons.', on: { change: function () { set('model', this.value); rerender() } } }, ['', 'Qwen', 'DeepSeek', 'Claude', 'ChatGPT', 'Gemini', 'Other'].map(function (m) { return h('option', { value: m, selected: c.model === m }, m || 'which AI?') })),
+      h('input', { placeholder: 'chat name / number', value: c.label || '', style: 'width:170px', 'data-tip': 'A name so you can find this chat again, e.g. "Qwen 3". Use the same name in the chat\'s title.', on: { input: function () { set('label', this.value) } } }),
+      h('input', { placeholder: 'paste the chat\'s link (optional)', value: c.link || '', style: 'flex:1;min-width:180px', 'data-tip': 'Copy the address of that chat from the browser bar and paste it here. Then Open this chat takes you straight back to it.', on: { input: function () { set('link', this.value.trim()) }, change: rerender } }),
+      c.link ? h('button', { className: 'ghost small', on: { click: function () { window.open(c.link, '_blank', 'noopener') } } }, 'Open this chat') : null);
+  }
+  function readResultFiles(files) {
+    return Promise.all([].map.call(files, function (f) {
+      return f.text().then(function (t) {
+        if (/\.html?$/i.test(f.name) || /<script[\s>]/i.test(t)) {
+          var doc = new DOMParser().parseFromString(t, 'text/html'), js = [].map.call(doc.querySelectorAll('script:not([src])'), function (x) { return x.textContent }).filter(function (x) { return /KIT\.asset|SHOT\s*\(/.test(x) });
+          if (js.length) return js.join('\n\n');
+        }
+        return t;
+      });
+    })).then(function (parts) { return parts.join('\n\n') });
+  }
+  function resultFiles(onText) {
+    var fi = h('input', { type: 'file', multiple: true, accept: '.html,.htm,.js,.txt,.md,.json', hidden: true, on: { change: function () { var f = this.files; if (f && f.length) readResultFiles(f).then(onText); this.value = '' } } });
+    var z = h('div', { className: 'drop', style: 'padding:10px;margin:6px 0', on: { click: function (e) { if (e.target.tagName !== 'BUTTON') fi.click() }, dragover: function (e) { e.preventDefault(); z.classList.add('over') }, dragleave: function () { z.classList.remove('over') }, drop: function (e) { e.preventDefault(); z.classList.remove('over'); if (e.dataTransfer.files.length) readResultFiles(e.dataTransfer.files).then(onText) } } },
+      h('span', { className: 'small' }, 'Got files from the chat (.html, .js, .txt)? Drop them here or '), h('button', { className: 'ghost small', on: { click: function () { fi.click() } } }, 'Upload result files'), fi);
+    return z;
+  }
+  function chatBoard(tickets, kind, cid) {
+    if (!tickets || tickets.length < 2) return null;
+    var bag = kind === 'shot' ? (P.shots[cid] || {}) : P.assets;
+    return h('div', { className: 'card' }, h('h3', null, 'Chat board: which chat makes what'),
+      h('table', null, h('tr', null, h('th', null, 'Group'), h('th', null, 'Makes'), h('th', null, 'Chat'), h('th', null, 'Status'), h('th', null, '')),
+        tickets.map(function (t) {
+          var ids = t.ids || t.names, done = ids.filter(function (n) { return (bag[n] || {}).status === 'approved' }).length, c = t.chat || {};
+          return h('tr', null, h('td', null, '#' + t.n), h('td', { className: 'muted' }, ids.join(', ')),
+            h('td', null, c.model || c.label ? (c.label || c.model) : h('span', { className: 'muted' }, 'not started')),
+            h('td', null, done === ids.length ? badge('✓ done', 'b-ok') : statusBadge(t.status), ' ', h('span', { className: 'muted small' }, done + '/' + ids.length)),
+            h('td', null, c.link ? h('button', { className: 'ghost small', on: { click: function () { window.open(c.link, '_blank', 'noopener') } } }, 'Open chat') : null,
+              h('button', { className: 'ghost small', on: { click: function () { var el = document.getElementById((kind === 'shot' ? 'stk-' + cid + '-' : 'atk-') + t.n); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) } } }, 'Go to')));
+        })));
+  }
   function smartPaste(kind, cid) {
     var ta = h('textarea', { placeholder: 'Paste ANY chat answer here — the app finds which ' + (kind === 'shot' ? 'shots' : 'assets') + ' it contains and checks them.', style: 'min-height:70px' }), out = h('div');
-    return h('div', { className: 'card' }, h('h3', null, '⚡ Smart paste'), ta,
+    return h('div', { className: 'card' }, h('h3', null, '⚡ Smart paste'), ta, resultFiles(function (x) { ta.value = x; ta.parentNode.querySelector('button.blue').click() }),
       h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue', on: { click: function () {
         var r = storeBlocks(ta.value, kind, cid); out.innerHTML = '';
         if (!r.names.length) { out.appendChild(msgs(['Nothing found. The answer must contain ' + (kind === 'shot' ? "SHOT('id', {...})" : "KIT.asset('name', ...)") + '.'])); return }
