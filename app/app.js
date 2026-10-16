@@ -36,11 +36,21 @@
   }
   function promptBox(title, text, what) { // show + copy
     copy(text, what);
-    modal(title, h('div', null, h('div', { className: 'row' }, h('button', { on: { click: function () { copy(text, what) } } }, 'Copy again'), h('span', { className: 'muted small' }, text.length.toLocaleString() + ' characters')), h('textarea', { value: text, readOnly: true, style: 'min-height:70vh;margin-top:10px' })));
+    modal(title, h('div', null, h('div', { className: 'row' }, h('button', { on: { click: function () { copy(text, what) } } }, 'Copy again'), h('span', { className: 'muted small' }, text.length.toLocaleString() + ' characters')), chatLinks(), h('textarea', { value: text, readOnly: true, style: 'min-height:70vh;margin-top:10px' })));
   }
+  function chatLinks() {
+    return h('div', { className: 'chatlinks' }, [['Open Claude', 'https://claude.ai/new'], ['Open Qwen', 'https://chat.qwen.ai/'], ['Open DeepSeek', 'https://chat.deepseek.com/']].map(function (x) {
+      return h('button', { className: 'ghost small', on: { click: function () { window.open(x[1], '_blank', 'noopener') } } }, x[0]);
+    }));
+  }
+  function fromClipboard() {
+    if (!navigator.clipboard || !navigator.clipboard.readText) return Promise.reject(new Error('no clipboard'));
+    return navigator.clipboard.readText().then(function (t) { if (!t || !t.trim()) throw new Error('empty'); return t });
+  }
+  function pasteFail() { toast('Could not read what you copied. Click in the box, press Ctrl+V, then click Check.', 5000) }
   function modal(title, body, onClose) {
     var m = document.getElementById('modal'); document.getElementById('mtitle').textContent = title;
-    var b = document.getElementById('mbody'); b.innerHTML = ''; b.appendChild(body); m.hidden = false;
+    var b = document.getElementById('mbody'); b.innerHTML = ''; b.appendChild(body); m.hidden = false; if (window.GUIDE) GUIDE.applyTips(m);
     document.getElementById('mclose').onclick = function () { m.hidden = true; b.innerHTML = ''; if (onClose) onClose() };
   }
   function download(name, blob) { var a = h('a', { href: URL.createObjectURL(blob), download: name }); document.body.appendChild(a); a.click(); setTimeout(function () { a.remove() }, 1000) }
@@ -92,8 +102,20 @@
   function renderNav() {
     var nav = document.getElementById('steps'); nav.innerHTML = '';
     stepList().forEach(function (s, i) {
-      nav.appendChild(h('a', { className: (STEP === s[0] ? 'on ' : '') + (done(s[0]) ? 'done' : ''), on: { click: function () { go(s[0]) } } }, h('span', { className: 'n' }, done(s[0]) ? '✓' : (s[2] || i + 1)), h('span', { className: 't' }, s[1])));
+      var tipT = navTip(s[0]);
+      nav.appendChild(h('a', { className: (STEP === s[0] ? 'on ' : '') + (done(s[0]) ? 'done' : ''), 'data-tip': tipT[0], 'data-next': tipT[1], on: { click: function () { go(s[0]) } } }, h('span', { className: 'n' }, done(s[0]) ? '✓' : (s[2] || i + 1)), h('span', { className: 't' }, s[1])));
     });
+  }
+  var NAVTIP = { project: 'Name, video type, length, style, mascot and voice.', topic: 'Find a topic from what is trending.', script: 'Claude researches and writes the script.', voice: 'Upload the audio and time every word.',
+    start: 'Pick the style and add your audio. The app times every word.', plan: 'Claude plans every character, place and shot from your words.', assets: 'Free chats build the characters, places and props, one group per chat.',
+    shots: 'Claude Opus sets the camera, light and moves for every line.', watch: 'Watch it with sound and fix any bad shot.', export: 'Render the final MP4.', publish: 'Thumbnail, title, description and tags.' };
+  var NEEDS = { plan: ['start', 'voice'], assets: ['plan'], shots: ['assets'], watch: ['plan'], export: ['plan'] };
+  function navTip(step) {
+    var what = NAVTIP[step] || '', nx = '';
+    if (done(step)) nx = '✓ Done.';
+    else if (P && P.easy && easyNext().step === step) nx = '→ This is your next step.';
+    else if (P && NEEDS[step]) { var miss = NEEDS[step].filter(function (k) { return stepList().some(function (x) { return x[0] === k }) && !done(k) })[0]; if (miss) nx = 'Finish "' + stepList().filter(function (x) { return x[0] === miss })[0][1] + '" first.' }
+    return [what, nx];
   }
   function go(step) { if (PLAYER && step !== 'watch') { PLAYER.remove(); PLAYER = null } STEP = step; render() }
   function render() {
@@ -103,6 +125,12 @@
     if (P.easy) $main.appendChild(easyBanner());
     var fn = { start: vEasyStart, project: vProject, topic: vTopic, script: vScript, voice: vVoice, plan: vPlan, assets: vAssets, shots: vShots, watch: vWatch, export: vExport, publish: vPublish }[STEP];
     $main.appendChild(fn());
+    afterRender();
+  }
+  function afterRender() {
+    if (!window.GUIDE) return;
+    GUIDE.applyTips(document.body);
+    if (P && P.easy) GUIDE.point(easyNext().target, false);
   }
   function welcome() {
     var steps = [['Project', 'Pick the topic, short or long video, length, mascot and voice.'], ['Topic', 'Optional: load what is trending and let Claude suggest 10 ideas.'], ['Script', 'Claude researches and writes a human, TTS-ready script for every cut.'],
@@ -119,51 +147,123 @@
      EASY MODE: audio in, style, then the app tells you the next thing to do
      ================================================================= */
   function easyNext() {
-    if (!P.cuts.every(function (c) { return c.lines && c.lines.length })) return { step: 'start', text: 'Choose your style, upload your audio and click Start. The app listens and finds every word.' };
-    if (!P.plan) return { step: 'plan', text: 'Click Copy plan prompt, paste it into Claude, paste the answer back here and click Read plan.' };
+    var c0 = P.cuts[0];
+    if (!P.cuts.every(function (c) { return c.lines && c.lines.length })) {
+      var has = c0.hasAudio || easyFile;
+      return { step: 'start', text: has ? 'Your audio is ready. Paste the script if you have it, then click Start.' : 'Pick a style, then drop your audio file on the box (or click Upload audio).', target: { text: has ? 'Start' : 'Upload audio' } };
+    }
+    if (!P.plan) {
+      if (planCheck && planCheck.errors && planCheck.errors.length) return { step: 'plan', text: 'The plan has problems. Click Copy fix prompt, paste it into the SAME Claude chat, copy the new answer, then click Paste & read.', target: { text: 'Copy fix prompt' } };
+      return PLANCOPIED ? { step: 'plan', text: 'Paste the prompt into Claude (Open Claude, then Ctrl+V). When Claude finishes, copy its whole answer and click Paste & read.', target: { text: '📋 Paste & read' } }
+        : { step: 'plan', text: 'Click Copy plan prompt. It opens with buttons to open Claude.', target: { text: 'Copy plan prompt' } };
+    }
     var A = P.plan.assets, aOk = A.filter(function (a) { return (P.assets[a.name] || {}).status === 'approved' }).length;
-    if (aOk < A.length) return { step: 'assets', text: 'Assets ' + aOk + ' of ' + A.length + ' approved. For each chat group: Copy prompt, paste it in a NEW chat, paste the answer back, click Check, then Approve.' };
+    if (aOk < A.length) {
+      var T = P.assetTickets, t = T.filter(function (t) { return t.names.some(function (n) { return (P.assets[n] || {}).status !== 'approved' }) })[0];
+      var bad = t && t.names.some(function (n) { return (P.assets[n] || {}).status === 'error' });
+      var tx = !t ? 'Copy prompt' : t.status === 'waiting' ? 'Copy prompt' : bad ? 'Copy fix prompt' : '📋 Paste & check';
+      var say = !t ? '' : t.status === 'waiting' ? 'Copy chat group ' + t.n + ' and paste it into a NEW free chat (Qwen or DeepSeek).'
+        : bad ? 'Chat group ' + t.n + ' needs a fix: Copy fix prompt, paste it into the SAME chat, copy the answer, then Paste & check.'
+        : 'When the chat for group ' + t.n + ' finishes, copy its whole answer and click Paste & check.';
+      return { step: 'assets', text: aOk + ' of ' + A.length + ' assets done. ' + say, target: t ? { sel: '#atk-' + t.n, text: tx } : null };
+    }
     var open = P.cuts.filter(function (c) { return (P.plan.cuts[c.id] || []).some(function (s) { return ((P.shots[c.id] || {})[s.id] || {}).status !== 'approved' }) })[0];
-    if (open) return { step: 'shots', text: 'Click Copy prompt, paste it into one Claude Opus chat, paste the answer back, click Check, then Approve all.' };
-    return { step: 'watch', text: 'Everything is ready. Press Play to watch it, fix any bad shot, then click Export.' };
+    if (open) {
+      var ST = P.shotTickets[open.id] || [], S = P.shots[open.id] || {}, st = ST.filter(function (t) { return t.ids.some(function (id) { return (S[id] || {}).status !== 'approved' }) })[0];
+      var sbad = st && st.ids.some(function (id) { return (S[id] || {}).status === 'error' });
+      var stx = !st || st.status === 'waiting' ? 'Copy prompt' : sbad ? 'Copy fix prompt' : '📋 Paste & check';
+      return { step: 'shots', text: !st || st.status === 'waiting' ? 'Copy the shots prompt and paste it into one Claude Opus chat.' : sbad ? 'Some shots need a fix: Copy fix prompt, paste it into the SAME Claude chat, then Paste & check.' : 'When Claude finishes, copy its whole answer and click Paste & check.', target: st ? { sel: '#stk-' + open.id + '-' + st.n, text: stx } : { text: 'Copy prompt' } };
+    }
+    return { step: STEP === 'export' ? 'export' : 'watch', text: 'Everything is ready. Press Play to watch it, fix any bad shot, then go to Export and make the MP4.', target: STEP === 'export' ? { text: 'Export video' } : null };
   }
   function easyBanner() {
     var n = easyNext(), on = STEP === n.step;
-    return h('div', { className: 'card', style: 'border-color:#7a6231;background:#2e2616' }, h('div', { className: 'row' }, badge('⚡ Easy mode · what to do now', 'b-warn'), h('span', { className: 'grow' }),
-      on ? null : h('button', { className: 'small', on: { click: function () { go(n.step) } } }, 'Take me there →')),
+    return h('div', { className: 'card', style: 'border-color:#7a6231;background:#2e2616' }, h('div', { className: 'row' }, badge('⚡ What to do now', 'b-warn'), h('span', { className: 'grow' }),
+      on && n.target ? h('button', { className: 'small', on: { click: function () { if (!GUIDE.point(n.target, true)) toast('Scroll down: the button is further down the page.') } } }, 'Show me') : null,
+      on ? null : h('button', { className: 'small', on: { click: function () { go(n.step); setTimeout(function () { GUIDE.point(easyNext().target, true) }, 80) } } }, 'Take me there →')),
       h('p', { style: 'margin:8px 0 0;font-size:16px' }, n.text));
   }
-  var easyFile = null;
+  var easyFile = null, easyDur = 0;
+  function finishTiming(c, words, text, method, dur) {
+    var s = P.settings;
+    c.text = text; c.words = words; c.duration = dur; c.lines = TIMING.lines(words); c.timing = method;
+    s.minutes = Math.max(.25, Math.round(dur / 6) / 10); s.topic = s.topic || P.name; P.title = P.title || P.name; syncCuts();
+    save(true); toast('Done: ' + c.lines.length + ' lines, ' + dur.toFixed(1) + ' s.', 4000); go('plan');
+  }
+  function heardToWords(heard) { return heard.map(function (w) { return [w[0].replace(/\s+/g, ' '), +(+w[1]).toFixed(3), +Math.max(+w[1] + .05, +w[2]).toFixed(3)] }) }
+  function mismatch(c, r, script, onDone) {
+    var pct = Math.round((r.matched || 0) * 100), sw = TIMING.words(script).length, hw = (r.heardWords || []).length;
+    var body = h('div', null,
+      h('p', { style: 'font-size:16px' }, 'Your script and your audio do not match well. Only ' + pct + '% of the script\'s words were heard in the audio.'),
+      h('table', null, h('tr', null, h('td', null, 'Words in your script'), h('td', null, sw)), h('tr', null, h('td', null, 'Words heard in the audio'), h('td', null, hw)), h('tr', null, h('td', null, 'Audio length'), h('td', null, r.duration.toFixed(1) + ' s'))),
+      h('p', { className: 'muted' }, 'If you keep the script, the captions and scenes will drift away from the voice. Using what the audio says is safer. Spelling may be a little different from your script.'),
+      h('div', { className: 'row', style: 'margin-top:12px' },
+        hw ? h('button', { className: 'ok', on: { click: function () { document.getElementById('mclose').click(); var w = heardToWords(r.heardWords); onDone(); finishTiming(c, w, w.map(function (x) { return x[0] }).join(' '), 'whisper (audio words)', r.duration) } } }, 'Use what the audio says (recommended)') : null,
+        h('button', { className: 'ghost', on: { click: function () { document.getElementById('mclose').click(); onDone(); finishTiming(c, r.words, script, 'whisper (' + pct + '% matched)', r.duration) } } }, 'Keep my script anyway')));
+    modal('Script and audio do not match', body, function () { onDone() });
+  }
   function vEasyStart() {
-    var s = P.settings, c = P.cuts[0], st = h('div', { className: 'muted small', style: 'margin-top:8px' }), fileName = h('span', { className: 'muted small' }, c.hasAudio ? 'audio: ' + (c.audioName || 'saved') : 'no audio chosen'),
-      fileIn = h('input', { type: 'file', accept: 'audio/*', hidden: true }), script = h('textarea', { value: c.text || '', placeholder: 'Paste your script here. Or leave this empty and the app will listen to the audio and write the words itself.', style: 'min-height:140px' }), btn;
-    fileIn.onchange = function () { easyFile = fileIn.files[0] || null; if (easyFile) fileName.textContent = 'chosen: ' + easyFile.name };
+    var s = P.settings, c = P.cuts[0], st = h('div', { className: 'muted small', style: 'margin-top:8px' }), btn;
+    var fileIn = h('input', { type: 'file', accept: 'audio/*', hidden: true }), info = h('div', { className: 'small', style: 'margin-top:8px' }), player = h('div');
+    var script = h('textarea', { value: c.text || '', placeholder: 'Paste your script here (optional). Leave it empty and the app writes the words by listening.', style: 'min-height:140px' }), fit = h('div', { className: 'muted small', style: 'margin-top:6px' });
+    var mode = h('select', null, h('option', { value: 'exact' }, 'Exact: listen to the audio (best captions, takes a minute or two)'), h('option', { value: 'fast' }, 'Fast: use the pauses (a few seconds, captions can drift a little)')), modeRow = h('div', { style: 'margin-top:8px' }, h('label', null, 'Timing'), mode);
+    function words() { return TIMING.words(script.value).length }
+    function updFit() {
+      var n = words(); modeRow.hidden = !n;
+      if (!n) { fit.textContent = 'No script: the app will listen and write the words (needs the Exact timing).'; return }
+      if (!easyDur) { fit.textContent = n + ' words.'; return }
+      var wpm = n / (easyDur / 60), ok = wpm > 100 && wpm < 210;
+      fit.textContent = n + ' words for ' + easyDur.toFixed(0) + ' s of audio (' + Math.round(wpm) + ' words a minute). ' + (ok ? 'Looks right.' : wpm <= 100 ? '⚠ The script looks too SHORT for this audio. Is it the whole script?' : '⚠ The script looks too LONG for this audio. Is it the right audio?');
+      fit.style.color = ok ? '' : 'var(--warn)';
+    }
+    script.addEventListener('input', updFit);
+    function setFile(f) {
+      if (!f) return; if (!/^audio\//.test(f.type) && !/\.(mp3|wav|m4a|ogg|aac|flac|webm)$/i.test(f.name)) return toast('That is not an audio file.');
+      easyFile = f; var url = URL.createObjectURL(f), au = h('audio', { controls: true, src: url, style: 'width:100%;margin-top:8px' });
+      au.addEventListener('loadedmetadata', function () { easyDur = au.duration || 0; info.textContent = '✓ ' + f.name + ' · ' + (easyDur ? Math.floor(easyDur / 60) + ':' + ('0' + Math.round(easyDur % 60)).slice(-2) + ' long' : ''); updFit() });
+      info.textContent = '✓ ' + f.name; player.innerHTML = ''; player.appendChild(au); if ($main.firstChild && $main.firstChild.className === 'card') $main.replaceChild(easyBanner(), $main.firstChild); afterRender();
+    }
+    fileIn.onchange = function () { setFile(fileIn.files[0]) };
+    var drop = h('div', { className: 'drop', on: { click: function (e) { if (e.target.tagName !== 'BUTTON') fileIn.click() }, dragover: function (e) { e.preventDefault(); drop.classList.add('over') }, dragleave: function () { drop.classList.remove('over') }, drop: function (e) { e.preventDefault(); drop.classList.remove('over'); setFile(e.dataTransfer.files[0]) } } },
+      h('div', null, h('b', null, 'Drop your audio file here')), h('div', { className: 'small', style: 'margin:6px 0 10px' }, 'mp3, wav or m4a'), h('button', { className: 'ghost', on: { click: function () { fileIn.click() } } }, 'Upload audio'), fileIn);
+    if (!easyFile && c.hasAudio) info.textContent = '✓ saved audio: ' + (c.audioName || 'audio');
+    else if (easyFile) setTimeout(function () { setFile(easyFile) });
     function start() {
-      if (!easyFile && !c.hasAudio) return toast('Click Upload audio first.');
-      btn.disabled = true; var useScript = script.value.trim();
-      var blobP = easyFile ? DB.putFile(P.id + ':' + c.id, easyFile).then(function () { c.hasAudio = true; c.audioName = easyFile.name; return easyFile }) : DB.getFile(P.id + ':' + c.id);
+      if (!easyFile && !c.hasAudio) { GUIDE.point({ text: 'Upload audio' }, true); return toast('Add your audio first.') }
+      var useScript = script.value.trim(), fast = useScript && mode.value === 'fast';
+      btn.disabled = true;
+      var job = GUIDE.task('Timing your audio', { label: 'Reading the audio…' }), phase = '';
+      function status(m, p, ph) { st.textContent = m; if (ph && ph !== phase) { phase = ph; job.phase(m) } job.set(p == null ? null : p, m) }
+      function fail(e) { st.textContent = 'Error: ' + e.message; job.done('Stopped: ' + e.message, true); btn.disabled = false }
+      var blobP = easyFile ? DB.putFile(P.id + ':' + c.id, easyFile).then(function () { c.hasAudio = true; c.audioName = easyFile.name; save(); return easyFile }) : DB.getFile(P.id + ':' + c.id);
       blobP.then(function (blob) {
         if (!blob) throw new Error('No audio found. Upload it again.');
-        var job = useScript ? TIMING.run(useScript, blob, function (m) { st.textContent = m }, true) : TIMING.transcribe(blob, function (m) { st.textContent = m });
-        return job.then(function (r) {
-          c.text = useScript || r.text; c.words = r.words; c.duration = r.duration; c.lines = TIMING.lines(r.words); c.timing = r.method || 'whisper';
-          s.minutes = Math.max(.25, Math.round(r.duration / 6) / 10); s.topic = s.topic || P.name; P.title = P.title || P.name; syncCuts();
-          save(true); toast('Done: ' + c.lines.length + ' lines, ' + c.duration.toFixed(1) + ' s.', 4000); go('plan');
+        if (!useScript) return TIMING.transcribe(blob, status).then(function (r) { job.done('Done: ' + r.words.length + ' words heard'); finishTiming(c, r.words, r.text, 'whisper (audio words)', r.duration) });
+        return TIMING.run(useScript, blob, status, !fast).then(function (r) {
+          if (r.method === 'whisper' && r.matched < .7) { job.done('Check needed: only ' + Math.round(r.matched * 100) + '% matched', true); return mismatch(c, r, useScript, function () { btn.disabled = false }) }
+          job.done(r.method === 'whisper' ? 'Done: ' + Math.round(r.matched * 100) + '% of words matched' : 'Done (from pauses)');
+          finishTiming(c, r.words, useScript, r.method === 'whisper' ? 'whisper (' + Math.round(r.matched * 100) + '% matched)' : 'pauses', r.duration);
         });
-      }).catch(function (e) { st.textContent = 'Error: ' + e.message; btn.disabled = false });
+      }).catch(fail);
     }
     btn = h('button', { on: { click: start } }, c.lines && c.lines.length ? 'Start again' : 'Start');
+    var styles = TPL.styleList || [];
+    var pick = h('div', { className: 'stylepick' }, styles.map(function (x) {
+      return h('label', { className: s.style === x.id ? 'on' : '', on: { click: function () { s.style = x.id; try { localStorage.setItem('easyStyle', x.id) } catch (e) { } save(); rerender() } } }, h('b', null, x.name), h('small', null, x.note));
+    }));
     function sel(key, opts, cb) { return h('select', { on: { change: function () { s[key] = this.value; if (cb) cb(); syncCuts(); save(); rerender() } } }, opts.map(function (o) { return h('option', { value: o[0], selected: String(s[key]) === String(o[0]) }, o[1]) })) }
-    return h('div', null, h('h1', null, 'Start'), h('p', { className: 'lead' }, 'Pick the style, upload your audio, and click Start. That is all this page needs.'),
-      h('div', { className: 'card g2' },
-        field('Video name', h('input', { value: P.name, on: { input: function () { P.name = this.value; s.topic = this.value; save() } } })),
-        field('Style', sel('style', (TPL.styleList || []).map(function (x) { return [x.id, x.name + ' — ' + x.note] }))),
-        field('Video shape', sel('vshape', [['short', 'Vertical 9:16 (Shorts, TikTok)'], ['long', 'Wide 16:9 (normal YouTube video)']], function () { if (s.vshape === 'long') { s.type = 'long'; s.longAspect = '16:9'; s.shorts = 0 } else s.type = 'short' }))),
-      h('div', { className: 'card' }, h('h3', null, 'Your audio'),
-        h('div', { className: 'row' }, h('button', { className: 'ghost', on: { click: function () { fileIn.click() } } }, 'Upload audio'), fileIn, fileName),
-        field('Script (optional)', script)),
+    updFit();
+    return h('div', null, h('h1', null, 'Start'), h('p', { className: 'lead' }, 'Three things: the style, your audio, and (if you have it) your script. Then click Start.'),
+      h('div', { className: 'card' }, h('h3', null, '1. Style'), pick,
+        h('div', { className: 'g2', style: 'margin-top:10px' },
+          field('Video name', h('input', { value: P.name, on: { input: function () { P.name = this.value; s.topic = this.value; save() } } })),
+          field('Video shape', sel('vshape', [['short', 'Vertical 9:16 (Shorts, TikTok)'], ['long', 'Wide 16:9 (normal YouTube video)']], function () { if (s.vshape === 'long') { s.type = 'long'; s.longAspect = '16:9'; s.shorts = 0 } else s.type = 'short' })))),
+      h('div', { className: 'card' }, h('h3', null, '2. Your audio'), drop, info, player),
+      h('div', { className: 'card' }, h('h3', null, '3. Your script (optional)'),
+        h('p', { className: 'muted small', style: 'margin:0 0 6px' }, 'With a script the captions use your exact spelling, and you can choose Fast timing. Without one, the app listens and writes the words itself.'),
+        script, fit, modeRow),
       h('div', { className: 'row' }, btn), st,
-      c.lines && c.lines.length ? h('div', { className: 'card', style: 'margin-top:12px' }, badge('✓ ' + c.lines.length + ' lines · ' + c.duration.toFixed(1) + ' s', 'b-ok'), nextBtn('plan', 'Next: Plan →')) : null);
+      c.lines && c.lines.length ? h('div', { className: 'card', style: 'margin-top:12px' }, badge('✓ ' + c.lines.length + ' lines · ' + c.duration.toFixed(1) + ' s · ' + (c.timing || ''), 'b-ok'), nextBtn('plan', 'Next: Plan →')) : null);
   }
   function rerender() { var y = window.scrollY; render(); window.scrollTo(0, y) }
   function nextBtn(step, label) { return h('div', { className: 'row', style: 'margin-top:18px' }, h('button', { on: { click: function () { go(step) } } }, label || 'Next →')) }
@@ -322,13 +422,14 @@
     makeAssetTickets(); P.cuts.forEach(function (c) { makeShotTickets(c.id) });
     save(true);
   }
+  var PLANCOPIED = false;
   function vPlan() {
     var ready = P.cuts.every(function (c) { return c.lines.length });
     function read() {
       try { var plan = PLAN.json(P.planRaw) } catch (e) { planCheck = { errors: ['Could not read JSON: ' + e.message], warnings: [] }; return rerender() }
       planCheck = PLAN.validate(plan, P.cuts);
       if (styleOf() === 'facet' && !(plan.details && Object.keys(plan.details).some(function (k) { return (plan.details[k] || []).length }))) planCheck.warnings.push('No "details" (detail pass): list what each line names that the picture must show — copy the fix prompt to add it.');
-      if (!planCheck.errors.length) { applyPlan(plan); toast('Plan accepted: ' + plan.assets.length + ' assets.') }
+      if (!planCheck.errors.length) { applyPlan(plan); toast('Plan accepted: ' + plan.assets.length + ' assets.'); if (P.easy) return go('assets') }
       rerender();
     }
     return h('div', null,
@@ -336,9 +437,9 @@
       !ready ? h('div', { className: 'card' }, badge('First finish Voice & timing for every cut.', 'b-warn')) : null,
       h('div', { className: 'card' },
         help(['Click <b>Copy plan prompt</b>, paste into Claude (or any chat).', 'Paste the JSON answer below, click <b>Read plan</b>.', 'If there are problems, click <b>Copy fix prompt</b>, paste it into the SAME chat, and paste the new answer.']),
-        h('div', { className: 'row' }, h('button', { disabled: !ready, on: { click: function () { promptBox('Plan prompt', TPL.plan(P), 'Plan prompt') } } }, 'Copy plan prompt')),
+        h('div', { className: 'row' }, h('button', { disabled: !ready, on: { click: function () { PLANCOPIED = true; promptBox('Plan prompt', TPL.plan(P), 'Plan prompt'); afterRender() } } }, 'Copy plan prompt')),
         field('Paste the plan (JSON)', h('textarea', { value: P.planRaw, style: 'min-height:160px', on: { input: function () { P.planRaw = this.value; save() } } })),
-        h('div', { className: 'row' }, h('button', { className: 'blue', on: { click: read } }, 'Read plan'),
+        h('div', { className: 'row' }, h('button', { on: { click: function () { fromClipboard().then(function (t) { P.planRaw = t; save(); read() }).catch(pasteFail) } } }, '📋 Paste & read'), h('button', { className: 'blue', on: { click: read } }, 'Read plan'),
           planCheck && (planCheck.errors.length || planCheck.warnings.some(function (w) { return /detail pass/.test(w) })) ? h('button', { className: 'ghost', on: { click: function () { promptBox('Plan fix prompt', TPL.planFix(P, planCheck.errors.concat(planCheck.warnings.filter(function (w) { return /detail pass/.test(w) }))), 'Fix prompt') } } }, 'Copy fix prompt') : null),
         planCheck ? msgs(planCheck.errors, planCheck.warnings) : null),
       P.plan ? planSummary() : null,
@@ -424,14 +525,17 @@
   }
   function checkAssets(names) {
     var expect = P.plan.assets.filter(function (a) { return names.indexOf(a.name) >= 0 });
+    var job = window.GUIDE ? GUIDE.task('Checking ' + names.length + (names.length === 1 ? ' asset' : ' assets'), { key: 'chk-asset', units: names.length, label: 'Building each one and testing it…' }) : null;
     return stage({ mode: 'check-assets', sky: sky(), assets: assetCodes(), expect: expect }, 'check-assets').then(function (m) {
       Object.keys(m.results).forEach(function (n) {
         var r = m.results[n], a = P.assets[n] || (P.assets[n] = { code: '', versions: [] });
         a.check = r; a.status = r.ok ? (a.status === 'approved' ? 'approved' : 'checked') : 'error';
         if (r.size) P.assetInfo[n] = { size: r.size };
       });
+      var bad = Object.keys(m.results).filter(function (n) { return !m.results[n].ok }).length;
+      if (job) job.done(bad ? bad + ' need a fix' : 'All passed', !!bad);
       save(true); return m.results;
-    });
+    }, function (e) { if (job) job.done(e.message, true); throw e });
   }
   function vAssets() {
     if (!P.plan) return h('div', null, h('h1', null, 'Assets'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
@@ -458,13 +562,13 @@
       var r = storeBlocks(t.answer, 'asset');
       if (!r.names.length) { out.innerHTML = ''; out.appendChild(msgs(['No KIT.asset(\'…\') found in the answer.'])); return }
       t.status = 'pasted'; out.innerHTML = 'Checking…';
-      checkAssets(t.names).then(function () { t.status = t.names.every(function (n) { return (P.assets[n] || {}).status !== 'error' }) ? 'checked' : 'error'; save(true); rerender() }).catch(function (e) { out.textContent = 'Error: ' + e.message });
+      checkAssets(t.names).then(function () { t.status = t.names.every(function (n) { return (P.assets[n] || {}).status !== 'error' }) ? 'checked' : 'error'; if (P.easy) t.names.forEach(function (n) { var x = P.assets[n]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() }).catch(function (e) { out.textContent = 'Error: ' + e.message });
     }
-    return h('div', { className: 'card' },
+    return h('div', { className: 'card', id: 'atk-' + t.n },
       h('div', { className: 'row' }, h('h3', null, (P.easy ? 'Chat group ' + t.n + ' of ' + P.assetTickets.length : 'Ticket ' + t.n)), badge(t.label || pts + ' pts', t.label && /hard/.test(t.label) ? 'b-warn' : ''), statusBadge(t.status), h('span', { className: 'grow' }),
         h('button', { on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Asset ticket ' + t.n, TPL.assetTicket(P, t), 'Ticket ' + t.n); renderNav() } } }, 'Copy prompt')),
       A.map(function (a) { return assetRow(a) }),
-      ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue', on: { click: check } }, 'Check'),
+      ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { on: { click: function () { fromClipboard().then(function (x) { t.answer = x; ta.value = x; save(); check() }).catch(pasteFail) } } }, '📋 Paste & check'), h('button', { className: 'blue', on: { click: check } }, 'Check'),
         h('button', { className: 'ok', on: { click: function () { t.names.forEach(function (n) { var x = P.assets[n]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() } } }, 'Approve all ✓')), out);
   }
   function assetRow(a) {
@@ -499,6 +603,7 @@
     return h('div', { className: 'row', style: 'margin:8px 0' }, P.cuts.map(function (c) { return h('button', { className: c.id === CUT ? '' : 'ghost', on: { click: function () { CUT = c.id; if (onPick) onPick(); rerender() } } }, c.label) }));
   }
   function checkShots(cid, ids) {
+    var job = window.GUIDE ? GUIDE.task('Checking ' + ids.length + (ids.length === 1 ? ' shot' : ' shots'), { key: 'chk-shot', units: ids.length, label: 'Playing each shot and testing it…' }) : null;
     return stage({ mode: 'check-shots', sky: sky(), assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), ids: ids, res: 240 }, 'check-shots').then(function (m) {
       Object.keys(m.results).forEach(function (id) {
         var x = (P.shots[cid] || {})[id]; if (!x) return; var r = m.results[id];
@@ -507,8 +612,10 @@
         PLAN.missingDetails(x.code, PLAN.shotDetails(P.plan, cid, s)).forEach(function (d) { r.warnings.push('Detail not shown on its word "' + d.word + '": ' + d.show + " — time it with word: '" + d.word + "'.") });
         x.check = r; x.status = r.ok ? (x.status === 'approved' ? 'approved' : 'checked') : 'error';
       });
+      var bad = Object.keys(m.results).filter(function (n) { return !m.results[n].ok }).length;
+      if (job) job.done(bad ? bad + ' need a fix' : 'All passed', !!bad);
       save(true); return m.results;
-    });
+    }, function (e) { if (job) job.done(e.message, true); throw e });
   }
   function vShots() {
     if (!P.plan) return h('div', null, h('h1', null, 'Shots'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
@@ -534,10 +641,10 @@
       var r = storeBlocks(t.answer, 'shot', cid);
       if (!r.names.length) { out.innerHTML = ''; out.appendChild(msgs(['No SHOT(\'…\', {...}) found in the answer.'])); return }
       out.textContent = 'Checking…';
-      checkShots(cid, t.ids).then(function () { t.status = t.ids.every(function (id) { return (S[id] || {}).status === 'checked' || (S[id] || {}).status === 'approved' }) ? 'checked' : 'error'; save(true); rerender() }).catch(function (e) { out.textContent = 'Error: ' + e.message });
+      checkShots(cid, t.ids).then(function () { t.status = t.ids.every(function (id) { return (S[id] || {}).status === 'checked' || (S[id] || {}).status === 'approved' }) ? 'checked' : 'error'; if (P.easy) t.ids.forEach(function (id) { var x = S[id]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() }).catch(function (e) { out.textContent = 'Error: ' + e.message });
     }
-    return h('div', { className: 'card' },
-      h('div', { className: 'row' }, h('h3', null, 'Ticket ' + t.n + ' · ' + t.ids[0] + (t.ids.length > 1 ? '–' + t.ids[t.ids.length - 1] : '')), statusBadge(t.status), h('span', { className: 'grow' }),
+    return h('div', { className: 'card', id: 'stk-' + cid + '-' + t.n },
+      h('div', { className: 'row' }, h('h3', null, (P.easy ? 'Claude chat ' + t.n + ' of ' + (P.shotTickets[cid] || []).length : 'Ticket ' + t.n) + ' · ' + t.ids[0] + (t.ids.length > 1 ? '–' + t.ids[t.ids.length - 1] : '')), statusBadge(t.status), h('span', { className: 'grow' }),
         h('button', { disabled: !Object.keys(assetCodes()).length, on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Shot ticket ' + t.n, TPL.shotTicket(P, c, t), 'Ticket ' + t.n) } } }, 'Copy prompt')),
       t.ids.map(function (id) {
         var s = plan.filter(function (x) { return x.id === id })[0] || {}, x = S[id] || {};
@@ -546,7 +653,7 @@
           x.check ? msgs(x.check.errors, x.check.warnings) : null,
           x.status === 'error' || (x.check && x.check.warnings && x.check.warnings.length) ? h('button', { className: 'ghost small', on: { click: function () { promptBox('Fix ' + id, TPL.shotFix(P, c, id, x.code, x.check ? x.check.errors.concat(x.check.warnings) : [], ''), 'Fix prompt') } } }, 'Copy fix prompt') : null);
       }),
-      ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue', on: { click: check } }, 'Check'),
+      ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { on: { click: function () { fromClipboard().then(function (x) { t.answer = x; ta.value = x; save(); check() }).catch(pasteFail) } } }, '📋 Paste & check'), h('button', { className: 'blue', on: { click: check } }, 'Check'),
         h('button', { className: 'ok', on: { click: function () { t.ids.forEach(function (id) { var x = S[id]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() } } }, 'Approve all ✓')), out);
   }
 
@@ -839,8 +946,10 @@
   function openProject(id) { return DB.get(id).then(function (p) { if (!p) return; P = p; CUT = null; syncCuts(); if (P.easy) STEP = easyNext().step; localStorage.setItem('lastProject', id); render() }) }
   document.getElementById('projSel').onchange = function () { if (PLAYER) { PLAYER.remove(); PLAYER = null } openProject(this.value) };
   document.getElementById('easyBtn').onclick = function () {
-    P = newProject('Video ' + (LIST.length + 1)); P.easy = true; P.claudeShots = true; P.settings.mascot = 'none'; P.settings.vshape = 'short'; syncCuts(); STEP = 'start'; save(true); localStorage.setItem('lastProject', P.id); render();
+    P = newProject('Video ' + (LIST.length + 1)); P.easy = true; try { var es = localStorage.getItem('easyStyle'); if (es && (TPL.styleList || []).some(function (x) { return x.id === es })) P.settings.style = es } catch (e) { } P.claudeShots = true; P.settings.mascot = 'none'; P.settings.vshape = 'short'; syncCuts(); STEP = 'start'; save(true); localStorage.setItem('lastProject', P.id); render();
   };
+  var tipsBtn = document.getElementById('tipsBtn');
+  if (tipsBtn) { tipsBtn.textContent = 'Tips: ' + (GUIDE.tipsOn() ? 'on' : 'off'); tipsBtn.onclick = function () { tipsBtn.textContent = 'Tips: ' + (GUIDE.toggleTips() ? 'on' : 'off') } }
   document.getElementById('newBtn').onclick = function () { P = newProject('Video ' + (LIST.length + 1)); syncCuts(); STEP = 'project'; save(true); localStorage.setItem('lastProject', P.id); render() };
   document.getElementById('delBtn').onclick = function () {
     if (!P || !confirm('Delete "' + P.name + '"? This cannot be undone.')) return;

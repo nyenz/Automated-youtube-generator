@@ -73,22 +73,53 @@
     return { words: out, duration: duration };
   };
 
-  /* ---------- Whisper (transformers.js, runs in the browser) ---------- */
+  /* ---------- Whisper (transformers.js, runs in the browser) ----------
+     onStatus(message, fraction 0..1 or null, phase 'download' | 'listen') */
   var ASR = null;
   TM.whisper = function (pcm, onStatus) {
     var models = ['onnx-community/whisper-base_timestamped', 'onnx-community/whisper-tiny.en_timestamped', 'Xenova/whisper-tiny.en'];
+    function say(m, p, ph) { onStatus && onStatus(m, p, ph) }
     function load(i) {
       if (i >= models.length) return Promise.reject(new Error('Could not load a Whisper model.'));
-      onStatus && onStatus('Downloading speech model (' + models[i] + '). First time only, ~40–150 MB…');
+      var files = {}; say('Downloading the speech model (first time only, then it is saved)…', null, 'download');
       return import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2').then(function (TF) {
-        return TF.pipeline('automatic-speech-recognition', models[i], { progress_callback: function (p) { if (p.status === 'progress' && onStatus) onStatus('Downloading model: ' + Math.round(p.progress || 0) + '%') } });
+        return TF.pipeline('automatic-speech-recognition', models[i], { progress_callback: function (p) {
+          if (p.status !== 'progress' || !p.total) return;
+          files[p.file] = [p.loaded, p.total]; var a = 0, b = 0; for (var k in files) { a += files[k][0]; b += files[k][1] }
+          say('Downloading the speech model: ' + (a / 1048576).toFixed(0) + ' of ' + (b / 1048576).toFixed(0) + ' MB (first time only)', a / b, 'download');
+        } });
       }).catch(function (e) { console.warn(e); return load(i + 1) });
     }
+    // cut the audio into pieces of up to 30 s at the quietest moment, so we can show real progress
+    function pieces() {
+      var SR = 16000, out = [], at = 0, n = pcm.length, win = 320;
+      while (at < n) {
+        var end = Math.min(n, at + 30 * SR);
+        if (end < n) {
+          var best = end, bestE = 1e9;
+          for (var j = at + 22 * SR; j + win < end; j += win) { var e = 0; for (var q = 0; q < win; q++) e += pcm[j + q] * pcm[j + q]; if (e < bestE) { bestE = e; best = j + win / 2 } }
+          end = Math.floor(best);
+        }
+        out.push([at, end]); at = end;
+      }
+      return out;
+    }
     return (ASR ? Promise.resolve(ASR) : load(0)).then(function (asr) {
-      ASR = asr; onStatus && onStatus('Listening to the audio… (can take a few minutes for long videos)');
-      return asr(pcm, { return_timestamps: 'word', chunk_length_s: 30, stride_length_s: 5 });
-    }).then(function (out) {
-      return (out.chunks || []).map(function (c) { return [String(c.text).trim(), c.timestamp[0], c.timestamp[1] == null ? c.timestamp[0] + .3 : c.timestamp[1]] }).filter(function (w) { return w[0] });
+      ASR = asr; var P = pieces(), words = [], k = 0;
+      say('Listening to the audio: part 1 of ' + P.length, 0, 'listen');
+      function next() {
+        if (k >= P.length) return words;
+        var a = P[k][0], b = P[k][1], off = a / 16000;
+        return asr(pcm.subarray(a, b), { return_timestamps: 'word' }).then(function (out) {
+          (out.chunks || []).forEach(function (c) {
+            var w = String(c.text).trim(); if (!w) return;
+            var s = (c.timestamp[0] || 0) + off, e = c.timestamp[1] == null ? s + .3 : c.timestamp[1] + off; words.push([w, s, e]);
+          });
+          k++; say('Listening to the audio: part ' + Math.min(k + 1, P.length) + ' of ' + P.length, b / pcm.length, 'listen');
+          return next();
+        });
+      }
+      return next();
     });
   };
 
@@ -128,7 +159,7 @@
     return TM.decode(blob).then(function (d) {
       if (useWhisper === false) return TM.fromPauses(text, d.pcm, d.duration);
       return TM.whisper(d.pcm, onStatus).then(function (heard) {
-        var r = TM.align(text, heard, d.duration); r.method = 'whisper'; r.heard = heard.length; return r;
+        var r = TM.align(text, heard, d.duration); r.method = 'whisper'; r.heard = heard.length; r.heardWords = heard; return r;
       }).catch(function (e) {
         console.warn('Whisper failed, using pause detection', e);
         onStatus && onStatus('Whisper could not run here, so I used pause detection instead.');

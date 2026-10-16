@@ -40,7 +40,7 @@ Changing the style after assets exist means the assets must be made again (the s
 - The app **checks every answer** for wrong names, missing parts, wrong size, colours outside the palette, crashes, and words that aren't spoken in the shot. If something fails, it writes the fix prompt for you.
 
 ## Easy mode (start here)
-Click **⚡ Easy mode** in the top bar. You get 5 steps: **Start** (pick the style, upload your audio, script optional: the app listens and writes the words if you leave it empty), **Plan** (one prompt for Claude), **Assets** (grouped into a few "chat groups", one per free chat), **Shots** (one Claude Opus chat does them all), **Watch & fix** and **Export**. A gold box at the top of every page always says what to do next.
+Click **⚡ Easy mode** in the top bar. You get 5 steps: **Start** (pick the style, upload your audio, script optional: the app listens and writes the words if you leave it empty), **Plan** (one prompt for Claude), **Assets** (grouped into a few "chat groups", one per free chat), **Shots** (one Claude Opus chat does them all), **Watch & fix** and **Export**. A gold box at the top of every page always says what to do next; **Show me** flashes the exact button, and the next button always has a gold ring. Hover any button for what it does and what comes after (turn this off with **Tips**). Long jobs (timing, checks, export) show a progress panel with the time left. **📋 Paste & read / Paste & check** paste the chat answer and check it in one click; in Easy mode anything that passes is approved by itself. If your script and audio don't match, the app tells you and offers to use what the audio says.
 
 ## Using it step by step (full control)
 1. Click **+ New**. Fill in the Project page.
