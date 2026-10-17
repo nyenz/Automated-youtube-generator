@@ -43,7 +43,15 @@
   /* ---------------- hover tips ---------------- */
   // label (start of the button text) -> [what it does, what to do after]
   G.TIPS = {
+    '⚡ New video': ['Starts a new video the simple way: pick a style, add your audio, and the app guides you to the end.', 'Next: upload your audio on the Start page.'],
     '⚡ Easy mode': ['Starts a new video the simple way: pick a style, add your audio, and the app guides you to the end.', 'Next: upload your audio on the Start page.'],
+    'Add all': ['Adds every missing thing as a small asset and puts it in the right shots, so it appears in the video.', 'Next: go to Assets; the new things have their own chat.'],
+    '✨ Improve': ['Copies a prompt that makes this asset look better. Paste it into a chat, then paste the answer back (Paste & check).', 'The old version is kept: Undo brings it back.'],
+    '👁 Review looks': ['Gemini looks at every asset and flags the ones that look wrong (a woman who looks like a man, the wrong skin tone…).', 'Needs a free Gemini key in ⚙ Settings.'],
+    '▶ Play': ['Plays the video with your audio and captions.', 'Then click a shot or a transition on the timeline to change it.'],
+    '▶ Watch it': ['Plays the 3 seconds around this transition so you can judge it.', ''],
+    'Same for all same-place': ['Uses this transition everywhere two shots happen in the same place.', ''],
+    'Copy improve prompt': ['Copies the prompt that improves this library asset.', 'Next: paste it into a chat, copy the answer, then Paste & save.'],
     '+ New': ['Starts a new video with every setting shown (full control).', 'Tip: Easy mode is faster if you already have the audio.'],
     '+ Full control': ['Starts a new video with every setting shown.', 'Tip: Easy mode is faster if you already have the audio.'],
     'Load demo': ['Opens a finished example so you can see what the app makes.', 'Next: press Play on the Watch page.'],
@@ -110,6 +118,29 @@
     if (!scope) return null;
     return [].filter.call(scope.querySelectorAll('button'), function (b) { return !b.disabled && b.textContent.trim().indexOf(target.text) === 0 })[0] || null;
   }
+  /* COACH: a small speech bubble on the next button + a nudge when nothing happens for a while */
+  var bub = null, bubT = null, bubBtn = null, idle = Date.now(), nudged = 0;
+  ['pointerdown', 'keydown'].forEach(function (ev) { document.addEventListener(ev, function () { idle = Date.now(); nudged = 0 }, true) });
+  function place() {
+    if (!bub || !bubBtn) return; var r = bubBtn.getBoundingClientRect(), md = document.getElementById('modal');
+    if (md && !md.hidden && !md.contains(bubBtn)) { bub.style.display = 'none'; return }
+    if (!r.width || r.bottom < 40 || r.top > innerHeight - 20) { bub.style.display = 'none'; return }
+    bub.style.display = ''; bub.style.left = Math.max(8, Math.min(innerWidth - bub.offsetWidth - 8, r.left)) + 'px'; bub.style.top = (r.bottom + 10) + 'px';
+  }
+  document.addEventListener('scroll', place, true); window.addEventListener('resize', place);
+  setInterval(function () {
+    if (!bubBtn || !document.body.contains(bubBtn)) return;
+    var quiet = (Date.now() - idle) / 1000;
+    if (quiet > 20 && nudged < 2 && tipOn) { nudged++; idle = Date.now(); bubBtn.classList.remove('pulse'); void bubBtn.offsetWidth; bubBtn.classList.add('pulse'); var r = bubBtn.getBoundingClientRect(); if (r.top < 60 || r.bottom > innerHeight - 20) bubBtn.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
+    place();
+  }, 1000);
+  G.coach = function (target, text) {
+    if (bub) { bub.remove(); bub = null } bubBtn = null;
+    if (!target || !text || !tipOn) return;
+    var b = find(target); if (!b) return;
+    bubBtn = b; bub = el('div', 'coach-bubble', '👉 ' + text); document.body.appendChild(bub); idle = Date.now(); nudged = 0;
+    clearTimeout(bubT); bubT = setTimeout(place, 30); place();
+  };
   G.point = function (target, strong) {
     document.querySelectorAll('.next-hint').forEach(function (b) { b.classList.remove('next-hint') });
     var b = find(target); if (!b) return false;

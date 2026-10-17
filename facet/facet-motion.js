@@ -326,6 +326,14 @@
     const cam = camAt({ width: S.width, height: S.height, camera: sh.camera }, t);
     const A = sh.handheld || 0;                                         // a slow, slight handheld drift (no shake)
     if (A) { cam.x += A * (Math.sin(t * 1.3 + 1) + .5 * Math.sin(t * 2.7)); cam.y += A * .7 * Math.sin(t * 1.1 + 2); }
+    if (sh.glide && t < sh.glide.for) {                                 // GLIDE: the camera carries on from the shot before, then settles
+      const g = sh.glide, k = ease(t / g.for);
+      cam.zoom = lerp(g.from.zoom, cam.zoom, k); cam.x = lerp(g.from.x, cam.x, k); cam.y = lerp(g.from.y, cam.y, k);
+    }
+    if (cam.zoom >= 1) {                                                // CAMERA GUARD: never look past the edge of the set
+      const hw = S.width / (2 * cam.zoom), hh = S.height / (2 * cam.zoom);
+      cam.x = Math.min(S.width - hw, Math.max(hw, cam.x)); cam.y = Math.min(S.height - hh, Math.max(hh, cam.y));
+    }
     // depth without blur: far things move less than the camera, near things more (parallax)
     const camT = k => { const z = 1 + (cam.zoom - 1) * k, x = S.width / 2 + (cam.x - S.width / 2) * k, y = S.height / 2 + (cam.y - S.height / 2) * k;
       return `<g transform="translate(${f(S.width / 2)} ${f(S.height / 2)}) scale(${f(z)}) translate(${f(-x)} ${f(-y)})">`; };
@@ -372,10 +380,46 @@
       return `<text transform="translate(${S.width / 2} ${y}) scale(${f(pop)}) translate(${-S.width / 2} ${-y})" x="${S.width / 2}" y="${f(yy)}" text-anchor="middle" font-family="Montserrat, 'DejaVu Sans', Arial, sans-serif" font-weight="900" font-size="${fs}" letter-spacing="1" stroke="#2a1810" stroke-width="${fs * .16}" stroke-linejoin="round" paint-order="stroke">${spans}</text>`; }).join('');
   }
 
+  /* where the camera of a shot ends (used to glide into the next shot in the same place) */
+  function endCam(S, sh) { return camAt({ width: S.width, height: S.height, camera: sh.camera }, Math.max(0, sh.to - sh.from - .01)) }
+  /* TRANSITIONS between shots. The incoming shot carries trans: { type: 'cut' | 'dissolve' | 'dip' | 'glide' | 'push', for } */
+  function inner(S, sh, t, tag) {                                       // a whole shot as a nested picture (ids made unique)
+    const o = shotSVG(S, sh, Math.max(0, t)), svg = (o.head + o.tail).replace(/id="dof/g, 'id="dof' + tag).replace(/url\(#dof/g, 'url(#dof' + tag);
+    return svg;
+  }
   function frame(S, t) {
-    let sh = S.shots ? S.shots.find(x => t >= x.from && t < x.to) || S.shots[S.shots.length - 1] : null;
-    const one = sh ? shotSVG(S, sh, t - sh.from) : shotSVG(S, { id: 'main', bg: S.bg, set: S.set, front: S.front, cast: S.cast, camera: S.camera }, t);
-    return one.head + one.tail.replace('</svg>', captionSVG(S, t) + '</svg>');
+    if (!S.shots) { const one = shotSVG(S, { id: 'main', bg: S.bg, set: S.set, front: S.front, cast: S.cast, camera: S.camera }, t); return one.head + one.tail.replace('</svg>', captionSVG(S, t) + '</svg>'); }
+    let i = S.shots.findIndex(x => t >= x.from && t < x.to); if (i < 0) i = S.shots.length - 1;
+    let sh = S.shots[i];
+    if (sh.trans && sh.trans.type === 'glide' && i > 0 && !sh.glide) sh.glide = { from: endCam(S, S.shots[i - 1]), for: sh.trans.for || 1 };
+    let one = shotSVG(S, sh, t - sh.from), mix = '', push = null;
+    // which boundary are we near? the one at the start of this shot, or the one at the start of the next
+    const nx = S.shots[i + 1], T = (b, a) => b && b.trans && b.trans.type && b.trans.type !== 'cut' ? b : null;
+    const inB = i > 0 ? T(sh) : null, outB = T(nx);
+    const W = S.width, H = S.height, black = op => `<rect x="0" y="0" width="${W}" height="${H}" fill="#0b0a0d" opacity="${f(op)}"/>`;
+    if (inB) {                                                          // just after a boundary: the old shot fades away on top
+      const d = inB.trans.for || .6, k = (t - sh.from) / d, prev = S.shots[i - 1];
+      if (k < 1) {
+        if (inB.trans.type === 'dissolve' || inB.trans.type === 'glide') { const kk = inB.trans.type === 'glide' ? Math.min(1, k * 2.2) : .5 + k / 2; if (kk < 1) mix = `<g opacity="${f(1 - ease(kk))}">${inner(S, prev, t - prev.from, 'p')}</g>`; }
+        else if (inB.trans.type === 'dip') mix = black(1 - ease(k));
+        else if (inB.trans.type === 'push') push = { x: (1 - ease(.5 + k / 2)) * W, a: inner(S, prev, t - prev.from, 'p'), b: inner(S, sh, t - sh.from, 'c') };
+      }
+    }
+    if (outB && !mix && !push) {                                                 // just before a boundary: the next shot starts to show
+      const d = outB.trans.for || .6, k = (t - (nx.from - d / 2)) / (d / 2);
+      if (k > 0 && k <= 1) {
+        if (outB.trans.type === 'dissolve') mix = `<g opacity="${f(ease(k) * .5)}">${inner(S, nx, 0, 'n')}</g>`;
+        else if (outB.trans.type === 'dip') { const dd = outB.trans.for || .6, kk = (t - (nx.from - dd)) / dd; if (kk > 0) mix = black(ease(Math.min(1, kk))); }
+        else if (outB.trans.type === 'push') push = { x: (1 - ease(k / 2)) * W, a: inner(S, sh, t - sh.from, 'c'), b: inner(S, nx, 0, 'n') };
+      }
+    }
+    if (push) {                                                         // PUSH: the new shot slides in and pushes the old one out
+      const open = (one.head.match(/<svg[^>]*>/) || ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'])[0];
+      return open + `<g transform="translate(${f(push.x - W)} 0)">${push.a}</g><g transform="translate(${f(push.x)} 0)">${push.b}</g>` + captionSVG(S, t) + '</svg>';
+    }
+    // the mix goes under the grain/vignette layer (one.tail) and under the captions
+    const cut = one.tail.lastIndexOf('</svg>');
+    return one.head + mix + one.tail.slice(0, cut) + captionSVG(S, t) + '</svg>';
   }
 
   function play(S, el) {

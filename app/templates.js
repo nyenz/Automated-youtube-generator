@@ -442,6 +442,11 @@ ${TP.STYLE}
 ${TP.PLANNOTES ? '' : '   - difficulty: 1 = simple (a rock, a cup, a sign), 2 = medium (a set, a vehicle, a prop with moving parts, a simple person), 3 = hard (a creature, a detailed person or costume).\n'}
    - size: height in kit units (see SCALE). For sets, the width.
    - look: 1–2 sentences: shape, colours from the palette, the ONE exaggeration. For REAL people say their real skin tone, hair, facial hair, glasses, clothes/uniform and age so they are recognisable.
+   - looks_like (characters and creatures, REQUIRED): the real-life traits from the story, in this order: gender, age, skin tone, height and build, hair, facial hair, clothes, anything famous about them.
+     e.g. "man, about 50, dark brown skin, tall and slim, short grey hair, clean-shaven, dark suit and tie". Women must read as women and children as children.
+     If the story is about a real person, use their real traits (skin tone, height, hair, age, usual clothes) so viewers recognise who it is.
+   - EVERY THING THE STORY NAMES MUST BE AN ASSET. If a line talks about the brain, a clock, divers, a phone, a cup, the heart: plan it (body parts and ideas become simple clear props, e.g. "brain": a pink brain shape).
+     Nothing can appear in the video unless it is in "assets". A group (divers, medics, a crowd) = one character asset used several times.
    - parts: named pieces shots will need (e.g. "lid", "door", "wheel"). For sets put spot names in "spots" instead.
 ${TP.PLANNOTES ? '' : '   - moves: ONLY custom animations that the built-in moves cannot do (e.g. "flap", "open-lid", "bite", "crawl"). Built-in moves already exist for everything: walk, run, sneak, move, turn, look, point, wave, reach, nod, shake-head, talk, react, appear, vanish, float, spin, shake, jump, fall, grow, hold, drop, crouch, hide, peek, sit, sleep, yawn, cheer, cower, shiver, stomp, emerge, burrow.\n'}
    - holdable: true if a hand holds it (it then needs a grip point).
@@ -456,6 +461,9 @@ ${TP.PLANNOTES ? TP.PLANNOTES + '\n' : ''}2. SHOTS — for each cut, split the n
    - Pace the look: mostly normal/warm/cold/dark; save silhouette, danger, flash for key moments; flashback for scenes in the past.
    - difficulty: 1 = still/simple, 2 = a few moves, 3 = complex action.
    - transition: "flow" (same place, continuous take) or "cut" (new place/time or a shock). Group shots into scenes that flow.
+   - link (how this shot joins the one before): "same" (same place, the camera carries on), "new-place", "time-jump" (later or earlier), or "shock" (a sudden hard cut, use rarely).
+   - FEWER, LONGER SHOTS: no shot shorter than 3 seconds; aim for one shot every 6–10 seconds; stay in one place as long as the story does and move the camera inside it.
+     Never jump between places and back again: tell one place, then the next. A video that cuts every 2–4 seconds feels broken.
    - No title cards or newspaper/headline shots: every shot shows the story with characters, places and objects.
    - Make it cinematic: vary shot sizes, wide to set the place, close for emotion, the mascot can appear as a host reacting or explaining.
    - The first shot is the hook: it must grab attention in the first 2 seconds.
@@ -472,14 +480,14 @@ ${cutText}
 ## REPLY WITH JSON ONLY (one code block, no comments, double quotes, no trailing commas)
 {
   "title": "...",
-  "sky": "night",${TP.PLANNOTES ? '\n  "keys": ["7", "degrees", "pulse"],\n  "details": { "' + (cuts[0] ? cuts[0].id : 'main') + '": [ { "line": 1, "word": "thigh", "show": "the thermometer is aimed at the boy\'s thigh; the camera follows its aim" }, { "line": 3, "word": "cold", "show": "his face drains to a pale blue-grey, lips bluish" } ] },' : ''}
+  "sky": "night",${TP.PLANNOTES ? '\n  "keys": ["7", "degrees", "pulse"],\n  "details": { "' + (cuts[0] ? cuts[0].id : 'main') + '": [ { "line": 1, "word": "thigh", "show": "the thermometer is aimed at the boy\'s thigh; the camera follows its aim", "needs": ["thermometer", "boy"] }, { "line": 3, "word": "brain", "show": "a pink brain shape glows dimmer", "needs": ["brain"] } ] },' : ''}
   "assets": [
     { "name": "tug-cabin", "kind": "set", "difficulty": 2, "size": 14, "look": "...", "parts": [], "moves": [], "spots": ["door", "center", "corner"] },
-    { "name": "diver", "kind": "character", "difficulty": 3, "size": 3, "look": "...", "parts": ["helmet"], "moves": [] },
+    { "name": "diver", "kind": "character", "difficulty": 3, "size": 3, "look": "...", "looks_like": "man, about 35, light brown skin, tall and broad, short black hair, black wetsuit", "parts": ["helmet"], "moves": [] },
     { "name": "torch", "kind": "prop", "difficulty": 1, "size": 0.5, "look": "...", "parts": [], "moves": [], "holdable": true }${lib ? ',\n    { "name": "(a library name)", "kind": "prop", "reuse": true, "size": 1, "look": "(from the library)", "parts": [], "moves": [] }' : ''}
   ],
   "cuts": {
-${cuts.map(function (c) { return '    "' + c.id + '": [ { "id": "' + c.prefix + '01", "lines": [0, 1], "set": "tug-cabin", "cast": ["diver"], "show": "...", "camera": "...", "mood": "cold", "difficulty": 2, "transition": "cut" } ]' }).join(',\n')}
+${cuts.map(function (c) { return '    "' + c.id + '": [ { "id": "' + c.prefix + '01", "lines": [0, 3], "set": "tug-cabin", "cast": ["diver"], "show": "...", "camera": "...", "mood": "cold", "difficulty": 2, "transition": "cut", "link": "new-place" } ]' }).join(',\n')}
   },
   "publish": {
     "titles": [ { "text": "...", "why": "..." } ],
@@ -489,7 +497,7 @@ ${cuts.map(function (c) { return '    "' + c.id + '": [ { "id": "' + c.prefix + 
     "hook_check": "...", "post_time": "...", "series": ["..."], "recommendations": ["..."]
   }
 }
-"sky" is "night" (cool, default) or "warm" (sunset). "lines" is [first line, last line] (inclusive).`;
+"sky" is "night" (cool, default) or "warm" (sunset). "lines" is [first line, last line] (inclusive).${TP.PLANNOTES ? ' "needs" = the asset names that detail needs (every one must be in "assets").' : ''}`;
   };
 
   /* LEVEL UP: more assets and richer shots on top of the baseline plan */
@@ -534,7 +542,7 @@ ${shots}
     var A = (p.plan.assets || []).filter(function (a) { return ticket.names.indexOf(a.name) >= 0 });
     var spec = A.map(function (a, i) {
       return `### ${i + 1}. '${a.name}' — kind: ${a.kind}
-- look: ${a.look}
+- look: ${a.look}${a.looks_like ? '\n- MUST LOOK LIKE (real-life traits, follow exactly): ' + a.looks_like : ''}
 - size: ${a.kind === 'set' && TP.PLANNOTES ? 'the whole frame (1080 × 1920); the ground line about y 1400–1560' : 'about ' + a.size + ' units ' + (a.kind === 'set' ? 'wide' : 'tall')}
 ${a.kind === 'set' ? '- spots (must ALL exist): ' + (a.spots || []).join(', ') : ''}${a.parts && a.parts.length ? '\n- parts to return by name: ' + a.parts.join(', ') : ''}${a.moves && a.moves.length ? '\n- custom moves to return in do: ' + a.moves.join(', ') + '  (pure functions (k, t))' : ''}${a.holdable ? '\n- it is HELD by a hand: return grip' : ''}
 - used in: ${usedIn(p, a.name)}`;
@@ -585,7 +593,7 @@ ${TP.STYLE}
 ${TP.TOOLS}
 
 ## THE ASSET: '${name}' (kind: ${a.kind || '?'})
-- look: ${a.look || ''}
+- look: ${a.look || ''}${a.looks_like ? '\n- MUST LOOK LIKE: ' + a.looks_like : ''}
 - size: about ${a.size || '?'} units
 ${a.spots ? '- spots: ' + a.spots.join(', ') + '\n' : ''}${a.parts && a.parts.length ? '- parts: ' + a.parts.join(', ') + '\n' : ''}${a.moves && a.moves.length ? '- custom moves (do): ' + a.moves.join(', ') + '\n' : ''}${a.holdable ? '- held by a hand: return grip\n' : ''}
 ## CURRENT CODE
@@ -597,6 +605,31 @@ ${code || '(missing)'}
 ${(problems || []).map(function (x) { return '- ' + x }).join('\n')}${note ? '\n- ' + note : ''}
 
 Reply with ONE code block: the full corrected KIT.asset('${name}', ...) call. Nothing else.`;
+  };
+
+  /* IMPROVE: make an asset that already works look better (also for library assets) */
+  TP.assetImprove = function (p, a, code, wish) {
+    TP.use(p);
+    return `Improve this ${TP.NAME} asset. It already works; make it look better while keeping it compatible.
+
+${TP.STYLE}
+
+${TP.TOOLS}
+
+## THE ASSET: '${a.name}' (kind: ${a.kind || '?'})
+- look: ${a.look || ''}${a.looks_like ? '\n- MUST LOOK LIKE: ' + a.looks_like : ''}
+- size: about ${a.size || '?'} units
+${a.spots && a.spots.length ? '- spots (keep ALL of them, same names): ' + a.spots.join(', ') + '\n' : ''}${a.parts && a.parts.length ? '- parts (keep ALL, same names): ' + a.parts.join(', ') + '\n' : ''}${a.holdable ? '- held by a hand: keep grip\n' : ''}
+## CURRENT CODE
+\`\`\`js
+${code || '(missing)'}
+\`\`\`
+
+## WHAT TO IMPROVE
+${wish || 'More detail and more character: clearer silhouette, better proportions, one strong exaggeration, richer but palette-only colours. Keep it readable at a glance.'}
+
+Keep the same name, kind, size, parts and spots, so every shot that uses it still works.
+Reply with ONE code block: the full improved KIT.asset('${a.name}', ...) call. Nothing else.`;
   };
 
   /* =================================================================

@@ -195,7 +195,7 @@
   async function exportMode(p) {
     var b = buildPlay(Object.assign({}, p, { audio: null })); say('');
     var WH = outSize(), W = WH[0], H = WH[1], FPS = p.fps || 30, dur = p.cut.duration, N = Math.ceil(dur * FPS);
-    post({ type: 'ready', info: { shots: b.shots, warnings: b.warnings, errors: b.errors } });
+    post({ type: 'ready', info: { shots: b.shots, warnings: b.warnings, errors: b.errors, camCuts: b.camCuts } });
     var pick = await pickCodecs(W, H, FPS, p.bitrate || 12e6);
     if (!pick) { post({ type: 'export-fallback', msg: 'This browser cannot encode video directly. Using real-time recording instead.' }); K.start({ bar: false, time: time, after: after }); setTimeout(startRec, 500); return }
     post({ type: 'export-progress', stage: 'audio', done: 0 });
@@ -271,7 +271,7 @@
     var b = buildPlay(p);
     say('');
     K.start({ bar: false, time: time, after: after });
-    post({ type: 'ready', info: { shots: b.shots, warnings: b.warnings, errors: b.errors, assetErrors: b.assetErrors } });
+    post({ type: 'ready', info: { shots: b.shots, warnings: b.warnings, errors: b.errors, assetErrors: b.assetErrors, camCuts: b.camCuts } });
     if (p.standalone) standaloneUI(b);
   }
 
@@ -329,6 +329,7 @@
         if (p.mode === 'check-assets') checkAssets(p);
         else if (p.mode === 'sheet') sheet(p);
         else if (p.mode === 'preview') preview(p);
+        else if (p.mode === 'thumbs') { loadAssets(p.assets); if (!K.thumbs) post({ type: 'thumbs', images: {}, unsupported: true }); else K.thumbs(p.names || Object.keys(p.assets || {})).then(function (im) { say(''); post({ type: 'thumbs', images: im }) }) }
         else if (p.mode === 'check-shots') checkShots(p);
         else if (p.mode === 'export') exportMode(p).catch(function (e) { post({ type: 'fatal', msg: 'Export failed: ' + errText(e) }) });
         else playMode(p);

@@ -4,6 +4,7 @@
    3) No audio yet: estimate at ~150 words per minute (for previews)  */
 (function () {
   var TM = {}; window.TIMING = TM;
+  var HERE = (document.currentScript && document.currentScript.src) || (location.href.replace(/[^/]*$/, '') + 'app/timing.js');
 
   TM.words = function (text) { return String(text || '').replace(/\[[^\]]*\]/g, ' ').split(/\s+/).filter(function (w) { return /[A-Za-z0-9]/.test(w) }) };
   function norm(w) { return String(w).toLowerCase().replace(/[^a-z0-9]/g, '') }
@@ -75,10 +76,53 @@
 
   /* ---------- Whisper (transformers.js, runs in the browser) ----------
      onStatus(message, fraction 0..1 or null, phase 'download' | 'listen') */
-  var ASR = null;
-  TM.whisper = function (pcm, onStatus) {
+  var ASR = null, WK = null;
+  // cut the audio into pieces of up to 20 s at the quietest moment, so progress moves often
+  function pieces(pcm) {
+    var SR = 16000, out = [], at = 0, n = pcm.length, win = 320;
+    while (at < n) {
+      var end = Math.min(n, at + 20 * SR);
+      if (end < n) {
+        var best = end, bestE = 1e9;
+        for (var j = at + 13 * SR; j + win < end; j += win) { var e = 0; for (var q = 0; q < win; q++) e += pcm[j + q] * pcm[j + q]; if (e < bestE) { bestE = e; best = j + win / 2 } }
+        end = Math.floor(best);
+      }
+      out.push([at, end]); at = end;
+    }
+    return out;
+  }
+  /* progress that keeps moving inside a piece: guesses from how long earlier pieces took (never passes the next piece) */
+  function smoother(P, total, say) {
+    var done = 0, k = 0, t = Date.now(), per = 0, iv = setInterval(function () {
+      if (k >= P.length) return;
+      var len = P[k][1] - P[k][0], guess = per ? per * len / 16000 : 8, f = Math.min(.92, (Date.now() - t) / 1000 / guess);
+      say('Listening to the audio: part ' + (k + 1) + ' of ' + P.length, (done + len * f) / total, 'listen');
+    }, 400);
+    return {
+      piece: function (secs) { var len = P[k][1] - P[k][0]; per = per ? (per + secs / (len / 16000)) / 2 : secs / (len / 16000); done += len; k++; t = Date.now(); say('Listening to the audio: part ' + Math.min(k + 1, P.length) + ' of ' + P.length, done / total, 'listen') },
+      stop: function () { clearInterval(iv) }
+    };
+  }
+  function viaWorker(pcm, P, say) {
+    return new Promise(function (res, rej) {
+      var w; try { w = WK || (WK = new Worker(new URL('asr-worker.js', HERE), { type: 'module' })) } catch (e) { return rej(e) }
+      var words = [], sm = null, ok = false;
+      say('Getting the speech model ready…', null, 'download');
+      w.onmessage = function (ev) {
+        var m = ev.data;
+        if (m.type === 'dl') say('Downloading the speech model: ' + (m.loaded / 1048576).toFixed(0) + ' of ' + (m.total / 1048576).toFixed(0) + ' MB (first time only)', m.loaded / m.total, 'download');
+        else if (m.type === 'ready') { ok = true; sm = smoother(P, pcm.length, say) }
+        else if (m.type === 'piece') { words = words.concat(m.words); sm && sm.piece(m.secs) }
+        else if (m.type === 'done') { sm && sm.stop(); res(words) }
+        else if (m.type === 'error') { sm && sm.stop(); var e = new Error(m.message); e.loaded = ok; rej(e) }
+      };
+      w.onerror = function (e) { sm && sm.stop(); WK = null; var x = new Error(e.message || 'worker failed'); x.loaded = ok; rej(x) };
+      w.postMessage({ type: 'run', pcm: pcm, pieces: P });
+    });
+  }
+  /* old way, on the page itself (only if the browser cannot run a worker) */
+  function onPage(pcm, P, say) {
     var models = ['onnx-community/whisper-base_timestamped', 'onnx-community/whisper-tiny.en_timestamped', 'Xenova/whisper-tiny.en'];
-    function say(m, p, ph) { onStatus && onStatus(m, p, ph) }
     function load(i) {
       if (i >= models.length) return Promise.reject(new Error('Could not load a Whisper model.'));
       var files = {}; say('Downloading the speech model (first time only, then it is saved)…', null, 'download');
@@ -90,27 +134,14 @@
         } });
       }).catch(function (e) { console.warn(e); return load(i + 1) });
     }
-    // cut the audio into pieces of up to 30 s at the quietest moment, so we can show real progress
-    function pieces() {
-      var SR = 16000, out = [], at = 0, n = pcm.length, win = 320;
-      while (at < n) {
-        var end = Math.min(n, at + 30 * SR);
-        if (end < n) {
-          var best = end, bestE = 1e9;
-          for (var j = at + 22 * SR; j + win < end; j += win) { var e = 0; for (var q = 0; q < win; q++) e += pcm[j + q] * pcm[j + q]; if (e < bestE) { bestE = e; best = j + win / 2 } }
-          end = Math.floor(best);
-        }
-        out.push([at, end]); at = end;
-      }
-      return out;
-    }
     return (ASR ? Promise.resolve(ASR) : load(0)).then(function (asr) {
-      ASR = asr; var P = pieces(), words = [], k = 0;
+      ASR = asr; var words = [], k = 0;
       say('Listening to the audio: part 1 of ' + P.length, 0, 'listen');
       function next() {
         if (k >= P.length) return words;
         var a = P[k][0], b = P[k][1], off = a / 16000;
-        return asr(pcm.subarray(a, b), { return_timestamps: 'word' }).then(function (out) {
+        // give the page a moment to draw the progress bar between pieces
+        return new Promise(function (r) { setTimeout(r, 30) }).then(function () { return asr(pcm.subarray(a, b), { return_timestamps: 'word' }) }).then(function (out) {
           (out.chunks || []).forEach(function (c) {
             var w = String(c.text).trim(); if (!w) return;
             var s = (c.timestamp[0] || 0) + off, e = c.timestamp[1] == null ? s + .3 : c.timestamp[1] + off; words.push([w, s, e]);
@@ -120,6 +151,18 @@
         });
       }
       return next();
+    });
+  }
+  /* ---------- Whisper (transformers.js) — runs in a background worker so the page stays alive ----------
+     onStatus(message, fraction 0..1 or null, phase 'download' | 'listen') */
+  TM.whisper = function (pcm, onStatus) {
+    function say(m, p, ph) { onStatus && onStatus(m, p, ph) }
+    var P = pieces(pcm);
+    if (typeof Worker === 'undefined') return onPage(pcm, P, say);
+    return viaWorker(pcm, P, say).catch(function (e) {
+      if (e && e.loaded) throw e;            // the model ran but failed: do not retry on the page
+      console.warn('Worker could not start, using the page', e); WK = null;
+      return onPage(pcm, P, say);
     });
   };
 

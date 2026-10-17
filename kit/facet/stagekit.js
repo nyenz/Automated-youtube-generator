@@ -190,22 +190,28 @@
       }
       cast.push(c); byName[name] = { c: c, a: a };
     });
-    function target(on) {
+    function target(on, z) {
       if (Array.isArray(on)) return on;
       var b = byName[on]; if (!b) throw new Error('camera "on": "' + on + '" is not in the cast of this shot.');
       var h = b.c.height || (b.a.size || 1) * U;
       if (b.c.lying) return [b.c.x + (b.c.lying === 'right' ? 1 : -1) * h * .45, b.c.ground - h * .12];
-      return [b.c.x, b.c.ground - h * (b.c.person ? .62 : .5)];
+      // CAMERA GUARD: close on a person = aim at the face, not the belly or the legs
+      return [b.c.x, b.c.ground - h * (b.c.person ? (z >= 2.5 ? .8 : z >= 1.9 ? .7 : .62) : .5)];
     }
     var camList = Array.isArray(sp.camera) ? sp.camera : [sp.camera || { zoom: 'full' }], cam = [];
     camList.forEach(function (k, i) {
-      var tg = k.on != null ? target(k.on) : [k.x, k.y], z = typeof k.zoom === 'string' ? ZOOM[k.zoom] : k.zoom;
+      var z = typeof k.zoom === 'string' ? ZOOM[k.zoom] : k.zoom;
       if (typeof k.zoom === 'string' && !z) warn(r.id, 'camera zoom "' + k.zoom + '" is unknown (use establishing / wide / full / medium / close / insert, or a number).');
       if (k.size) { z = ZOOM[k.size]; if (!z) warn(r.id, 'camera size "' + k.size + '" is unknown (establishing / wide / full / medium / close / insert).') }
+      // CAMERA GUARD: a person is never framed tighter than a close-up (no shots of only hands or only legs)
+      if (k.on != null && !Array.isArray(k.on) && byName[k.on] && byName[k.on].c.person && z > 3.2 && !k.detail) z = 3.2;
+      var tg = k.on != null ? target(k.on, z || 1) : [k.x, k.y];
       var m = { at: i === 0 && k.at == null && k.word == null ? 0 : timeOf(r, k, 'camera'), for: k.for, zoom: z, x: tg[0], y: tg[1], cut: !!k.cut };
       if (m.x == null) delete m.x; if (m.y == null) delete m.y; cam.push(m);
     });
     cameraGrammar(r, cam);
+    // FEWER CUTS: a camera cut that comes too soon after the last one becomes a smooth move instead
+    if (D.calm !== false) { var last = 0; cam.forEach(function (m, i) { if (i && m.cut) { if (m.at - last < (D.minHold || 2.5)) { m.cut = false; m.for = Math.min(1.2, Math.max(.6, (r.to - r.from - m.at) * .5)) } else last = m.at } }) }
     (sp.moves || []).forEach(function (m, i) {
       var b = byName[m.who]; if (!b) { warn(r.id, 'move ' + (i + 1) + ': who "' + m.who + '" is not in the cast.'); return }
       var mv = Object.assign({}, m); delete mv.who; delete mv.word; mv.at = timeOf(r, m, 'move ' + (i + 1)); mv.for = m.for || 1.2;
@@ -252,11 +258,12 @@
     RUN.forEach(function (r, i) { r.to = i + 1 < RUN.length ? RUN[i + 1].from : dur; if (r.to <= r.from) { r.to = r.from + .5; warn(r.id, 'This shot has no time (its lines overlap the next shot).') } });
     var shots = RUN.map(function (r) {
       if (!r.made) return placeholderShot(r, 'SHOT ' + r.id + ' — not made yet');
-      try { return buildShot(r) } catch (e) { ERRORS[r.id] = String(e && e.message || e); if (D.onError) D.onError(r.id, ERRORS[r.id]); return placeholderShot(r, 'SHOT ' + r.id + ' — error') }
+      try { var b = buildShot(r); var pl = plan[r.idx]; if (pl && pl.trans) b.trans = pl.trans; return b } catch (e) { ERRORS[r.id] = String(e && e.message || e); if (D.onError) D.onError(r.id, ERRORS[r.id]); return placeholderShot(r, 'SHOT ' + r.id + ' — error') }
     });
     FILM = { title: o.name || 'video', width: W, height: H, duration: dur, shots: shots };
     GROUPS = null;
-    return { warnings: WARN, errors: ERRORS, shots: RUN.map(function (r) { return { id: r.id, from: r.from, to: r.to, made: r.made } }) };
+    var camCuts = shots.reduce(function (n, sh) { return n + (sh.camera || []).filter(function (m, i) { return i && m.cut }).length }, 0);
+    return { warnings: WARN, errors: ERRORS, camCuts: camCuts, shots: RUN.map(function (r) { return { id: r.id, from: r.from, to: r.to, made: r.made } }) };
   };
   D.shotAt = function (t) { for (var i = RUN.length - 1; i >= 0; i--) if (t >= RUN[i].from) return RUN[i]; return RUN[0] };
   D.run = function () { return RUN };
@@ -369,6 +376,20 @@
       c.appendChild(img); c.appendChild(document.createTextNode(n + ' · ' + a.kind)); box.appendChild(c);
     });
   }
+  /* small pictures of assets (for the automatic look review): { name: 'data:image/jpeg;base64,...' } */
+  K.thumbs = function (names, size) {
+    size = size || 448; var out = {};
+    return names.reduce(function (pr, n) {
+      return pr.then(function () {
+        var a; try { a = K.make(n) } catch (e) { return }
+        return loadImg(svgOf(a)).then(function (img) {
+          if (!img) return; var w = a.kind === 'set' ? Math.round(size * 9 / 16) : size, hh = size, c = document.createElement('canvas'); c.width = w; c.height = hh;
+          var x = c.getContext('2d'), sc = Math.min(w / img.width, hh / img.height); x.fillStyle = '#2a2523'; x.fillRect(0, 0, w, hh);
+          x.drawImage(img, (w - img.width * sc) / 2, (hh - img.height * sc) / 2, img.width * sc, img.height * sc); out[n] = c.toDataURL('image/jpeg', .85);
+        });
+      });
+    }, Promise.resolve()).then(function () { return out });
+  };
   K.assetSheet = function () { gallery(K.list(), false) };
   K.preview = function (name) { gallery([name], true) };
 })(typeof window !== 'undefined' ? window : globalThis);

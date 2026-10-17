@@ -13,20 +13,26 @@
 <header class="top">
   <div class="brand">Paper Cinema <b>Studio</b></div>
   <select id="projSel" title="Your projects"></select>
-  <button id="easyBtn" class="ok">⚡ Easy mode</button>
-  <button id="newBtn" class="ghost">+ New</button>
-  <button id="demoBtn" class="ghost">Load demo</button>
+  <button id="easyBtn" class="ok">⚡ New video</button>
   <span class="grow"></span>
   <button id="libBtn" class="ghost" data-tip="Every asset you have ever approved, per art style. They are reused in new videos so you need fewer chats.">Library</button>
+  <button id="setBtn" class="ghost" data-tip="Gemini key for the automatic look review, and other settings.">⚙ Settings</button>
   <button id="tipsBtn" class="ghost" data-tip="Turns the hover tips on or off.">Tips: on</button>
-  <button id="importBtn" class="ghost">Import</button>
-  <button id="exportBtn" class="ghost">Export</button>
-  <button id="delBtn" class="ghost danger">Delete</button>
+  <details class="menu" id="moreMenu"><summary class="ghostbtn">⋯ More</summary>
+    <div class="menu-box">
+      <button id="newBtn" class="ghost">+ New (full control)</button>
+      <button id="demoBtn" class="ghost">Load demo</button>
+      <button id="importBtn" class="ghost">Import project</button>
+      <button id="exportBtn" class="ghost">Export / back up</button>
+      <button id="delBtn" class="ghost danger">Delete this video</button>
+    </div>
+  </details>
   <input id="importFile" type="file" accept=".json" hidden>
 </header>
 <div class="wrap">
   <nav id="steps"></nav>
   <main id="main"></main>
+  <aside id="side"></aside>
 </div>
 <div id="modal" class="modal" hidden><div class="mbox"><div class="mhead"><b id="mtitle"></b><span class="grow"></span><button id="mclose">Close</button></div><div id="mbody" class="mbody"></div></div></div>
 <div id="toast" class="toast" hidden></div>
@@ -35,6 +41,8 @@
 <script src="app/timing.js"></script>
 <script src="app/trends.js"></script>
 <script src="app/plan.js"></script>
+<script src="app/edit.js"></script>
+<script src="app/review.js"></script>
 <script src="app/templates.js"></script>
 <script src="app/templates-lp.js"></script>
 <script src="app/templates-facet.js"></script>

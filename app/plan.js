@@ -69,6 +69,7 @@
       if (a.kind === 'set') { a.spots = Array.isArray(a.spots) && a.spots.length ? a.spots : a.reuse ? [] : (errs.push('set "' + a.name + '" needs "spots": ["center", ...].'), []) }
       if (!a.look && !a.reuse) warns.push('asset "' + a.name + '" has no "look".');
       if (!(+a.size > 0) && !a.reuse) warns.push('asset "' + a.name + '" has no "size".');
+      if ((a.kind === 'character' || a.kind === 'creature') && !a.looks_like && !a.reuse) a.looks_like = '';
     });
     // DETAIL PASS: what the narration names that the picture must show ({ cut: [{ line, word, show }] })
     if (Array.isArray(plan.details)) { var one = {}; one[(cuts && cuts[0] && cuts[0].id) || 'main'] = plan.details; plan.details = one }
@@ -108,7 +109,8 @@
         var a = +s.lines[0], b = +s.lines[1];
         if (a !== expect) errs.push(tag + ' starts at line ' + a + ' but should start at line ' + expect + ' (no gaps or overlaps).');
         if (b < a) errs.push(tag + ': last line is before first line.');
-        if (b - a > 3) warns.push(tag + ' covers ' + (b - a + 1) + ' lines — long shots are less dynamic.');
+        if (b - a > 9) warns.push(tag + ' covers ' + (b - a + 1) + ' lines — very long; move the camera inside it.');
+        if (s.link && ['same', 'new-place', 'time-jump', 'shock'].indexOf(s.link) < 0) s.link = '';
         expect = b + 1;
         if (s.set && s.set !== 'void' && !(names[s.set] && names[s.set].kind === 'set')) errs.push(tag + ': set "' + s.set + '" is not a set in assets.');
         if (!s.set) s.set = 'void';

@@ -8,7 +8,7 @@
 - Sound/text: narration only; captions top, key words coloured; no title cards; text only on real objects and readable.
 - Places: far / set / front layers; one light (rim edge + cast shadow); weather outdoors; 2+ small logical details.
 - Camera: house sizes establishing 1.0 · wide 1.3 · full 1.6 · medium 2.1 · close 3.0 · insert 5.2 (size: 'medium'); change size with CUTS;
-  pans/tilts inside a framing, at most one slow push; hold ≥ 1.5 s; open on what is named; inserts for pages, screens, readings.
+  pans/tilts inside a framing, at most one slow push; hold ≥ 2.5 s; open on what is named; inserts for pages, screens, readings.
 - Story: detail pass — show every named thing on its word (aim, readings, body states, time, documents, outcomes); states carry over.
 - Acting: on the words, one person at a time, never cancel a busy move.
 - Done = no app warnings.`;
@@ -208,7 +208,7 @@ House defaults if you leave them out: handheld 2, light from the left (rim + sha
 
 ### FILM RULES (follow all)
 - ONE PLACE = ONE SHOT, but inside it CHANGE SIZE WITH CUTS (cut: true): close → medium → wide → close. Never zoom in and then out again.
-  Inside a framing follow with pans/tilts (change 'on', keep zoom) and at most ONE slow push or pull (0.1–0.3 per second). Hold each framing ≥ 1.5 s.
+  Inside a framing follow with pans/tilts (change 'on', keep zoom) and at most ONE slow push or pull (0.1–0.3 per second). Hold each framing ≥ 2.5 s (at most ONE camera cut every 3 seconds — the app turns quicker cuts into smooth moves). A person is framed no closer than close (face and shoulders), never only hands or legs.
   Documents, screens and readings get an insert (zoom 4–6) cut in on their word. The app warns about camera grammar mistakes. A 20 s piece has 2–4 places.
 - Open on what the narration names first (the narrator says "7 degrees" → open on the thermometer screen).
 - Every camera move has a reason (follow the action, reveal the place, come closer for a feeling). Leave look-room in front of faces.
@@ -236,7 +236,7 @@ House defaults if you leave them out: handheld 2, light from the left (rim + sha
 - [ ] set and every cast name come from ASSETS. Every 'at' / 'to' spot exists in that set (or is [x, groundY]).
 - [ ] Every word: '...' is spoken in THAT shot (see its words list).
 - [ ] The camera opens on what the narration names; every move has a reason; handheld 2–3.
-- [ ] Sizes change with cuts (cut: true); inside a framing only pans/tilts + one slow push; each framing held ≥ 1.5 s.
+- [ ] Sizes change with cuts (cut: true); inside a framing only pans/tilts + one slow push; each framing held ≥ 2.5 s; people never framed tighter than close.
 - [ ] Acting lands on the right words; only one person acts at a time.
 - [ ] At least 2 small details; focus never on blur of the subject; no glow, sparks or title cards.
 - [ ] Every MUST SHOW item is timed on its word. light is set; weather outdoors; body states (colour, breath) carried over.`;

@@ -48,6 +48,17 @@ Click **⚡ Easy mode** in the top bar. You get 5 steps: **Start** (pick the sty
 - **Detail level** (Start page): Lean (fewest chats, most reuse), Standard, Rich.
 - **Level up** (Shots and Export pages): if the baseline is not enough, one prompt adds new assets and richer shots; only the new parts cost chats.
 
+## Edit & watch, transitions and checks (new)
+- **Layout:** fixed step list on the left, the page in the middle, and a right panel that always shows *What to do now*, progress, every chat with its number (Chat 1, Chat 2 …) and a live preview of any asset you click.
+- **Fewer cuts:** shots shorter than 2.5 s are joined to their neighbour when the plan is read; inside a shot, camera cuts closer than 2.5 s apart become smooth moves.
+- **Transitions by rule:** same place = the camera glides on, new place = dissolve, time jump = fade through dark, shock = hard cut. Change any of them on the timeline.
+- **Timeline editor:** play the video, click a shot to fix it, click a round marker to change a transition. A director's report shows how often the picture changes, missing shots and things not shown.
+- **Must-show check:** anything the narration names (the brain, divers, a clock…) that no asset builds is listed on the Plan page with **Add** / **Add all**.
+- **Looks like:** every character gets real-life traits (gender, age, skin tone, height, hair, clothes) that the asset chats must follow.
+- **Automatic look review:** add a free Gemini key in ⚙ Settings and every checked asset is looked at by Gemini (wrong gender, skin tone, age…). The key stays in your browser.
+- **Improve:** any asset, also library ones, has ✨ Improve. The old version stays (Undo).
+- **No freezing:** listening to the audio runs in a background worker; the progress bar keeps moving and shows the step.
+
 ## Using it step by step (full control)
 1. Click **+ New**. Fill in the Project page.
 2. **Topic**: load trending lists → **Copy topic prompt** → paste it into Claude → paste the answer back → click **Use** on an idea.

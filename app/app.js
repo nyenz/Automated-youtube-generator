@@ -3,9 +3,9 @@
   var P = null, STEP = 'project', CUT = null, PLAYER = null, $main = document.getElementById('main');
   var STEPS = [
     ['project', 'Project'], ['topic', 'Topic'], ['script', 'Script'], ['voice', 'Voice & timing'], ['plan', 'Plan'],
-    ['assets', 'Assets'], ['shots', 'Shots'], ['watch', 'Watch & fix'], ['export', 'Export'], ['publish', 'Publish']
+    ['assets', 'Assets'], ['shots', 'Shots'], ['watch', 'Edit & watch'], ['export', 'Export'], ['publish', 'Publish']
   ];
-  var STEPS_EASY = [['start', 'Start', '1'], ['plan', 'Plan', '2'], ['assets', 'Assets', '3'], ['shots', 'Shots', '4'], ['watch', 'Watch & fix', '5'], ['export', 'Export', '⬇'], ['publish', 'Publish', '⬆']];
+  var STEPS_EASY = [['start', 'Start', '1'], ['plan', 'Plan', '2'], ['assets', 'Assets', '3'], ['shots', 'Shots', '4'], ['watch', 'Edit & watch', '5'], ['export', 'Export', '⬇'], ['publish', 'Publish', '⬆']];
   function stepList() { return P && P.easy ? STEPS_EASY : STEPS }
   var CATS = ['survival', 'history', 'science', 'mystery', 'nature', 'space', 'true crime', 'disasters', 'animals', 'human body', 'technology', 'other'];
 
@@ -120,9 +120,10 @@
   function go(step) { if (PLAYER && step !== 'watch') { PLAYER.remove(); PLAYER = null } STEP = step; render() }
   function render() {
     renderNav(); $main.innerHTML = '';
-    if (!P) { $main.appendChild(welcome()); return }
+    if (!P) { renderSide(); $main.appendChild(welcome()); return }
     if (P.easy && !{ start: 1, plan: 1, assets: 1, shots: 1, watch: 1, export: 1, publish: 1 }[STEP]) STEP = 'start';
-    if (P.easy) $main.appendChild(easyBanner());
+    var bn = easyBanner(); bn.classList.add('only-narrow'); $main.appendChild(bn);
+    renderSide();
     var fn = { start: vEasyStart, project: vProject, topic: vTopic, script: vScript, voice: vVoice, plan: vPlan, assets: vAssets, shots: vShots, watch: vWatch, export: vExport, publish: vPublish }[STEP];
     $main.appendChild(fn());
     afterRender();
@@ -130,7 +131,7 @@
   function afterRender() {
     if (!window.GUIDE) return;
     GUIDE.applyTips(document.body);
-    if (P && P.easy) GUIDE.point(easyNext().target, false);
+    if (P) { var n = easyNext(); if (n.step === STEP && GUIDE.point(n.target, false) && GUIDE.coach) GUIDE.coach(n.target, n.short || n.text); else if (GUIDE.coach) GUIDE.coach(null) }
   }
   function welcome() {
     var steps = [['Project', 'Pick the topic, short or long video, length, mascot and voice.'], ['Topic', 'Optional: load what is trending and let Claude suggest 10 ideas.'], ['Script', 'Claude researches and writes a human, TTS-ready script for every cut.'],
@@ -230,12 +231,35 @@
         list.appendChild(h('div', { className: 'card', style: 'margin:0' }, h('div', { className: 'row' }, h('b', null, l.name), badge(l.kind)),
           h('div', { className: 'muted small', style: 'margin:4px 0' }, String(l.look).slice(0, 140)),
           h('div', { className: 'small muted' }, 'from "' + l.from + '" · ' + new Date(l.saved).toLocaleDateString()),
-          P && cur === styleOf() ? h('button', { className: 'ghost small', style: 'margin-top:6px', on: { click: function () { var box = h('div', { style: 'height:100%' }), codes = {}; codes[l.name] = l.code; modal('Library: ' + l.name + ' (drag to turn)', box); stage({ mode: 'preview', sky: sky(), assets: codes, name: l.name }, '__never', box).catch(function () { }) } } }, 'Preview') : null));
+          P && cur === styleOf() ? h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'ghost small', on: { click: function () { var box = h('div', { style: 'height:100%' }), codes = {}; codes[l.name] = l.code; modal('Library: ' + l.name + ' (drag to turn)', box); stage({ mode: 'preview', sky: sky(), assets: codes, name: l.name }, '__never', box).catch(function () { }) } } }, 'Preview'),
+            h('button', { className: 'ghost small', 'data-tip': 'Make this library asset look better. The new version is saved in the library; the old one is kept as a backup.', on: { click: function () { improveLib(l) } } }, '✨ Improve')) : null));
       });
     }
     body.appendChild(h('p', { className: 'muted small', style: 'margin-top:0' }, 'Every approved asset from every video, kept per art style. Deleting a video never deletes these. The planner is told about them, so it reuses them instead of making new ones.'));
     body.appendChild(head); body.appendChild(list); draw();
     modal('Asset library', body);
+  }
+
+  function improveLib(l) {
+    var wish = h('input', { placeholder: 'What should be better? (optional) e.g. "older face", "more detail on the coat"', style: 'width:100%' }), ta = h('textarea', { placeholder: 'Paste the improved KIT.asset(…) here', style: 'min-height:90px;margin-top:8px' }), out = h('div');
+    modal('Improve library asset: ' + l.name, h('div', null,
+      h('ol', { className: 'small' }, h('li', null, 'Type what should be better (or leave it empty), then click Copy improve prompt.'), h('li', null, 'Paste it into a chat (Claude or a free one) and copy its answer.'), h('li', null, 'Click Paste & save. The app checks it and saves it as the newest version.')),
+      wish, h('div', { className: 'row', style: 'margin-top:8px' },
+        h('button', { on: { click: function () { copy(TPL.assetImprove(P, l, l.code, wish.value.trim()), 'Improve prompt') } } }, 'Copy improve prompt'),
+        h('button', { className: 'ghost', on: { click: function () { fromClipboard().then(function (t) { ta.value = t; saveIt() }).catch(pasteFail) } } }, '📋 Paste & save')), chatLinks(), ta,
+      h('button', { className: 'blue small', style: 'margin-top:6px', on: { click: saveIt } }, 'Save'), out));
+    function saveIt() {
+      var r = PLAN.blocks(ta.value, 'asset'), code = r.blocks[l.name] || (r.order[0] && r.blocks[r.order[0]] ? r.blocks[r.order[0]].replace(/KIT\.asset\s*\(\s*(['"`])[^'"`]+\1/, "KIT.asset('" + l.name + "'") : null);
+      if (!code) { out.innerHTML = ''; out.appendChild(msgs(['No KIT.asset(\'' + l.name + '\', …) found.'])); return }
+      out.textContent = 'Checking…'; var codes = {}; codes[l.name] = code;
+      stage({ mode: 'check-assets', sky: sky(), assets: codes, expect: [{ name: l.name, kind: l.kind, size: l.size, spots: l.spots, parts: l.parts, holdable: l.holdable }] }, 'check-assets').then(function (m) {
+        var q = m.results[l.name] || { ok: false, errors: ['not checked'] };
+        if (!q.ok) { out.innerHTML = ''; out.appendChild(msgs(q.errors, q.warnings)); return }
+        var it = Object.assign({}, l, { code: code, key: l.style + ':' + l.name + ':' + hash(code), saved: Date.now(), from: (l.from || '') + ' (improved)' });
+        delete it._score;
+        return DB.libPut(it).then(loadLib).then(function () { out.textContent = '✅ Saved. New videos will use this version.'; toast('Library asset improved.') });
+      }).catch(function (e) { out.textContent = 'Error: ' + e.message });
+    }
   }
 
   /* =================================================================
@@ -314,43 +338,108 @@
   /* =================================================================
      EASY MODE: audio in, style, then the app tells you the next thing to do
      ================================================================= */
+  /* every chat in this video, numbered once: assets first, then shots (Chat 1, Chat 2 …) */
+  function allTickets() {
+    if (!P || !P.plan) return [];
+    var out = (P.assetTickets || []).map(function (t) { return { t: t, kind: 'asset' } });
+    P.cuts.forEach(function (c) { (P.shotTickets[c.id] || []).forEach(function (t) { out.push({ t: t, kind: 'shot', cid: c.id }) }) });
+    return out;
+  }
+  function chatNo(t) { var L = allTickets(); for (var i = 0; i < L.length; i++) if (L[i].t === t) return i + 1; return t.n }
+  function chatTag(t) { return h('span', { className: 'chatno', 'data-tip': 'Chat number. Name the chat in the AI site the same way ("Chat ' + chatNo(t) + '") so you can find it again.' }, 'Chat ' + chatNo(t)) }
+  function ticketDone(x) { var bag = x.kind === 'shot' ? (P.shots[x.cid] || {}) : P.assets, ids = x.t.ids || x.t.names; return ids.every(function (n) { return (bag[n] || {}).status === 'approved' }) }
+  function ticketBad(x) { var bag = x.kind === 'shot' ? (P.shots[x.cid] || {}) : P.assets, ids = x.t.ids || x.t.names; return ids.some(function (n) { return (bag[n] || {}).status === 'error' }) }
   function easyNext() {
-    var c0 = P.cuts[0];
+    var c0 = P.cuts[0], startStep = P.easy ? 'start' : 'voice';
     if (!P.cuts.every(function (c) { return c.lines && c.lines.length })) {
       var has = c0.hasAudio || easyFile;
-      return { step: 'start', text: has ? 'Your audio is ready. Paste the script if you have it, then click Start.' : 'Pick a style, then drop your audio file on the box (or click Upload audio).', target: { text: has ? 'Start' : 'Upload audio' } };
+      return { step: startStep, text: has ? 'Your audio is ready. Paste the script if you have it, then click Start.' : 'Pick a style, then drop your audio file on the box (or click Upload audio).', short: has ? 'Click Start' : 'Add your audio here', target: { text: has ? 'Start' : 'Upload audio' } };
     }
     if (!P.plan) {
-      if (planCheck && planCheck.errors && planCheck.errors.length) return { step: 'plan', text: 'The plan has problems. Click Copy fix prompt, paste it into the SAME Claude chat, copy the new answer, then click Paste & read.', target: { text: 'Copy fix prompt' } };
-      return PLANCOPIED ? { step: 'plan', text: 'Paste the prompt into Claude (Open Claude, then Ctrl+V). When Claude finishes, copy its whole answer and click Paste & read.', target: { text: '📋 Paste & read' } }
-        : { step: 'plan', text: 'Click Copy plan prompt. It opens with buttons to open Claude.', target: { text: 'Copy plan prompt' } };
+      if (planCheck && planCheck.errors && planCheck.errors.length) return { step: 'plan', text: 'The plan has problems. Click Copy fix prompt, paste it into the SAME chat, copy the new answer, then click Paste & read.', short: 'Copy this into the same chat', target: { text: 'Copy fix prompt' } };
+      return PLANCOPIED ? { step: 'plan', text: 'Paste the prompt into Claude (Open Claude, then Ctrl+V). When it finishes, copy its whole answer and click Paste & read.', short: 'Then click here', target: { text: '📋 Paste & read' } }
+        : { step: 'plan', text: 'Click Copy plan prompt. The AI will plan every character, place and shot from your words.', short: 'Start here', target: { text: 'Copy plan prompt' } };
     }
+    var gaps = visibleGaps();
+    if (gaps.length && !P.plan.gapsSeen) return { step: 'plan', text: gaps.length + (gaps.length === 1 ? ' thing the story names is' : ' things the story names are') + ' not in the plan (e.g. "' + gaps[0].word + '"). Click Add all so they appear in the video.', short: 'Add the missing things', target: { text: 'Add all' } };
     var A = P.plan.assets, aOk = A.filter(function (a) { return (P.assets[a.name] || {}).status === 'approved' }).length;
     if (aOk < A.length) {
       var T = P.assetTickets, t = T.filter(function (t) { return t.names.some(function (n) { return (P.assets[n] || {}).status !== 'approved' }) })[0];
       var bad = t && t.names.some(function (n) { return (P.assets[n] || {}).status === 'error' });
-      var tx = !t ? 'Copy prompt' : t.status === 'waiting' ? 'Copy prompt' : bad ? 'Copy fix prompt' : '📋 Paste & check';
-      var say = !t ? '' : t.status === 'waiting' ? 'Copy chat group ' + t.n + ' and paste it into a NEW free chat (Qwen or DeepSeek).'
-        : bad ? 'Chat group ' + t.n + ' needs a fix: Copy fix prompt, paste it into the SAME chat, copy the answer, then Paste & check.'
-        : 'When the chat for group ' + t.n + ' finishes, copy its whole answer and click Paste & check.';
-      return { step: 'assets', text: aOk + ' of ' + A.length + ' assets done. ' + say, target: t ? { sel: '#atk-' + t.n, text: tx } : null };
+      var tx = !t ? 'Copy prompt' : t.status === 'waiting' ? 'Copy prompt' : bad ? 'Copy fix prompt' : '📋 Paste & check', no = t ? chatNo(t) : 0;
+      var say = !t ? '' : t.status === 'waiting' ? 'Copy Chat ' + no + ' and paste it into a NEW free chat (Qwen or DeepSeek). You can start the other chats at the same time.'
+        : bad ? 'Chat ' + no + ' needs a fix: Copy fix prompt, paste it into the SAME chat, copy the answer, then Paste & check.'
+        : 'When Chat ' + no + ' finishes, copy its whole answer and click Paste & check.';
+      return { step: 'assets', text: aOk + ' of ' + A.length + ' assets done. ' + say, short: t ? (t.status === 'waiting' ? 'Chat ' + no + ': copy, paste in a new chat' : bad ? 'Chat ' + no + ': send the fix' : 'Chat ' + no + ': paste the answer') : '', target: t ? { sel: '#atk-' + t.n, text: tx } : null };
     }
     var open = P.cuts.filter(function (c) { return (P.plan.cuts[c.id] || []).some(function (s) { return ((P.shots[c.id] || {})[s.id] || {}).status !== 'approved' }) })[0];
     if (open) {
       var ST = P.shotTickets[open.id] || [], S = P.shots[open.id] || {}, st = ST.filter(function (t) { return t.ids.some(function (id) { return (S[id] || {}).status !== 'approved' }) })[0];
-      var sbad = st && st.ids.some(function (id) { return (S[id] || {}).status === 'error' });
+      var sbad = st && st.ids.some(function (id) { return (S[id] || {}).status === 'error' }), sn = st ? chatNo(st) : 0;
       var stx = !st || st.status === 'waiting' ? 'Copy prompt' : sbad ? 'Copy fix prompt' : '📋 Paste & check';
-      return { step: 'shots', text: !st || st.status === 'waiting' ? 'Copy the shots prompt and paste it into one Claude Opus chat.' : sbad ? 'Some shots need a fix: Copy fix prompt, paste it into the SAME Claude chat, then Paste & check.' : 'When Claude finishes, copy its whole answer and click Paste & check.', target: st ? { sel: '#stk-' + open.id + '-' + st.n, text: stx } : { text: 'Copy prompt' } };
+      return { step: 'shots', text: !st || st.status === 'waiting' ? 'Copy Chat ' + sn + ' (the shots) and paste it into one Claude Opus chat.' : sbad ? 'Some shots need a fix: Copy fix prompt, paste it into the SAME chat (Chat ' + sn + '), then Paste & check.' : 'When Chat ' + sn + ' finishes, copy its whole answer and click Paste & check.', short: 'Chat ' + sn + ': ' + (stx === 'Copy prompt' ? 'copy into Claude' : stx === 'Copy fix prompt' ? 'send the fix' : 'paste the answer'), target: st ? { sel: '#stk-' + open.id + '-' + st.n, text: stx } : { text: 'Copy prompt' } };
     }
-    if (P.cuts.every(function (c) { return c.exported })) return { step: 'publish', text: 'Video exported! On Publish: pick a title, make the thumbnail, and copy the description, tags and TikTok caption.', target: { text: 'Make this thumbnail' } };
-    return { step: STEP === 'export' ? 'export' : 'watch', text: 'Everything is ready. Press Play to watch it, fix any bad shot, then go to Export and make the MP4.', target: STEP === 'export' ? { text: 'Export video' } : null };
+    if (P.cuts.every(function (c) { return c.exported })) return { step: 'publish', text: 'Video exported! On Publish: pick a title, make the thumbnail, and copy the description, tags and TikTok caption.', short: 'Make the thumbnail', target: { text: 'Make this thumbnail' } };
+    if (STEP === 'export') return { step: 'export', text: 'Make the MP4. Keep the tab open while it renders.', short: 'Render the video', target: { text: 'Export video' } };
+    return { step: 'watch', text: 'Everything is made. Press Play and watch it. Click a shot or a transition on the timeline to change it. Then Export.', short: 'Press Play', target: { text: '▶ Play' } };
   }
   function easyBanner() {
     var n = easyNext(), on = STEP === n.step;
-    return h('div', { className: 'card', style: 'border-color:#7a6231;background:#2e2616' }, h('div', { className: 'row' }, badge('⚡ What to do now', 'b-warn'), h('span', { className: 'grow' }),
+    return h('div', { className: 'card coach' }, h('div', { className: 'row' }, badge('⚡ What to do now', 'b-warn'), h('span', { className: 'grow' }),
       on && n.target ? h('button', { className: 'small', on: { click: function () { if (!GUIDE.point(n.target, true)) toast('Scroll down: the button is further down the page.') } } }, 'Show me') : null,
       on ? null : h('button', { className: 'small', on: { click: function () { go(n.step); setTimeout(function () { GUIDE.point(easyNext().target, true) }, 80) } } }, 'Take me there →')),
       h('p', { style: 'margin:8px 0 0;font-size:16px' }, n.text));
+  }
+  /* ---------------- right panel: what to do now, progress, chats, preview ---------------- */
+  var SIDEPREV = null, SIDEDYN = null, SIDEBOX = null, SIDECOACH = null, SIDEPREV_SHOWN = null;
+  function renderSide() {
+    var side = document.getElementById('side'); if (!side) return;
+    if (!SIDEDYN) { SIDECOACH = h('div'); SIDEDYN = h('div'); SIDEBOX = h('div'); side.append(SIDECOACH, SIDEBOX, SIDEDYN) }
+    SIDEDYN.innerHTML = ''; SIDECOACH.innerHTML = '';
+    if (!P) { SIDEBOX.innerHTML = ''; SIDEPREV_SHOWN = null; side.hidden = true; return }
+    side.hidden = false;
+    var n = easyNext(), on = STEP === n.step;
+    SIDECOACH.appendChild(h('div', { className: 'side-card coach' }, h('h4', null, '⚡ What to do now'), h('p', null, n.text),
+      h('div', { className: 'row' }, on && n.target ? h('button', { className: 'small', on: { click: function () { if (!GUIDE.point(n.target, true)) toast('The button is further down the page.') } } }, 'Show me') : null,
+        on ? null : h('button', { className: 'small', on: { click: function () { go(n.step); setTimeout(function () { GUIDE.point(easyNext().target, true) }, 80) } } }, 'Take me there →'))));
+    // progress
+    var prog = h('div', { className: 'side-card' }, h('h4', null, 'Progress'));
+    function bar(label, a, b) { prog.append(h('div', { className: 'row small' }, h('span', null, label), h('span', { className: 'grow' }), h('span', { className: 'muted' }, a + ' / ' + b)), h('div', { className: 'mini' }, h('i', { style: 'width:' + (b ? Math.round(a / b * 100) : 0) + '%' }))) }
+    bar('Audio timed', P.cuts.filter(function (c) { return c.lines && c.lines.length }).length, P.cuts.length);
+    if (P.plan) {
+      var A = P.plan.assets; bar('Assets', A.filter(function (a) { return (P.assets[a.name] || {}).status === 'approved' }).length, A.length);
+      var tot = 0, ok = 0; P.cuts.forEach(function (c) { (P.plan.cuts[c.id] || []).forEach(function (s) { tot++; if (((P.shots[c.id] || {})[s.id] || {}).status === 'approved') ok++ }) }); bar('Shots', ok, tot);
+    } else prog.appendChild(h('div', { className: 'muted small' }, 'Plan: not made yet'));
+    SIDEDYN.appendChild(prog);
+    // chats
+    var L = allTickets();
+    if (L.length) {
+      SIDEDYN.appendChild(h('div', { className: 'side-card side-chats' }, h('h4', null, 'Chats (' + L.length + ')'),
+        L.map(function (x, i) {
+          var ids = x.t.ids || x.t.names, done = ticketDone(x), bad = ticketBad(x), c = x.t.chat || {};
+          return h('div', { className: 'r' }, h('span', { className: 'dot ' + (done ? 'ok' : bad ? 'bad' : x.t.status !== 'waiting' ? 'busy' : '') }), h('b', null, 'Chat ' + (i + 1)),
+            h('span', { className: 'muted', style: 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: ids.join(', ') }, (x.kind === 'shot' ? 'shots ' + ids[0] + (ids.length > 1 ? '–' + ids[ids.length - 1] : '') : ids.join(', '))),
+            c.link ? h('button', { className: 'ghost small', 'data-tip': 'Opens the chat that makes this group.', on: { click: function () { window.open(c.link, '_blank', 'noopener') } } }, '↗') : null,
+            h('button', { className: 'ghost small', 'data-tip': 'Goes to this chat\'s card.', on: { click: function () { if (x.cid) CUT = x.cid; go(x.kind === 'shot' ? 'shots' : 'assets'); setTimeout(function () { var el = document.getElementById(x.kind === 'shot' ? 'stk-' + x.cid + '-' + x.t.n : 'atk-' + x.t.n); if (el) el.scrollIntoView({ block: 'start' }) }, 60) } } }, 'Go'));
+        })));
+    }
+    // preview (kept alive between renders, so it does not reload)
+    var want = SIDEPREV && P.assets[SIDEPREV] && P.assets[SIDEPREV].code ? SIDEPREV + '|' + P.assets[SIDEPREV].code.length : null;
+    if (want !== SIDEPREV_SHOWN) {
+      SIDEPREV_SHOWN = want; SIDEBOX.innerHTML = '';
+      var card = h('div', { className: 'side-card' }, h('div', { className: 'row' }, h('h4', { style: 'margin:0' }, 'Preview' + (want ? ': ' + SIDEPREV : '')), h('span', { className: 'grow' }), want ? h('button', { className: 'ghost small', on: { click: function () { previewModal(SIDEPREV) } } }, '⤢ Bigger') : null,
+        want ? h('button', { className: 'ghost small', 'data-tip': 'Close the preview.', on: { click: function () { SIDEPREV = null; renderSide() } } }, '✕') : null));
+      if (want) side.scrollTop = 0;
+      if (want) { var box = h('div', { className: 'side-prev', style: 'margin-top:8px' }); card.appendChild(box); var codes = {}; codes[SIDEPREV] = P.assets[SIDEPREV].code; stage({ mode: 'preview', sky: sky(), assets: codes, name: SIDEPREV }, '__never', box).catch(function () { }) }
+      else card.appendChild(h('p', { className: 'muted small', style: 'margin:6px 0 0' }, 'Click any asset name (a chip) to see it here, at any step.'));
+      SIDEBOX.appendChild(card);
+    }
+    if (window.GUIDE) GUIDE.applyTips(side);
+  }
+  function showAsset(name) { SIDEPREV = name; if (window.innerWidth < 1150) return previewModal(name); renderSide() }
+  function assetChip(name) {
+    var x = P.assets[name] || {}, st = x.status;
+    return h('span', { className: 'chip ' + (st === 'approved' ? 'ok' : st === 'error' ? 'bad' : ''), 'data-tip': x.code ? 'Show "' + name + '" in the preview panel.' : '"' + name + '" is not made yet.', on: { click: function () { if (x.code) showAsset(name); else toast('"' + name + '" is not made yet.') } } }, (st === 'approved' ? '✓ ' : st === 'error' ? '✖ ' : '') + name + (x.reused ? ' ♻' : ''));
   }
   var easyFile = null, easyDur = 0;
   function finishTiming(c, words, text, method, dur) {
@@ -402,7 +491,8 @@
       var useScript = script.value.trim(), fast = useScript && mode.value === 'fast';
       btn.disabled = true;
       var job = GUIDE.task('Timing your audio', { label: 'Reading the audio…' }), phase = '';
-      function status(m, p, ph) { st.textContent = m; if (ph && ph !== phase) { phase = ph; job.phase(m) } job.set(p == null ? null : p, m) }
+      var STG = { download: 'Step 1 of 2 · ', listen: 'Step 2 of 2 · ' };
+      function status(m, p, ph) { m = (STG[ph || phase] || '') + m; st.textContent = m; if (ph && ph !== phase) { phase = ph; job.phase(m) } job.set(p == null ? null : p, m) }
       function fail(e) { st.textContent = 'Error: ' + e.message; job.done('Stopped: ' + e.message, true); btn.disabled = false }
       var blobP = easyFile ? DB.putFile(P.id + ':' + c.id, easyFile).then(function () { c.hasAudio = true; c.audioName = easyFile.name; save(); return easyFile }) : DB.getFile(P.id + ':' + c.id);
       blobP.then(function (blob) {
@@ -435,7 +525,7 @@
       h('div', { className: 'row' }, btn), st,
       c.lines && c.lines.length ? h('div', { className: 'card', style: 'margin-top:12px' }, badge('✓ ' + c.lines.length + ' lines · ' + c.duration.toFixed(1) + ' s · ' + (c.timing || ''), 'b-ok'), nextBtn('plan', 'Next: Plan →')) : null);
   }
-  function rerender() { var y = window.scrollY; render(); window.scrollTo(0, y) }
+  function rerender() { var y = $main.scrollTop; render(); $main.scrollTop = y }
   function nextBtn(step, label) { return h('div', { className: 'row', style: 'margin-top:18px' }, h('button', { on: { click: function () { go(step) } } }, label || 'Next →')) }
 
   /* =================================================================
@@ -594,28 +684,105 @@
     makeAssetTickets(); P.cuts.forEach(function (c) { makeShotTickets(c.id) });
     save(true);
   }
-  var PLANCOPIED = false;
+  var PLANCOPIED = false, PLANTAB = 'summary';
+  function visibleGaps() { if (!P || !P.plan || !window.EDIT) return []; var ig = P.plan.ignoreGaps || []; return EDIT.gaps(P.plan).filter(function (g) { return ig.indexOf(g.word) < 0 }) }
+  /* new assets that are not in any chat yet get chats of their own (chats already started are kept) */
+  function addFreshTickets() {
+    var fresh = P.plan.assets.filter(function (a) { var x = P.assets[a.name]; return x && !x.reused && x.status === 'todo' && !P.assetTickets.some(function (t) { return t.names.indexOf(a.name) >= 0 }) });
+    PLAN.batch(fresh).forEach(function (g) { P.assetTickets.push({ id: 'a' + P.assetTickets.length + Date.now().toString(36), n: P.assetTickets.length + 1, names: g.names, status: 'waiting', answer: '', label: g.label || null }) });
+    return fresh.length;
+  }
+  function addGap(g, quiet) {
+    var a = EDIT.suggest(g); if (!a.name) return;
+    if (!P.plan.assets.some(function (x) { return x.name === a.name })) { P.plan.assets.push(a); applyReuse([Object.assign(a, libFind(a.name) ? { reuse: true } : {})]); if (!P.assets[a.name]) P.assets[a.name] = { code: '', versions: [], status: 'todo' } }
+    // put it in the shots that cover that line, so the shot chat uses it
+    Object.keys(P.plan.cuts).forEach(function (cid) {
+      (P.plan.cuts[cid] || []).forEach(function (s) {
+        var hit = g.shot ? s.id === g.shot : (g.cid === cid && g.line != null && g.line >= s.lines[0] && g.line <= s.lines[1]);
+        if (hit && (s.cast || (s.cast = [])).indexOf(a.name) < 0) { s.cast.push(a.name); var x = (P.shots[cid] || {})[s.id]; if (x && x.code) { x.status = 'error'; x.check = { errors: ['Add "' + a.name + '" to this shot: ' + (g.show || '')], warnings: [] } } }
+      });
+    });
+    if (!quiet) { addFreshTickets(); save(true); rerender(); toast('"' + a.name + '" added. It has its own chat on the Assets page.') }
+  }
+  function gapsCard() {
+    var G = visibleGaps(); if (!G.length) return null;
+    return h('div', { className: 'card', style: 'border-color:#7a3a33;background:#2a1816' },
+      h('div', { className: 'row' }, h('h3', { style: 'margin:0' }, '⚠ ' + G.length + ' thing' + (G.length > 1 ? 's' : '') + ' the story names but nobody builds'), h('span', { className: 'grow' }),
+        h('button', { on: { click: function () { G.forEach(function (g) { addGap(g, true) }); P.plan.gapsSeen = true; var n = addFreshTickets(); save(true); rerender(); toast('Added ' + G.length + ' assets (' + n + ' new to build).') } } }, 'Add all'),
+        h('button', { className: 'ghost small', 'data-tip': 'Hide this list. The things will not appear in the video.', on: { click: function () { P.plan.ignoreGaps = (P.plan.ignoreGaps || []).concat(G.map(function (g) { return g.word })); P.plan.gapsSeen = true; save(true); rerender() } } }, 'Ignore all')),
+      h('p', { className: 'muted small', style: 'margin:6px 0' }, 'If it is not an asset, it cannot appear on screen (this is why things like "the brain" were missing). Adding makes a small asset for it and puts it in the right shots.'),
+      G.slice(0, 30).map(function (g) {
+        return h('div', { className: 'row', style: 'border-top:1px solid var(--line);padding:6px 0' }, h('b', null, g.word), h('span', { className: 'muted small', style: 'flex:1;min-width:200px' }, g.why),
+          h('button', { className: 'small', on: { click: function () { addGap(g) } } }, 'Add'),
+          h('button', { className: 'ghost small', on: { click: function () { (P.plan.ignoreGaps = P.plan.ignoreGaps || []).push(g.word); save(true); rerender() } } }, 'Ignore'));
+      }));
+  }
   function vPlan() {
     var ready = P.cuts.every(function (c) { return c.lines.length });
     function read() {
       try { var plan = PLAN.json(P.planRaw) } catch (e) { planCheck = { errors: ['Could not read JSON: ' + e.message], warnings: [] }; return rerender() }
       planCheck = PLAN.validate(plan, P.cuts);
       if (styleOf() === 'facet' && !(plan.details && Object.keys(plan.details).some(function (k) { return (plan.details[k] || []).length }))) planCheck.warnings.push('No "details" (detail pass): list what each line names that the picture must show — copy the fix prompt to add it.');
-      if (!planCheck.errors.length) { applyPlan(plan); toast('Plan accepted: ' + plan.assets.length + ' assets.'); if (P.easy) return go('assets') }
+      if (!planCheck.errors.length) {
+        var merged = window.EDIT ? EDIT.mergeShort(plan, P.cuts, 2.5) : 0;
+        if (merged) planCheck.warnings.push('Joined ' + merged + ' very short shot' + (merged > 1 ? 's' : '') + ' into their neighbours (fewer cuts, smoother video).');
+        applyPlan(plan); PLANTAB = 'summary';
+        var gp = visibleGaps().length;
+        toast('Plan accepted: ' + plan.assets.length + ' assets' + (merged ? ', ' + merged + ' short shots joined' : '') + (gp ? '. ' + gp + ' missing things found.' : '.'), 5000);
+        if (P.easy && !gp) return go('assets');
+      }
       rerender();
     }
-    return h('div', null,
-      staleBanner(), h('h1', null, 'Plan'), h('p', { className: 'lead' }, 'One prompt plans every asset and every shot for all cuts. Claude is best here (it decides how good the video can be), but free models work too.'),
-      !ready ? h('div', { className: 'card' }, badge('First finish Voice & timing for every cut.', 'b-warn')) : null,
-      h('div', { className: 'card' },
-        help(['Click <b>Copy plan prompt</b>, paste into Claude (or any chat).', 'Paste the JSON answer below, click <b>Read plan</b>.', 'If there are problems, click <b>Copy fix prompt</b>, paste it into the SAME chat, and paste the new answer.']),
-        h('div', { className: 'row' }, h('button', { disabled: !ready, on: { click: function () { PLANCOPIED = true; promptBox('Plan prompt', TPL.plan(P, libIndex()), 'Plan prompt'); afterRender() } } }, 'Copy plan prompt')),
-        field('Paste the plan (JSON)', h('textarea', { value: P.planRaw, style: 'min-height:160px', on: { input: function () { P.planRaw = this.value; save() } } })),
-        h('div', { className: 'row' }, h('button', { on: { click: function () { fromClipboard().then(function (t) { P.planRaw = t; save(); read() }).catch(pasteFail) } } }, '📋 Paste & read'), h('button', { className: 'blue', on: { click: read } }, 'Read plan'),
-          planCheck && (planCheck.errors.length || planCheck.warnings.some(function (w) { return /detail pass/.test(w) })) ? h('button', { className: 'ghost', on: { click: function () { promptBox('Plan fix prompt', TPL.planFix(P, planCheck.errors.concat(planCheck.warnings.filter(function (w) { return /detail pass/.test(w) }))), 'Fix prompt') } } }, 'Copy fix prompt') : null),
-        planCheck ? msgs(planCheck.errors, planCheck.warnings) : null),
-      P.plan ? planSummary() : null,
-      P.plan ? nextBtn('assets', 'Next: Assets →') : null);
+    var paste = h('div', null,
+      h('div', { className: 'row' }, h('button', { disabled: !ready, on: { click: function () { PLANCOPIED = true; promptBox('Plan prompt', TPL.plan(P, libIndex()), 'Plan prompt'); afterRender(); renderSide() } } }, 'Copy plan prompt'),
+        h('button', { on: { click: function () { fromClipboard().then(function (t) { P.planRaw = t; save(); read() }).catch(pasteFail) } } }, '📋 Paste & read'),
+        planCheck && (planCheck.errors.length || planCheck.warnings.some(function (w) { return /detail pass/.test(w) })) ? h('button', { className: 'ghost', on: { click: function () { promptBox('Plan fix prompt', TPL.planFix(P, planCheck.errors.concat(planCheck.warnings.filter(function (w) { return /detail pass/.test(w) }))), 'Fix prompt') } } }, 'Copy fix prompt') : null),
+      planCheck && planCheck.errors.length ? msgs(planCheck.errors, []) : null,
+      h('details', { className: 'fold' }, h('summary', null, 'Paste by hand / see the JSON'), h('div', { className: 'in' },
+        h('textarea', { value: P.planRaw, style: 'min-height:160px', on: { input: function () { P.planRaw = this.value; save() } } }), h('button', { className: 'blue', style: 'margin-top:6px', on: { click: read } }, 'Read plan'))));
+    var head = h('div', null, staleBanner(), h('h1', null, 'Plan'),
+      h('p', { className: 'lead' }, 'The plan is the to-do list for your video: which characters, places and things to build, and which picture goes with each part of your narration. An AI writes it; you paste it here.'));
+    if (!P.plan) return h('div', null, head,
+      !ready ? h('div', { className: 'card' }, badge('First add your audio on Start.', 'b-warn')) : null,
+      h('div', { className: 'card' }, h('ol', { className: 'small', style: 'margin:0 0 10px;padding-left:18px' }, h('li', null, 'Click Copy plan prompt and paste it into Claude (or a free chat).'), h('li', null, 'When it finishes, copy its whole answer.'), h('li', null, 'Click Paste & read.')), paste));
+    var A = P.plan.assets, lib = A.filter(function (a) { return (P.assets[a.name] || {}).reused }).length, nw = A.length - lib, G = visibleGaps(), shots = 0, secs = 0;
+    P.cuts.forEach(function (c) { shots += (P.plan.cuts[c.id] || []).length; secs += c.duration || 0 });
+    var det = 0; Object.keys(P.plan.details || {}).forEach(function (k) { det += (P.plan.details[k] || []).length });
+    var pb = P.plan.publish || {};
+    function tab(id, label, cnt, bad) { return h('button', { className: PLANTAB === id ? 'on' : '', on: { click: function () { PLANTAB = id; rerender() } } }, label, cnt != null ? h('span', { className: 'cnt' + (bad ? ' bad' : '') }, cnt) : null) }
+    var body;
+    if (PLANTAB === 'summary') body = h('div', null,
+      h('div', { className: 'tiles' },
+        h('div', { className: 'tile ok' }, h('b', null, A.length), h('span', null, 'assets · ' + lib + ' from your library (free), ' + nw + ' new')),
+        h('div', { className: 'tile' }, h('b', null, P.assetTickets.length), h('span', null, 'asset chats to run')),
+        h('div', { className: 'tile' }, h('b', null, shots), h('span', null, 'shots · about ' + (shots ? (secs / shots).toFixed(1) : 0) + ' s each')),
+        h('div', { className: 'tile ' + (G.length ? 'bad' : 'ok') }, h('b', null, G.length), h('span', null, G.length ? 'missing things (fix below)' : 'missing things')),
+        h('div', { className: 'tile' }, h('b', null, (pb.titles || []).length + ' · ' + (pb.thumbnails || []).length), h('span', null, 'titles · thumbnails ready'))),
+      gapsCard(),
+      planCheck && planCheck.warnings.length ? h('details', { className: 'fold' }, h('summary', null, planCheck.warnings.length + ' notes from the check'), h('div', { className: 'in' }, msgs([], planCheck.warnings))) : null,
+      h('div', { className: 'row', style: 'margin-top:14px' }, h('button', { on: { click: function () { go('assets') } } }, 'Next: Assets →')));
+    else if (PLANTAB === 'assets') body = h('div', null, h('p', { className: 'muted small' }, 'Click a name to preview it (when made). ♻ = from your library, no chat needed.'),
+      ['character', 'creature', 'set', 'prop', 'fx'].map(function (k) {
+        var L = A.filter(function (a) { return a.kind === k }); if (!L.length) return null;
+        return h('details', { className: 'fold', open: k === 'character' }, h('summary', null, k + 's (' + L.length + ')'), h('div', { className: 'in' }, h('table', null, L.map(function (a) {
+          return h('tr', null, h('td', { style: 'width:180px' }, assetChip(a.name), reuseCell(a)), h('td', { className: 'small' }, a.looks_like ? h('div', null, h('b', null, 'Looks like: '), a.looks_like) : null, h('div', { className: 'muted' }, a.look), a.spots && a.spots.length ? h('div', { className: 'muted' }, 'spots: ' + a.spots.join(', ')) : null));
+        }))));
+      }));
+    else if (PLANTAB === 'shots') body = h('div', null, P.cuts.map(function (c) {
+      var list = P.plan.cuts[c.id] || [], tm = PLAN.shotTimes(c, list);
+      return h('div', null, P.cuts.length > 1 ? h('h3', null, c.label) : null, list.map(function (s, i) {
+        var tr = window.EDIT ? EDIT.trans(P.plan, c.id, i, (P.edits || {})[c.id]) : null;
+        return h('details', { className: 'fold' }, h('summary', null, h('b', { style: 'color:var(--ink)' }, s.id), h('span', null, (tm[i].to - tm[i].from).toFixed(1) + ' s'), h('span', null, s.set), tr ? badge(tr.type) : null, h('span', { style: 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }, s.show)),
+          h('div', { className: 'in small' }, h('p', null, s.show), h('div', null, (s.cast || []).map(assetChip)), h('p', { className: 'muted' }, 'Says: "' + c.lines.slice(s.lines[0], s.lines[1] + 1).map(function (l) { return l.text }).join(' ') + '"'), h('p', { className: 'muted' }, 'Camera: ' + (s.camera || '-') + ' · mood: ' + (s.mood || 'normal'))));
+      }));
+    }));
+    else if (PLANTAB === 'details') body = h('div', null, h('p', { className: 'muted small' }, 'What each line names that the picture must show. The app checks every shot against this list.'),
+      P.cuts.map(function (c) { var D = (P.plan.details || {})[c.id] || []; return h('table', null, D.map(function (d) { return h('tr', null, h('td', { style: 'width:60px' }, 'line ' + d.line), h('td', { style: 'width:110px' }, h('b', null, d.word)), h('td', { className: 'muted small' }, d.show, d.needs && d.needs.length ? h('div', null, d.needs.map(function (n) { return assetChip(n) })) : null)) })) }));
+    else if (PLANTAB === 'upload') body = h('div', null, h('p', { className: 'muted small' }, 'Ready on the Publish page after export. Preview:'), publishPackage(P.cuts[0], function () { go('publish') }));
+    else if (PLANTAB === 'redo') body = h('div', null, h('p', { className: 'muted small' }, 'Make a new plan. Assets and shots already made are kept when their names stay the same.'), paste, levelUpCard());
+    return h('div', null, head,
+      h('div', { className: 'tabs' }, tab('summary', 'Summary', G.length ? G.length : null, !!G.length), tab('assets', 'Assets', A.length), tab('shots', 'Shots', shots), tab('details', 'Must show', det), tab('upload', 'Upload text', null), tab('redo', 'Re-do / level up', null)),
+      body);
   }
   function reuseCell(a) {
     var x = P.assets[a.name] || {};
@@ -625,20 +792,6 @@
     return h('div', null, sim.map(function (l) {
       return h('button', { className: 'ghost small', style: 'margin-top:4px', 'data-tip': 'Use the library asset "' + l.name + '" (from "' + l.from + '") instead of building a new one. Saves a chat.', on: { click: function () { useLib(a, l); makeAssetTickets(); save(true); rerender(); toast('Using "' + l.name + '" from the library for ' + a.name + '.') } } }, '♻ use ' + l.name);
     }));
-  }
-  function planSummary() {
-    var A = P.plan.assets;
-    return h('div', null,
-      h('div', { className: 'card' }, h('h3', null, A.length + ' assets'),
-        h('table', null, h('tr', null, h('th', null, 'name'), h('th', null, 'kind'), h('th', null, 'diff.'), h('th', null, 'size'), h('th', null, 'look')),
-          A.map(function (a) { return h('tr', null, h('td', null, a.name, reuseCell(a)), h('td', null, a.kind), h('td', null, a.difficulty), h('td', null, a.size), h('td', { className: 'muted' }, a.look + (a.spots ? ' · spots: ' + a.spots.join(', ') : '') + (a.moves.length ? ' · moves: ' + a.moves.join(', ') : ''))) }))),
-      P.cuts.map(function (c) {
-        var list = P.plan.cuts[c.id] || [];
-        return h('div', { className: 'card' }, h('h3', null, c.label + ' — ' + list.length + ' shots'),
-          h('table', null, list.map(function (s) { return h('tr', null, h('td', null, s.id), h('td', null, 'lines ' + s.lines.join('–')), h('td', null, s.set), h('td', null, (s.cast || []).join(', ')), h('td', { className: 'muted' }, s.show), h('td', null, s.mood || '')) })),
-          (P.plan.details && P.plan.details[c.id] && P.plan.details[c.id].length) ? h('div', { style: 'margin-top:10px' }, h('b', null, 'Must show (detail pass): '),
-            h('ul', { className: 'small' }, P.plan.details[c.id].map(function (d) { return h('li', null, 'line ' + d.line + ' · "' + d.word + '" → ' + d.show) }))) : null);
-      }));
   }
 
   /* =================================================================
@@ -687,7 +840,8 @@
   function shotCodes(cid) { var o = {}, S = P.shots[cid] || {}; Object.keys(S).forEach(function (n) { if (S[n].code) o[n] = S[n].code }); return o }
   function cutPayload(cid) {
     var c = cutById(cid);
-    return { duration: c.duration, words: c.words, lines: c.lines, shots: (P.plan.cuts[cid] || []).map(function (s) { return { id: s.id, from_line: s.lines[0], to_line: s.lines[1] } }) };
+    var ov = (P.edits || {})[cid] || {};
+    return { duration: c.duration, words: c.words, lines: c.lines, shots: (P.plan.cuts[cid] || []).map(function (s, i) { return { id: s.id, from_line: s.lines[0], to_line: s.lines[1], trans: window.EDIT ? EDIT.trans(P.plan, cid, i, ov) : null } }) };
   }
 
   /* =================================================================
@@ -700,6 +854,7 @@
       var bag = kind === 'shot' ? (P.shots[cid] = P.shots[cid] || {}) : P.assets, x = bag[n] || (bag[n] = { code: '', versions: [], status: 'todo' });
       if (x.code === code) { names.push(n); return }
       if (x.code) x.versions.push({ code: x.code, at: Date.now() });
+      if (x.reused) { x.reused = false; x.improved = true }        // a changed library asset is saved as a new version
       if (x.versions.length > 12) x.versions.shift();
       x.code = code; x.status = 'pasted'; names.push(n);
     });
@@ -716,56 +871,104 @@
       });
       var bad = Object.keys(m.results).filter(function (n) { return !m.results[n].ok }).length;
       if (job) job.done(bad ? bad + ' need a fix' : 'All passed', !!bad);
-      save(true); return m.results;
+      save(true);
+      var good = Object.keys(m.results).filter(function (n) { return m.results[n].ok });
+      if (good.length && REVIEW.ready() && REVIEW.auto()) setTimeout(function () { reviewLooks(good) }, 300);
+      return m.results;
     }, function (e) { if (job) job.done(e.message, true); throw e });
   }
   function vAssets() {
     if (!P.plan) return h('div', null, h('h1', null, 'Assets'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
-    var T = P.assetTickets, nOk = P.plan.assets.filter(function (a) { return (P.assets[a.name] || {}).status === 'approved' }).length;
+    var T = P.assetTickets, nOk = P.plan.assets.filter(function (a) { return (P.assets[a.name] || {}).status === 'approved' }).length, lib = P.plan.assets.filter(function (a) { return (P.assets[a.name] || {}).reused });
     return h('div', null,
-      staleBanner(), h('h1', null, 'Assets'), h('p', { className: 'lead' }, 'Each ticket is a prompt for ONE new chat. Open several chats at the same time (Qwen, DeepSeek, free Claude…) — every ticket carries the same locked rules, so the pieces match.'),
-      help(['Click <b>Copy prompt</b> on a ticket → paste into a NEW chat → send. Do this for every ticket at once.', 'Paste each chat\'s answer into its ticket and click <b>Check</b>.', '✅ = good → <b>Approve</b>. ❌ = click <b>Copy fix prompt</b>, paste it into the SAME chat, paste the new answer, Check again.', 'Use <b>Asset sheet</b> to see everything side by side under the same light. Something looks off? Write a note and copy a fix prompt.']),
-      h('div', { className: 'card row' },
-        h('span', null, 'Chats:'), h('select', { on: { change: function () { P.ptsAsset = this.value === 'auto' ? 'auto' : +this.value; makeAssetTickets(); save(); rerender() } } }, ['auto', 2, 3, 4, 6, 99].map(function (v) { return h('option', { value: v, selected: String(P.ptsAsset == null ? 'auto' : P.ptsAsset) === String(v) }, v === 'auto' ? 'Auto by complexity (recommended)' : v === 99 ? 'all in one chat (Claude)' : v + ' difficulty points per chat') })),
-        h('span', { className: 'muted small' }, P.ptsAsset === 'auto' || P.ptsAsset == null ? 'Hard assets get their own chat, medium ones go in pairs, simple ones in bunches of 3–6. Similar kinds stay together.' : '1 = simple, 2 = medium, 3 = hard. 3 points = one hard asset, or medium + simple, or three simple.'),
-        h('span', { className: 'grow' }), badge(nOk + ' / ' + P.plan.assets.length + ' approved', nOk === P.plan.assets.length ? 'b-ok' : 'b-blue'),
-        h('button', { className: 'ok', on: { click: function () { approveAll(P.assets, P.plan.assets.map(function (a) { return a.name })) } } }, 'Approve all ✓'),
-        h('button', { className: 'blue', on: { click: function () { sheetModal() } } }, 'Asset sheet')),
-      chatBoard(P.assetTickets, 'asset'), smartPaste('asset'),
+      staleBanner(), h('h1', null, 'Assets'), h('p', { className: 'lead' }, 'Each chat below builds a few characters, places or things. Run them in separate free chats, at the same time if you like. Paste each answer back here.'),
+      h('div', { className: 'row', style: 'margin-bottom:6px' }, badge(nOk + ' / ' + P.plan.assets.length + ' ready', nOk === P.plan.assets.length ? 'b-ok' : 'b-blue'), lib.length ? badge('♻ ' + lib.length + ' from library', 'b-ok') : null, h('span', { className: 'grow' }),
+        h('button', { className: 'blue', on: { click: function () { sheetModal() } } }, 'Asset sheet'),
+        h('button', { className: 'ghost', 'data-tip': REVIEW.ready() ? 'Gemini looks at every asset and says which ones look wrong (a woman who looks like a man, wrong skin tone…).' : 'Add a free Gemini key in ⚙ Settings to turn this on.', on: { click: function () { reviewLooks(P.plan.assets.filter(function (a) { return (P.assets[a.name] || {}).code }).map(function (a) { return a.name }), true) } } }, '👁 Review looks'),
+        h('button', { className: 'ok', on: { click: function () { approveAll(P.assets, P.plan.assets.map(function (a) { return a.name })) } } }, 'Approve all ✓')),
       T.map(assetTicketCard),
+      lib.length ? h('details', { className: 'fold' }, h('summary', null, '♻ From your library (' + lib.length + ') — no chat needed'), h('div', { className: 'in' }, lib.map(assetRow))) : null,
+      h('details', { className: 'fold' }, h('summary', null, '⚡ Smart paste: paste any chat answer, the app finds what it is'), h('div', { className: 'in' }, smartPaste('asset'))),
+      h('details', { className: 'fold' }, h('summary', null, 'Options: how assets are grouped into chats'), h('div', { className: 'in row' },
+        h('select', { on: { change: function () { P.ptsAsset = this.value === 'auto' ? 'auto' : +this.value; makeAssetTickets(); save(); rerender() } } }, ['auto', 2, 3, 4, 6, 99].map(function (v) { return h('option', { value: v, selected: String(P.ptsAsset == null ? 'auto' : P.ptsAsset) === String(v) }, v === 'auto' ? 'Auto by complexity (recommended)' : v === 99 ? 'all in one chat (Claude)' : v + ' difficulty points per chat') })),
+        h('span', { className: 'muted small' }, 'Hard assets get their own chat, medium ones go in pairs, simple ones in bunches.'))),
+      levelUpCard(),
       nOk === P.plan.assets.length ? nextBtn('shots', 'Next: Shots →') : null);
   }
   function statusBadge(st) { return { waiting: badge('waiting', ''), copied: badge('in a chat', 'b-blue'), pasted: badge('pasted', 'b-blue'), checked: badge('✓ checked', 'b-ok'), approved: badge('✓ approved', 'b-ok'), error: badge('✖ needs fix', 'b-bad'), todo: badge('not made', '') }[st] || badge(st) }
   function assetTicketCard(t) {
-    var A = P.plan.assets.filter(function (a) { return t.names.indexOf(a.name) >= 0 }), pts = A.reduce(function (s, a) { return s + a.difficulty }, 0);
-    var ta = h('textarea', { value: t.answer || '', placeholder: 'Paste the chat\'s answer here (the code block)…', on: { input: function () { t.answer = this.value; save() } } });
-    var out = h('div');
+    var A = P.plan.assets.filter(function (a) { return t.names.indexOf(a.name) >= 0 });
+    var ta = h('textarea', { value: t.answer || '', placeholder: 'Or paste the chat\'s answer here by hand, then click Check…', on: { input: function () { t.answer = this.value; save() } } });
+    var out = h('div'), x = { t: t, kind: 'asset' }, done = ticketDone(x), bad = ticketBad(x);
     function check() {
       var r = storeBlocks(t.answer, 'asset');
       if (!r.names.length) { out.innerHTML = ''; out.appendChild(msgs(['No KIT.asset(\'…\') found in the answer.'])); return }
       t.status = 'pasted'; out.innerHTML = 'Checking…';
       checkAssets(t.names).then(function () { t.status = t.names.every(function (n) { return (P.assets[n] || {}).status !== 'error' }) ? 'checked' : 'error'; if (P.easy) t.names.forEach(function (n) { var x = P.assets[n]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() }).catch(function (e) { out.textContent = 'Error: ' + e.message });
     }
-    return h('div', { className: 'card', id: 'atk-' + t.n },
-      h('div', { className: 'row' }, h('h3', null, (P.easy ? 'Chat group ' + t.n + ' of ' + P.assetTickets.length : 'Ticket ' + t.n)), badge(t.label || pts + ' pts', t.label && /hard/.test(t.label) ? 'b-warn' : ''), statusBadge(t.status), h('span', { className: 'grow' }),
-        h('button', { on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Asset ticket ' + t.n, TPL.assetTicket(P, t), 'Ticket ' + t.n, noteChat(t)); renderNav() } } }, 'Copy prompt')),
-      chatRow(t), A.map(function (a) { return assetRow(a) }),
-      resultFiles(function (x) { t.answer = x; ta.value = x; save(); check() }),
-      ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { on: { click: function () { fromClipboard().then(function (x) { t.answer = x; ta.value = x; save(); check() }).catch(pasteFail) } } }, '📋 Paste & check'), h('button', { className: 'blue', on: { click: check } }, 'Check'),
-        h('button', { className: 'ok', on: { click: function () { t.names.forEach(function (n) { var x = P.assets[n]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() } } }, 'Approve all ✓')), out);
+    return h('div', { className: 'ticket' + (done ? ' ok' : bad ? ' bad' : ''), id: 'atk-' + t.n },
+      h('div', { className: 'row' }, chatTag(t), h('b', null, A.length + (A.length === 1 ? ' asset' : ' assets')), t.label ? badge(t.label, /hard/.test(t.label) ? 'b-warn' : '') : null, done ? badge('✓ done', 'b-ok') : statusBadge(t.status), h('span', { className: 'grow' }),
+        done ? null : h('button', { className: t.status === 'waiting' ? '' : 'ghost', on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Chat ' + chatNo(t) + ' prompt', TPL.assetTicket(P, t), 'Chat ' + chatNo(t) + ' prompt', noteChat(t)); renderNav(); renderSide() } } }, 'Copy prompt'),
+        done ? null : h('button', { className: t.status === 'waiting' ? 'ghost' : '', on: { click: function () { fromClipboard().then(function (x) { t.answer = x; ta.value = x; save(); check() }).catch(pasteFail) } } }, '📋 Paste & check')),
+      h('div', { className: 'names' }, t.names.map(assetChip)), out,
+      bad ? h('div', null, A.filter(function (a) { return (P.assets[a.name] || {}).status === 'error' }).map(assetRow)) : null,
+      h('details', { className: 'fold' }, h('summary', null, 'Details, fixes, improve, chat link'), h('div', { className: 'in' },
+        chatRow(t), A.map(assetRow), resultFiles(function (x) { t.answer = x; ta.value = x; save(); check() }),
+        ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue', on: { click: check } }, 'Check'),
+          h('button', { className: 'ok', on: { click: function () { t.names.forEach(function (n) { var x = P.assets[n]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() } } }, 'Approve all ✓')))));
   }
   function assetRow(a) {
-    var x = P.assets[a.name] || {}, c = x.check, note = h('input', { placeholder: 'What looks wrong? (e.g. "nose too small", "too bright")', style: 'flex:1;min-width:200px', value: x.note || '', on: { input: function () { x.note = this.value; save() } } });
+    var x = P.assets[a.name] || {}, c = x.check, note = h('input', { placeholder: 'What should change? (e.g. "make her look older", "nose too small")', style: 'flex:1;min-width:200px', value: x.note || '', on: { input: function () { x.note = this.value; save() } } });
     return h('div', { style: 'border-top:1px solid var(--line);padding:8px 0' },
-      h('div', { className: 'row' }, h('b', null, a.name), h('span', { className: 'muted small' }, a.kind + ' · diff ' + a.difficulty + ' · ~' + a.size), statusBadge(x.status || 'todo'), c && c.size ? h('span', { className: 'muted small' }, 'size ' + c.size.join(' × ')) : null,
+      h('div', { className: 'row' }, assetChip(a.name), h('span', { className: 'muted small' }, a.kind + (a.looks_like ? ' · ' + a.looks_like : '')), statusBadge(x.status || 'todo'), x.improved ? badge('improved', 'b-blue') : null,
         h('span', { className: 'grow' }),
-        x.code ? h('button', { className: 'ghost small', on: { click: function () { previewModal(a.name) } } }, 'Preview') : null,
         x.status === 'checked' ? h('button', { className: 'ok small', on: { click: function () { x.status = 'approved'; save(true); rerender() } } }, 'Approve') : null,
-        x.status === 'approved' ? h('button', { className: 'ghost small', on: { click: function () { x.status = 'checked'; save(true); rerender() } } }, 'Un-approve') : null),
+        x.status === 'error' && c && c.errors.length && c.errors.every(function (e) { return /^Look review/.test(e) }) ? h('button', { className: 'ok small', 'data-tip': 'Gemini can be wrong. If it looks right to you, approve it.', on: { click: function () { c.errors = []; c.ok = true; x.status = 'approved'; P.assetTickets.forEach(function (t) { if (t.names.indexOf(a.name) >= 0 && t.names.every(function (n) { return (P.assets[n] || {}).status !== 'error' })) t.status = 'checked' }); save(true); rerender() } } }, 'It looks fine ✓') : null,
+        x.status === 'approved' && !x.reused ? h('button', { className: 'ghost small', on: { click: function () { x.status = 'checked'; save(true); rerender() } } }, 'Un-approve') : null),
       c ? msgs(c.errors, c.warnings) : null,
       x.code ? h('div', { className: 'row', style: 'margin-top:6px' }, note,
-        h('button', { className: 'ghost small', on: { click: function () { promptBox('Fix ' + a.name, TPL.assetFix(P, a.name, x.code, c ? c.errors.concat(c.warnings) : [], x.note), 'Fix prompt') } } }, 'Copy fix prompt'),
+        x.status === 'error' || (c && c.warnings && c.warnings.length) ? h('button', { className: 'small', on: { click: function () { promptBox('Fix ' + a.name, TPL.assetFix(P, a.name, x.code, c ? c.errors.concat(c.warnings) : [], x.note), 'Fix prompt') } } }, 'Copy fix prompt') : null,
+        h('button', { className: 'ghost small', 'data-tip': 'Copies a prompt that makes this asset look better (works for library assets too). Paste it into the same chat or a new one, then paste the answer with Paste & check or Smart paste.', on: { click: function () { promptBox('Improve ' + a.name, TPL.assetImprove(P, a, x.code, x.note), 'Improve prompt') } } }, '✨ Improve'),
         x.versions && x.versions.length ? h('button', { className: 'ghost small', title: 'Go back to the previous version', on: { click: function () { var v = x.versions.pop(); x.code = v.code; x.status = 'pasted'; checkAssets([a.name]).then(rerender) } } }, 'Undo (' + x.versions.length + ')') : null) : null);
+  }
+  /* AUTOMATIC LOOK REVIEW (Gemini): pictures of the assets + what they must look like -> problems */
+  var REVIEWING = false;
+  function reviewLooks(names, manual) {
+    names = names.filter(function (n) { return (P.assets[n] || {}).code });
+    if (!names.length) return manual ? toast('Nothing to review yet.') : null;
+    if (!REVIEW.ready()) { if (manual) settingsModal('Add your free Gemini key to turn on the automatic look review.'); return }
+    if (styleOf() !== 'facet') return manual ? toast('The automatic look review works with the Facet style.', 4000) : null;
+    if (REVIEWING) return; REVIEWING = true;
+    var job = GUIDE.task('Reviewing how ' + names.length + (names.length === 1 ? ' asset looks' : ' assets look'), { key: 'review', units: names.length, label: 'Making pictures…' });
+    var codes = {}; names.forEach(function (n) { codes[n] = P.assets[n].code });
+    stage({ mode: 'thumbs', sky: sky(), assets: codes, names: names }, 'thumbs').then(function (m) {
+      if (m.unsupported) throw new Error('This style cannot make pictures for review.');
+      job.set(.4, 'Gemini is looking at them…');
+      var items = names.filter(function (n) { return m.images[n] }).map(function (n) { var a = P.plan.assets.filter(function (q) { return q.name === n })[0] || { name: n }; return { name: n, kind: a.kind, look: a.look, looks_like: a.looks_like, image: m.images[n] } });
+      return REVIEW.run(items);
+    }).then(function (res) {
+      var bad = 0;
+      res.forEach(function (r) {
+        var x = P.assets[r.name]; if (!x) return; x.review = { ok: r.ok, problems: r.problems, at: Date.now() };
+        if (!r.ok && r.problems.length) {
+          bad++; x.check = x.check || { ok: true, errors: [], warnings: [] }; x.check.errors = (x.check.errors || []).filter(function (w) { return !/^Look review/.test(w) }).concat(r.problems.map(function (p) { return 'Look review: ' + p })); x.check.ok = false;
+          if (!x.reused) x.status = 'error'; x.note = x.note || r.problems.join('; ');
+          P.assetTickets.forEach(function (t) { if (t.names.indexOf(r.name) >= 0) t.status = 'error' });
+        }
+      });
+      job.done(bad ? bad + ' look wrong — see Copy fix prompt' : 'All look right', !!bad); REVIEWING = false; save(true); rerender();
+    }).catch(function (e) { REVIEWING = false; job.done('Review stopped: ' + e.message, true); if (manual) toast('Look review: ' + e.message, 6000) });
+  }
+  function settingsModal(msg) {
+    var key = h('input', { type: 'password', value: REVIEW.key(), placeholder: 'Paste your Gemini API key here', style: 'width:100%' });
+    var auto = h('input', { type: 'checkbox', checked: REVIEW.auto() });
+    modal('Settings', h('div', null, msg ? h('p', { style: 'font-size:15px' }, msg) : null,
+      h('div', { className: 'card' }, h('h3', null, 'Automatic look review (free)'),
+        h('ol', { className: 'small' }, h('li', { html: 'Open <a href="https://aistudio.google.com/api-keys" target="_blank">aistudio.google.com/api-keys</a> and click <b>Create API key</b>.' }), h('li', null, 'Copy the key and paste it below. Do not paste it in any chat.'), h('li', null, 'Click Save. From now on, every checked asset is looked at by Gemini automatically.')),
+        key, h('label', { style: 'display:flex;gap:6px;align-items:center;color:var(--ink)' }, auto, 'Review automatically after each check'),
+        h('p', { className: 'muted small' }, 'The key stays in this browser only. It is not saved in projects or backups.'),
+        h('div', { className: 'row' }, h('button', { on: { click: function () { REVIEW.setKey(key.value); REVIEW.setAuto(auto.checked); document.getElementById('mclose').click(); toast(key.value.trim() ? 'Saved. Look review is on.' : 'Key removed.'); if (P) rerender() } } }, 'Save'),
+          REVIEW.key() ? h('button', { className: 'ghost danger', on: { click: function () { REVIEW.setKey(''); key.value = ''; toast('Key removed.') } } }, 'Remove key') : null))));
   }
   function sheetModal() {
     var box = h('div', { style: 'height:100%' });
@@ -805,41 +1008,45 @@
     if (!P.shotTickets[CUT]) makeShotTickets(CUT);
     var plan = P.plan.cuts[CUT] || [], S = P.shots[CUT] || {}, nOk = plan.filter(function (s) { return (S[s.id] || {}).status === 'approved' }).length;
     return h('div', null,
-      staleBanner(), h('h1', null, 'Shots'), h('p', { className: 'lead' }, 'Shot tickets are filled-in forms (camera, focus, light, moves, sound) — no animation code. Free models handle them well; Claude can do a whole cut in one chat.'),
-      cutTabs(),
-      help(['Copy a ticket → paste into a NEW chat → paste the answer back → <b>Check</b>.', 'All shots ✅? Click <b>Approve all</b>, then go to <b>Watch & fix</b>.', 'You can watch even before all shots are made: missing shots show a placeholder.']),
-      h('div', { className: 'card row' },
-        h('label', { style: 'margin:0;display:flex;gap:6px;align-items:center;color:var(--ink)' }, h('input', { type: 'checkbox', checked: P.claudeShots, on: { change: function () { P.claudeShots = this.checked; makeShotTickets(CUT); save(); rerender() } } }), 'Claude mode: all shots of this cut in ONE chat'),
-        !P.claudeShots ? h('span', null, ' · points per chat: ', h('select', { on: { change: function () { P.ptsShot = +this.value; makeShotTickets(CUT); save(); rerender() } } }, [2, 3, 4, 6, 8].map(function (v) { return h('option', { value: v, selected: P.ptsShot === v }, v) }))) : null,
-        h('span', { className: 'grow' }), badge(nOk + ' / ' + plan.length + ' approved', nOk === plan.length ? 'b-ok' : 'b-blue'),
+      staleBanner(), h('h1', null, 'Shots'), h('p', { className: 'lead' }, 'A shot is one picture on screen: where the camera looks, who moves, on which word. Claude writes them all from the plan.'),
+      P.cuts.length > 1 ? cutTabs() : null,
+      h('div', { className: 'row', style: 'margin-bottom:6px' }, badge(nOk + ' / ' + plan.length + ' ready', nOk === plan.length ? 'b-ok' : 'b-blue'), h('span', { className: 'grow' }),
         h('button', { className: 'ok', on: { click: function () { approveAll(P.shots[CUT] || {}, plan.map(function (s) { return s.id })) } } }, 'Approve all ✓')),
-      chatBoard(P.shotTickets[CUT], 'shot', CUT), smartPaste('shot', CUT),
       (P.shotTickets[CUT] || []).map(function (t) { return shotTicketCard(CUT, t) }),
+      h('details', { className: 'fold' }, h('summary', null, '⚡ Smart paste: paste any chat answer, the app finds the shots'), h('div', { className: 'in' }, smartPaste('shot', CUT))),
+      h('details', { className: 'fold' }, h('summary', null, 'Options: one chat or several'), h('div', { className: 'in row' },
+        h('label', { style: 'margin:0;display:flex;gap:6px;align-items:center;color:var(--ink)' }, h('input', { type: 'checkbox', checked: P.claudeShots, on: { change: function () { P.claudeShots = this.checked; makeShotTickets(CUT); save(); rerender() } } }), 'All shots in ONE chat (Claude)'),
+        !P.claudeShots ? h('span', null, ' · points per chat: ', h('select', { on: { change: function () { P.ptsShot = +this.value; makeShotTickets(CUT); save(); rerender() } } }, [2, 3, 4, 6, 8].map(function (v) { return h('option', { value: v, selected: P.ptsShot === v }, v) }))) : null)),
       levelUpCard(),
-      nextBtn('watch', 'Next: Watch & fix →'));
+      nextBtn('watch', 'Next: Edit & watch →'));
   }
   function shotTicketCard(cid, t) {
-    var c = cutById(cid), plan = P.plan.cuts[cid] || [], S = P.shots[cid] || (P.shots[cid] = {}), out = h('div');
-    var ta = h('textarea', { value: t.answer || '', placeholder: 'Paste the chat\'s answer here…', on: { input: function () { t.answer = this.value; save() } } });
+    var c = cutById(cid), plan = P.plan.cuts[cid] || [], S = P.shots[cid] || (P.shots[cid] = {}), out = h('div'), x0 = { t: t, kind: 'shot', cid: cid }, done = ticketDone(x0), bad = ticketBad(x0);
+    var ta = h('textarea', { value: t.answer || '', placeholder: 'Or paste the chat\'s answer here by hand, then click Check…', on: { input: function () { t.answer = this.value; save() } } });
     function check() {
       var r = storeBlocks(t.answer, 'shot', cid);
       if (!r.names.length) { out.innerHTML = ''; out.appendChild(msgs(['No SHOT(\'…\', {...}) found in the answer.'])); return }
       out.textContent = 'Checking…';
       checkShots(cid, t.ids).then(function () { t.status = t.ids.every(function (id) { return (S[id] || {}).status === 'checked' || (S[id] || {}).status === 'approved' }) ? 'checked' : 'error'; if (P.easy) t.ids.forEach(function (id) { var x = S[id]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() }).catch(function (e) { out.textContent = 'Error: ' + e.message });
     }
-    return h('div', { className: 'card', id: 'stk-' + cid + '-' + t.n },
-      h('div', { className: 'row' }, h('h3', null, (P.easy ? 'Claude chat ' + t.n + ' of ' + (P.shotTickets[cid] || []).length : 'Ticket ' + t.n) + ' · ' + t.ids[0] + (t.ids.length > 1 ? '–' + t.ids[t.ids.length - 1] : '')), statusBadge(t.status), h('span', { className: 'grow' }),
-        h('button', { disabled: !Object.keys(assetCodes()).length, on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Shot ticket ' + t.n, TPL.shotTicket(P, c, t), 'Ticket ' + t.n, noteChat(t)) } } }, 'Copy prompt')),
-      chatRow(t), t.ids.map(function (id) {
-        var s = plan.filter(function (x) { return x.id === id })[0] || {}, x = S[id] || {};
-        return h('div', { style: 'border-top:1px solid var(--line);padding:6px 0' }, h('div', { className: 'row' }, h('b', null, id), statusBadge(x.status || 'todo'), h('span', { className: 'muted small' }, s.show),
-          x.status === 'checked' ? h('button', { className: 'ok small', on: { click: function () { x.status = 'approved'; save(true); rerender() } } }, 'Approve') : null),
-          x.check ? msgs(x.check.errors, x.check.warnings) : null,
-          x.status === 'error' || (x.check && x.check.warnings && x.check.warnings.length) ? h('button', { className: 'ghost small', on: { click: function () { promptBox('Fix ' + id, TPL.shotFix(P, c, id, x.code, x.check ? x.check.errors.concat(x.check.warnings) : [], ''), 'Fix prompt') } } }, 'Copy fix prompt') : null);
-      }),
-      resultFiles(function (x) { t.answer = x; ta.value = x; save(); check() }),
-      ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { on: { click: function () { fromClipboard().then(function (x) { t.answer = x; ta.value = x; save(); check() }).catch(pasteFail) } } }, '📋 Paste & check'), h('button', { className: 'blue', on: { click: check } }, 'Check'),
-        h('button', { className: 'ok', on: { click: function () { t.ids.forEach(function (id) { var x = S[id]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() } } }, 'Approve all ✓')), out);
+    function shotRow(id) {
+      var s = plan.filter(function (x) { return x.id === id })[0] || {}, x = S[id] || {};
+      return h('div', { style: 'border-top:1px solid var(--line);padding:6px 0' }, h('div', { className: 'row' }, h('b', null, id), statusBadge(x.status || 'todo'), h('span', { className: 'muted small', style: 'flex:1;min-width:200px' }, s.show),
+        x.status === 'checked' ? h('button', { className: 'ok small', on: { click: function () { x.status = 'approved'; save(true); rerender() } } }, 'Approve') : null,
+        x.status === 'error' || (x.check && x.check.warnings && x.check.warnings.length) ? h('button', { className: 'small', on: { click: function () { promptBox('Fix ' + id, TPL.shotFix(P, c, id, x.code, x.check ? x.check.errors.concat(x.check.warnings) : [], ''), 'Fix prompt') } } }, 'Copy fix prompt') : null),
+        x.check ? msgs(x.check.errors, x.check.warnings) : null);
+    }
+    var badIds = t.ids.filter(function (id) { return (S[id] || {}).status === 'error' });
+    return h('div', { className: 'ticket' + (done ? ' ok' : bad ? ' bad' : ''), id: 'stk-' + cid + '-' + t.n },
+      h('div', { className: 'row' }, chatTag(t), h('b', null, 'shots ' + t.ids[0] + (t.ids.length > 1 ? '–' + t.ids[t.ids.length - 1] : '') + ' (' + t.ids.length + ')'), done ? badge('✓ done', 'b-ok') : statusBadge(t.status), h('span', { className: 'grow' }),
+        done ? null : h('button', { className: t.status === 'waiting' ? '' : 'ghost', disabled: !Object.keys(assetCodes()).length, on: { click: function () { t.status = t.status === 'waiting' ? 'copied' : t.status; save(); promptBox('Chat ' + chatNo(t) + ' prompt', TPL.shotTicket(P, c, t), 'Chat ' + chatNo(t) + ' prompt', noteChat(t)); renderSide() } } }, 'Copy prompt'),
+        done ? null : h('button', { className: t.status === 'waiting' ? 'ghost' : '', on: { click: function () { fromClipboard().then(function (x) { t.answer = x; ta.value = x; save(); check() }).catch(pasteFail) } } }, '📋 Paste & check')),
+      out, badIds.map(shotRow),
+      h('details', { className: 'fold' }, h('summary', null, 'All shots in this chat, chat link, paste by hand'), h('div', { className: 'in' },
+        chatRow(t), t.ids.filter(function (id) { return badIds.indexOf(id) < 0 }).map(shotRow),
+        resultFiles(function (x) { t.answer = x; ta.value = x; save(); check() }),
+        ta, h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue', on: { click: check } }, 'Check'),
+          h('button', { className: 'ok', on: { click: function () { t.ids.forEach(function (id) { var x = S[id]; if (x && x.status === 'checked') x.status = 'approved' }); save(true); rerender() } } }, 'Approve all ✓')))));
   }
 
   /* =================================================================
@@ -959,77 +1166,120 @@
   function playerPayload(cid, res) {
     return { mode: 'play', aspect: cutById(cid).aspect || '9:16', sky: sky(), name: (P.title || P.name) + ' - ' + cutById(cid).label, assets: assetCodes(), shots: shotCodes(cid), cut: cutPayload(cid), captions: CAPS, res: res || QUALITY, mix: mixOf(), capStyle: capOf(), look: lookOf(), sizes: planSizes(), keys: (P.plan && P.plan.keys) || null };
   }
+  var SEL = null;   // { kind: 'shot' | 'trans', id }
+  var TICON = { glide: '~', dissolve: '◆', dip: '●', push: '→', cut: '|' };
   function vWatch() {
-    if (!P.plan) return h('div', null, h('h1', null, 'Watch & fix'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
-    var c = cutById(CUT), plan = P.plan.cuts[CUT] || [], S = P.shots[CUT] || {};
-    var times = PLAN.shotTimes(c, plan), tlabel = h('span', { className: 'muted small' }, '0.0 s'), seekR = h('input', { type: 'range', min: 0, max: c.duration, step: .05, value: 0, style: 'flex:1' });
-    var land = c.aspect === '16:9', frameBox = h('div', { className: 'pframe', style: 'position:relative;overflow:hidden' + (land ? ';width:560px;height:315px' : '') });
-    var list = h('div', { className: 'plist' });
+    if (!P.plan) return h('div', null, h('h1', null, 'Edit & watch'), h('div', { className: 'card' }, badge('Make the plan first.', 'b-warn')));
+    var c = cutById(CUT), plan = P.plan.cuts[CUT] || [], S = P.shots[CUT] || {}, ov = ((P.edits = P.edits || {})[CUT] = (P.edits[CUT] || {}));
+    var times = PLAN.shotTimes(c, plan), dur = c.duration || 1, tlabel = h('span', { className: 'muted small' }, '0.0 / ' + dur.toFixed(1) + ' s'), pendSeek = null;
+    var land = c.aspect === '16:9', frameBox = h('div', { className: 'pframe', style: 'position:relative;overflow:hidden' + (land ? ';width:520px;height:292px' : ';width:300px;height:533px') });
+    var insp = h('div', { className: 'card inspector', style: 'margin:0' }), tl = h('div', { className: 'tl' }), head = h('div', { className: 'head' });
     function send(m) { if (PLAYER && PLAYER.contentWindow) PLAYER.contentWindow.postMessage(m, '*') }
-    function load() {
-      if (PLAYER) PLAYER.remove(); PLAYING = false;
+    function load(seekTo) {
+      if (PLAYER) PLAYER.remove(); PLAYING = false; if (pb) pb.textContent = '▶ Play'; pendSeek = seekTo == null ? null : seekTo;
       PLAYER = h('iframe', { src: stagePage(), style: 'width:100%;height:100%;border:0' }); frameBox.innerHTML = ''; frameBox.appendChild(PLAYER);
       media(CUT).then(function (md) { var pl = playerPayload(CUT); pl.audio = md.audio; pl.music = md.music; PLAYER.payload = pl });
     }
     window.onmessage = function (e) {
       if (!PLAYER || e.source !== PLAYER.contentWindow) return; var m = e.data || {};
-      if (m.type === 'stage-ready') { var go = function () { if (PLAYER.payload) send({ type: 'load', payload: PLAYER.payload }); else setTimeout(go, 50) }; go() }
-      if (m.type === 'ready') { SHOTINFO = m.info; drawList() }
-      if (m.type === 'time') { tlabel.textContent = m.t.toFixed(1) + ' / ' + c.duration.toFixed(1) + ' s'; if (document.activeElement !== seekR) seekR.value = m.t; if (m.shot !== CURSHOT) { CURSHOT = m.shot; markCur() } }
-      if (m.type === 'shot-error') { var x = S[m.id]; if (x) { x.check = { ok: false, errors: [m.msg], warnings: [] }; x.status = 'error'; save(); drawList() } }
-      if (m.type === 'ended') { PLAYING = false; pb.textContent = 'Play' }
+      if (m.type === 'stage-ready') { var go2 = function () { if (PLAYER.payload) send({ type: 'load', payload: PLAYER.payload }); else setTimeout(go2, 50) }; go2() }
+      if (m.type === 'ready') { SHOTINFO = m.info; drawLights(); if (pendSeek != null) { send({ type: 'seek', t: +pendSeek }); head.style.left = (pendSeek / dur * 100) + '%'; if (pendSeek.play) { send({ type: 'play' }); PLAYING = true; pb.textContent = '❚❚ Pause' } } drawInsp() }
+      if (m.type === 'time') { tlabel.textContent = m.t.toFixed(1) + ' / ' + dur.toFixed(1) + ' s'; head.style.left = (m.t / dur * 100) + '%'; if (m.shot !== CURSHOT) { CURSHOT = m.shot } }
+      if (m.type === 'shot-error') { var x = S[m.id]; if (x) { x.check = { ok: false, errors: [m.msg], warnings: [] }; x.status = 'error'; save(); drawTl() } }
+      if (m.type === 'ended') { PLAYING = false; pb.textContent = '▶ Play' }
     };
-    seekR.oninput = function () { send({ type: 'seek', t: +this.value }) };
-    var pb = h('button', { on: { click: function () { PLAYING = !PLAYING; send({ type: PLAYING ? 'play' : 'pause' }); pb.textContent = PLAYING ? 'Pause' : 'Play' } } }, 'Play');
-    function markCur() { [].forEach.call(list.children, function (el) { var on = el.dataset.id === CURSHOT; el.classList.toggle('cur', on); if (on && PLAYING) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }) }
-    document.onkeydown = function (e) { if (STEP !== 'watch' || /INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName)) return; if (e.code === 'Space') { e.preventDefault(); pb.click() } if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') { var i = plan.findIndex(function (s) { return s.id === CURSHOT }), j = Math.max(0, Math.min(plan.length - 1, i + (e.code === 'ArrowRight' ? 1 : -1))); send({ type: 'seek', t: times[j].from + .05 }) } };
-    function drawList() {
-      list.innerHTML = '';
+    var pb = h('button', { on: { click: function () { PLAYING = !PLAYING; send({ type: PLAYING ? 'play' : 'pause' }); pb.textContent = PLAYING ? '❚❚ Pause' : '▶ Play' } } }, '▶ Play');
+    function seek(t, play) { var v = new Number(Math.max(0, t)); v.play = play; send({ type: 'seek', t: +v }); head.style.left = (v / dur * 100) + '%'; if (play) { send({ type: 'play' }); PLAYING = true; pb.textContent = '❚❚ Pause' } }
+    document.onkeydown = function (e) { if (STEP !== 'watch' || /INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName)) return; if (e.code === 'Space') { e.preventDefault(); pb.click() } if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') { var i = plan.findIndex(function (s) { return s.id === CURSHOT }), j = Math.max(0, Math.min(plan.length - 1, i + (e.code === 'ArrowRight' ? 1 : -1))); SEL = { kind: 'shot', id: plan[j].id }; seek(times[j].from + .05); drawTl(); drawInsp() } };
+    /* ---- the timeline ---- */
+    function drawTl() {
+      tl.innerHTML = ''; tl.appendChild(head);
+      var ruler = h('div', { className: 'ruler' }); for (var t = 0; t <= dur; t += dur > 90 ? 15 : dur > 40 ? 10 : 5) ruler.appendChild(h('span', { style: 'left:' + (t / dur * 100) + '%' }, Math.floor(t / 60) + ':' + ('0' + Math.round(t % 60)).slice(-2))); tl.appendChild(ruler);
       plan.forEach(function (s, i) {
-        var x = S[s.id] || (S[s.id] = { code: '', versions: [], status: 'todo' }), tm = times[i], open = x._open;
-        var warnings = SHOTINFO && SHOTINFO.warnings && SHOTINFO.warnings[s.id] || [], err = SHOTINFO && SHOTINFO.errors && SHOTINFO.errors[s.id];
-        var note = h('textarea', { value: x.note || '', placeholder: 'What should change? e.g. "camera too far", "he should look at the hand when it says grabs", "make it darker"', style: 'min-height:60px', on: { input: function () { x.note = this.value; save() } } });
-        var ans = h('textarea', { placeholder: 'Paste the fixed SHOT(\'' + s.id + '\', …) here', style: 'min-height:60px' }), res = h('div');
-        var card = h('div', { className: 'shot' + (CURSHOT === s.id ? ' cur' : ''), 'data-id': s.id },
-          h('div', { className: 'row', on: { click: function () { send({ type: 'seek', t: tm.from + .05 }); x._open = !x._open; drawList() } } },
-            h('b', null, s.id), h('span', { className: 'muted small' }, tm.from.toFixed(1) + '–' + tm.to.toFixed(1) + ' s'), statusBadge(x.code ? x.status : 'todo'), x.flag ? badge('to fix', 'b-warn') : null),
-          h('div', { className: 'txt' }, c.lines.slice(s.lines[0], s.lines[1] + 1).map(function (l) { return l.text }).join(' ')),
-          err ? msgs([err]) : null, warnings.length && open ? msgs([], warnings) : null,
-          open ? h('div', { style: 'margin-top:8px' },
-            note,
-            h('div', { className: 'row', style: 'margin-top:6px' },
-              h('button', { className: 'small', on: { click: function () { x.flag = true; save(); promptBox('Fix shot ' + s.id, TPL.shotFix(P, c, s.id, x.code, (err ? [err] : []).concat(warnings), x.note, true), 'Fix prompt') } } }, 'Copy fix prompt'),
-              h('button', { className: 'ghost small', on: { click: function () { exportVideoHtml(CUT) } } }, 'Download video HTML'),
-              x.code ? h('button', { className: 'ghost small', on: { click: function () { promptBox('Code of ' + s.id, x.code, 'Code') } } }, 'See code') : null,
-              x.versions && x.versions.length ? h('button', { className: 'ghost small', on: { click: function () { var v = x.versions.pop(); x.code = v.code; save(true); load() } } }, 'Undo (' + x.versions.length + ')') : null),
-            ans,
-            h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue small', on: { click: function () {
-              var r = storeBlocks(ans.value, 'shot', CUT); if (r.names.indexOf(s.id) < 0) { res.innerHTML = ''; res.appendChild(msgs(['No SHOT(\'' + s.id + '\', …) in the pasted text.'])); return }
-              res.textContent = 'Checking…';
-              checkShots(CUT, [s.id]).then(function (rr) { var q = rr[s.id]; if (q.ok) { x.flag = false; x.status = 'approved'; toast('Shot ' + s.id + ' updated.') } save(true); load(); drawList() });
-            } } }, 'Apply & check'), h('button', { className: 'ok small', on: { click: function () { x.status = 'approved'; x.flag = false; save(); drawList() } } }, 'Looks good ✓')), res) : null);
-        list.appendChild(card);
+        var tm = times[i], x = S[s.id] || {}, err = x.status === 'error' || (SHOTINFO && SHOTINFO.errors && SHOTINFO.errors[s.id]);
+        tl.appendChild(h('div', { className: 'blk' + (SEL && SEL.kind === 'shot' && SEL.id === s.id ? ' sel' : '') + (err ? ' bad' : '') + (!x.code ? ' todo' : ''), style: 'left:calc(' + (tm.from / dur * 100) + '% + 1px);width:calc(' + ((tm.to - tm.from) / dur * 100) + '% - 2px)', title: s.id + ' · ' + s.show,
+          on: { click: function (e) { e.stopPropagation(); SEL = { kind: 'shot', id: s.id }; seek(tm.from + .05); drawTl(); drawInsp() } } }, s.id, h('small', null, s.set)));
+        if (i) {
+          var tr = EDIT.trans(P.plan, CUT, i, ov);
+          tl.appendChild(h('div', { className: 'tr' + (tr.type === 'cut' ? ' cut' : '') + (SEL && SEL.kind === 'trans' && SEL.id === s.id ? ' sel' : ''), style: 'left:' + (tm.from / dur * 100) + '%', title: 'Transition into ' + s.id + ': ' + tr.type + (tr.auto ? ' (auto)' : ''),
+            on: { click: function (e) { e.stopPropagation(); SEL = { kind: 'trans', id: s.id }; seek(tm.from - 1.2); drawTl(); drawInsp() } } }, TICON[tr.type] || '|'));
+        }
       });
     }
-    load(); drawList();
-    var assetFix = h('div', { className: 'card' }, h('h3', null, 'Fix an asset (changes every shot that uses it)'),
+    tl.onclick = function (e) { var r = tl.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * dur) };
+    /* ---- the inspector (right) ---- */
+    function drawInsp() {
+      insp.innerHTML = '';
+      if (!SEL) { insp.appendChild(h('div', null, h('h3', null, 'Click the timeline'), h('p', { className: 'muted small' }, 'Click a shot (a block) to see and fix it. Click a round marker between two shots to change the transition. Space = play/pause, ← → = previous/next shot.'))); return }
+      var i = plan.findIndex(function (s) { return s.id === SEL.id }), s = plan[i]; if (!s) { SEL = null; return drawInsp() }
+      var tm = times[i];
+      if (SEL.kind === 'trans') {
+        var tr = EDIT.trans(P.plan, CUT, i, ov), cur = (ov[s.id] || {}).trans || 'auto', prev = plan[i - 1];
+        var sel = h('select', { style: 'width:100%', on: { change: function () { (ov[s.id] = ov[s.id] || {}).trans = this.value; save(); drawTl(); drawInsp(); load(tm.from - 1.5) } } }, EDIT.TYPES.map(function (o) { return h('option', { value: o[0], selected: cur === o[0] }, o[1] + (o[0] === 'auto' ? ' → ' + EDIT.auto(plan, i) : '')) }));
+        var len = h('input', { type: 'range', min: .3, max: 1.6, step: .1, value: tr.for || .7, style: 'width:100%', on: { change: function () { (ov[s.id] = ov[s.id] || {}).tlen = +this.value; save(); drawInsp(); load(tm.from - 1.5) } } });
+        insp.appendChild(h('div', null, h('h3', null, 'Transition ' + prev.id + ' → ' + s.id),
+          h('p', { className: 'muted small' }, (prev.set === s.set ? 'Same place (' + s.set + ')' : prev.set + ' → ' + s.set) + '. Now: ' + tr.type + (tr.auto ? ' (chosen by the rule)' : ' (your choice)') + '.'),
+          h('label', null, 'Type'), sel, tr.type !== 'cut' ? h('div', null, h('label', null, 'Length: ' + (+tr.for).toFixed(1) + ' s'), len) : null,
+          h('div', { className: 'row', style: 'margin-top:10px' }, h('button', { on: { click: function () { load(new Number(tm.from - 1.5)); pendSeek.play = true } } }, '▶ Watch it'),
+            h('button', { className: 'ghost small', 'data-tip': 'Use this transition for every join between shots in the same place.', on: { click: function () { var ty = sel.value; plan.forEach(function (q, k) { if (k && plan[k - 1].set === q.set) (ov[q.id] = ov[q.id] || {}).trans = ty }); save(); drawTl(); load(tm.from - 1.5); toast('Applied to all same-place joins.') } } }, 'Same for all same-place'))));
+        return;
+      }
+      var x = S[s.id] || (S[s.id] = { code: '', versions: [], status: 'todo' });
+      var warnings = SHOTINFO && SHOTINFO.warnings && SHOTINFO.warnings[s.id] || [], err = SHOTINFO && SHOTINFO.errors && SHOTINFO.errors[s.id];
+      var note = h('textarea', { value: x.note || '', placeholder: 'What should change? e.g. "camera too close", "show the brain when he says brain", "make it darker"', style: 'min-height:60px', on: { input: function () { x.note = this.value; save() } } });
+      var ans = h('textarea', { placeholder: 'Paste the fixed SHOT(\'' + s.id + '\', …) here', style: 'min-height:50px' }), res = h('div');
+      var miss = x.code ? PLAN.missingDetails(x.code, PLAN.shotDetails(P.plan, CUT, s)) : [];
+      insp.appendChild(h('div', null, h('div', { className: 'row' }, h('h3', { style: 'margin:0' }, 'Shot ' + s.id), statusBadge(x.code ? x.status : 'todo'), h('span', { className: 'muted small' }, tm.from.toFixed(1) + '–' + tm.to.toFixed(1) + ' s')),
+        h('p', { className: 'small', style: 'margin:6px 0' }, '"' + c.lines.slice(s.lines[0], s.lines[1] + 1).map(function (l) { return l.text }).join(' ') + '"'),
+        h('p', { className: 'muted small', style: 'margin:0 0 6px' }, s.show), h('div', null, (s.cast || []).map(assetChip)),
+        err ? msgs([err]) : null, miss.length ? msgs([], miss.map(function (d) { return 'Not shown on "' + d.word + '": ' + d.show })) : null,
+        warnings.length ? h('details', { className: 'fold' }, h('summary', null, warnings.length + ' notes'), h('div', { className: 'in' }, msgs([], warnings))) : null,
+        note,
+        h('div', { className: 'row', style: 'margin-top:6px' },
+          h('button', { className: 'small', on: { click: function () { x.flag = true; save(); promptBox('Fix shot ' + s.id, TPL.shotFix(P, c, s.id, x.code, (err ? [err] : []).concat(warnings).concat(miss.map(function (d) { return 'Show "' + d.word + '": ' + d.show })), x.note, true), 'Fix prompt') } } }, 'Copy fix prompt'),
+          h('button', { className: 'ghost small', on: { click: function () { exportVideoHtml(CUT) } } }, 'Video HTML'),
+          x.code ? h('button', { className: 'ghost small', on: { click: function () { promptBox('Code of ' + s.id, x.code, 'Code') } } }, 'Code') : null,
+          x.versions && x.versions.length ? h('button', { className: 'ghost small', on: { click: function () { var v = x.versions.pop(); x.code = v.code; save(true); load(tm.from + .05) } } }, 'Undo (' + x.versions.length + ')') : null),
+        h('details', { className: 'fold', open: !!x.flag }, h('summary', null, 'Paste the fixed shot'), h('div', { className: 'in' }, ans,
+          h('div', { className: 'row', style: 'margin-top:6px' }, h('button', { className: 'blue small', on: { click: function () {
+            var r = storeBlocks(ans.value, 'shot', CUT); if (r.names.indexOf(s.id) < 0) { res.innerHTML = ''; res.appendChild(msgs(['No SHOT(\'' + s.id + '\', …) in the pasted text.'])); return }
+            res.textContent = 'Checking…';
+            checkShots(CUT, [s.id]).then(function (rr) { var q = rr[s.id]; if (q.ok) { x.flag = false; x.status = 'approved'; toast('Shot ' + s.id + ' updated.') } save(true); load(tm.from + .05); drawTl(); drawInsp() });
+          } } }, 'Apply & check'), h('button', { className: 'ok small', on: { click: function () { x.status = 'approved'; x.flag = false; save(); drawTl(); drawInsp() } } }, 'Looks good ✓')), res))));
+      if (window.GUIDE) GUIDE.applyTips(insp);
+    }
+    load(); drawTl(); drawInsp();
+    // director's report (redrawn when the player has built the film and counted the real camera cuts)
+    var lights = h('div', { className: 'lights', style: 'margin:6px 0 10px' });
+    function drawLights() {
+      var R = EDIT.report(P, CUT, SHOTINFO); lights.innerHTML = ''; if (!R) return;
+      var L = R.lights, li = function (k, txt, tip) { return h('div', { className: 'light ' + k, 'data-tip': tip }, h('i'), txt) };
+      lights.append(
+        li(L.pace, 'A new picture every ' + R.perChange.toFixed(1) + ' s', 'How often the picture changes (shot changes and camera cuts). 5 s or more feels calm and clear; under 3.5 s feels choppy.'),
+        li(L.made, R.notMade.length ? R.notMade.length + ' shots not made' : 'All shots made', 'Shots that have no code yet show a grey placeholder.'),
+        li(L.show, R.gaps.length + R.details.length ? (R.gaps.length + R.details.length) + ' things not shown' : 'Everything named is shown', 'Things the narration names that no asset or shot shows. Fix them on Plan (Add) or in the shot (Copy fix prompt).'),
+        li(L.short, R.short.length ? R.short.length + ' very short shots' : 'No very short shots', 'Shots under 2.5 seconds. Change their transition to Glide or ask for them to be joined.'),
+        li('ok', R.soft + ' smooth joins · ' + R.hard + ' hard cuts', 'Smooth joins = glide, dissolve, fade or push. Hard cuts are kept for shocks.'));
+      if (window.GUIDE) GUIDE.applyTips(lights);
+    }
+    drawLights();
+    var assetFix = h('details', { className: 'fold' }, h('summary', null, 'Fix an asset (changes every shot that uses it)'), h('div', { className: 'in' },
       (function () {
         var sel = h('select', null, P.plan.assets.map(function (a) { return h('option', { value: a.name }, a.name) })), note = h('input', { placeholder: 'What is wrong with it?', style: 'flex:1;min-width:200px' }), ans = h('textarea', { placeholder: 'Paste the fixed KIT.asset(…) here', style: 'min-height:60px' }), out = h('div');
         return h('div', null, h('div', { className: 'row' }, sel, note, h('button', { className: 'small', on: { click: function () { var a = P.assets[sel.value] || {}; promptBox('Fix ' + sel.value, TPL.assetFix(P, sel.value, a.code, [], note.value), 'Fix prompt') } } }, 'Copy fix prompt')), ans,
           h('button', { className: 'blue small', style: 'margin-top:6px', on: { click: function () { var r = storeBlocks(ans.value, 'asset'); if (!r.names.length) { out.textContent = 'No KIT.asset found.'; return } out.textContent = 'Checking…'; checkAssets(r.names).then(function (rs) { out.innerHTML = ''; r.names.forEach(function (n) { var q = rs[n]; if (q) { if (q.ok) P.assets[n].status = 'approved'; out.appendChild(h('div', null, h('b', null, n + ': '), q.ok ? '✅ updated' : '', msgs(q.errors, q.warnings))) } }); save(true); load() }) } } }, 'Apply & check'), out);
-      })());
+      })()));
     return h('div', null,
-      staleBanner(), h('h1', null, 'Watch & fix'), h('p', { className: 'lead' }, 'Watch the video with the real audio and captions. Click a shot to jump to it and fix it: the app writes the fix prompt, and you can attach the video HTML so the AI sees everything.'),
-      cutTabs(function () { CURSHOT = null; SHOTINFO = null }),
-      h('div', { className: 'player', style: land ? 'flex-direction:column' : '' },
-        h('div', { className: 'pbox', style: land ? 'width:560px' : '' }, frameBox,
-          h('div', { className: 'row', style: 'margin-top:8px' }, pb, seekR), h('div', { className: 'row', style: 'margin-top:6px' }, tlabel,
+      staleBanner(), h('div', { className: 'row' }, h('h1', { style: 'margin:0' }, 'Edit & watch'), h('span', { className: 'grow' }), P.cuts.length > 1 ? cutTabs(function () { CURSHOT = null; SHOTINFO = null; SEL = null }) : null),
+      lights,
+      h('div', { className: 'editor' },
+        h('div', null, frameBox,
+          h('div', { className: 'row', style: 'margin-top:8px' }, pb, tlabel, h('span', { className: 'grow' }),
             h('label', { style: 'margin:0;display:flex;gap:4px;align-items:center;color:var(--ink)' }, h('input', { type: 'checkbox', checked: CAPS, on: { change: function () { CAPS = this.checked; send({ type: 'captions', on: CAPS }) } } }), 'captions'),
-            h('select', { title: 'Preview quality', on: { change: function () { QUALITY = +this.value; localStorage.setItem('quality', QUALITY); load() } } }, [[360, 'fast'], [540, 'good'], [720, 'better'], [1080, 'full']].map(function (q) { return h('option', { value: q[0], selected: QUALITY === q[0] }, q[1]) })),
-            h('button', { className: 'ghost small', on: { click: load } }, 'Reload'))),
-        list),
-      h('p', { className: 'muted small' }, 'Keys: Space = play/pause · ← → = previous/next shot.'),
-      soundCard(function (lookChanged) { if (lookChanged) load(); else send({ type: 'style', capStyle: capOf(), mix: mixOf() }) }),
+            h('select', { title: 'Preview quality', on: { change: function () { QUALITY = +this.value; localStorage.setItem('quality', QUALITY); load() } } }, [[360, 'fast'], [540, 'good'], [720, 'better'], [1080, 'full']].map(function (q) { return h('option', { value: q[0], selected: QUALITY === q[0] }, q[1]) })))),
+        insp),
+      tl, h('p', { className: 'muted small' }, 'Blocks = shots (striped = not made, red = needs a fix). Round markers = transitions: ~ glide · ◆ dissolve · ● fade through dark · → push · | hard cut. Click to change.'),
+      h('details', { className: 'fold' }, h('summary', null, 'Look, sound, music and captions'), h('div', { className: 'in' }, soundCard(function (lookChanged) { if (lookChanged) load(); else send({ type: 'style', capStyle: capOf(), mix: mixOf() }) }))),
       assetFix,
       nextBtn('export', 'Next: Export →'));
   }
@@ -1178,6 +1428,10 @@
     P = newProject('Video ' + (LIST.length + 1)); P.easy = true; try { var es = localStorage.getItem('easyStyle'); if (es && (TPL.styleList || []).some(function (x) { return x.id === es })) P.settings.style = es } catch (e) { } P.claudeShots = true; P.settings.mascot = 'none'; P.settings.vshape = 'short'; syncCuts(); STEP = 'start'; save(true); localStorage.setItem('lastProject', P.id); render();
   };
   document.getElementById('libBtn').onclick = function () { loadLib().then(libraryModal) };
+  document.getElementById('setBtn').onclick = function () { settingsModal() };
+  var MORE = document.getElementById('moreMenu');
+  MORE.addEventListener('click', function (e) { if (e.target.tagName === 'BUTTON') MORE.open = false });
+  document.addEventListener('click', function (e) { if (MORE.open && !MORE.contains(e.target)) MORE.open = false });
   var tipsBtn = document.getElementById('tipsBtn');
   if (tipsBtn) { tipsBtn.textContent = 'Tips: ' + (GUIDE.tipsOn() ? 'on' : 'off'); tipsBtn.onclick = function () { tipsBtn.textContent = 'Tips: ' + (GUIDE.toggleTips() ? 'on' : 'off') } }
   document.getElementById('newBtn').onclick = function () { P = newProject('Video ' + (LIST.length + 1)); syncCuts(); STEP = 'project'; save(true); localStorage.setItem('lastProject', P.id); render() };
