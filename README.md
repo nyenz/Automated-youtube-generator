@@ -1,4 +1,4 @@
-# Paper Cinema Studio
+# Nyenz Auto-Edit
 
 A free app that makes narrated YouTube videos (vertical shorts, and long videos with shorts cut from them) in one of three locked styles: **Facet** (low-poly paper figurines filmed like a movie — the default), **Low-Poly Paper** (flat faceted cut-outs in a 2.5D world) or **Dark Paper Cinema** (dark 3D paper cut-outs). All the visuals are code. You don't need an API, a paid service or video editing skills.
 

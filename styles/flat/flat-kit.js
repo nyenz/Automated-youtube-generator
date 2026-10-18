@@ -1,4 +1,4 @@
-/* FLAT CARTOON KIT — style 2 for Paper Cinema Studio.
+/* FLAT CARTOON KIT — style 2 for Nyenz Auto-Edit.
    Look: flat shapes, no outlines, ONE shadow shape per part (light comes from the front-left, shadows fall
    to the back-bottom), a dusty-pink rim light on back edges, black only for hair, stripes, soles and pupils.
    Big head, big nose, big shoes, short legs. Animated on twos (12 drawings a second).
