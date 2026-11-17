@@ -1,10 +1,30 @@
 # Nyenz Auto-Edit
 
-A free app that makes narrated YouTube videos (vertical shorts, and long videos with shorts cut from them) in one of three locked styles: **Facet** (low-poly paper figurines filmed like a movie — the default), **Low-Poly Paper** (flat faceted cut-outs in a 2.5D world) or **Dark Paper Cinema** (dark 3D paper cut-outs). All the visuals are code. You don't need an API, a paid service or video editing skills.
+A free app that makes narrated videos in the **Gilded Kasumi** style (Japanese woodblock print rebuilt as an Art Deco paper diorama). You pick a style, paste the script and drop the narration audio; the app does the timing, the parts, the prompts for Sonnet, the joining, the checks and the export.
 
-**Open the app:** https://nyenz.github.io/Automated-youtube-generator/ (use Chrome on a PC). First time only: in GitHub, open the repo → **Settings** → **Pages** → Source: **Deploy from a branch** → Branch: **main**, folder **/ (root)** → **Save**. Wait 1–2 minutes.
+## Install it (once)
+1. Open **https://nyenz.github.io/Automated-youtube-generator/** in **Chrome or Edge**.
+2. Click **Install app** at the top right (or the install icon at the right end of the address bar).
+3. It now has its own window and icon on your desktop and Start menu. It **updates itself** every time it opens.
+4. Click **Pick a backup folder** at the top right and choose a folder on your PC. Every video is also saved there, so nothing is lost even if the browser is cleared.
 
-Click **Load demo** to see a finished example right away.
+## The stages
+1. **Style** – pick a style and watch its demo. Gilded is the main style; the older styles are kept aside.
+2. **Script & audio** – choose Short (9:16) or Long (16:9), paste the script, drop the audio, press **Listen and split into parts**. Whisper times every word (in the browser, free), the app matches the words to your script and splits the narration into parts of 12–25 s at long pauses, as the Gilded rulebook says. Click a dashed line on the timeline to cut there, or a solid one to join two parts.
+3. Prompts · 4. Pick the best (A/B + critic) · 5. Sound · 6. Thumbnails · 7. Watch & export – coming next.
+
+The plan for the whole redesign is in the notes doc. The Gilded Kasumi project file is in `styles/gilded-kasumi/project.html`, exactly as it was given (never edit it).
+
+## For a new chat (handoff)
+- New app: `index.html` + `studio/` (`app.js` screens, `audio.js` timing and parts, `store.js` saving and the backup folder, `styles.js` the style list, `studio.css` the look). `sw.js` + `manifest.webmanifest` make it installable. Whisper comes from `app/timing.js` + `app/asr-worker.js`.
+- Old app (kept aside, untouched, with its own saved projects): `legacy.html`.
+- Rules: Nyenz's design rules (no browser defaults, no underlines, sidebars and tabs, light strips, feedback on everything); no update may break the app or lose data (projects live in IndexedDB + the backup folder; a version is kept before every big change).
+
+---
+
+# The old app (kept aside)
+
+The old app is still here: **https://nyenz.github.io/Automated-youtube-generator/legacy.html**. Its projects are where they were.
 
 ## How it works
 
