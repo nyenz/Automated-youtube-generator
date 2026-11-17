@@ -17,6 +17,7 @@ The plan for the whole redesign is in the notes doc. The Gilded Kasumi project f
 
 ## For a new chat (handoff)
 - New app: `index.html` + `studio/` (`app.js` screens, `audio.js` timing and parts, `store.js` saving and the backup folder, `styles.js` the style list, `studio.css` the look). `sw.js` + `manifest.webmanifest` make it installable. Whisper comes from `app/timing.js` + `app/asr-worker.js`.
+- Checks: `tools/studio-check/` (run before every merge; every line must PASS). Bump the version in `index.html` and `sw.js` with every change so installed apps update at once.
 - Old app (kept aside, untouched, with its own saved projects): `legacy.html`.
 - Rules: Nyenz's design rules (no browser defaults, no underlines, sidebars and tabs, light strips, feedback on everything); no update may break the app or lose data (projects live in IndexedDB + the backup folder; a version is kept before every big change).
 

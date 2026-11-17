@@ -117,11 +117,11 @@
   /* plain-English checks for one part (rulebook sections 15 and 16) */
   A.check = function (p, isLast) {
     var R = A.RULES, out = [];
-    if (p.len > R.hard) out.push({ level: 'bad', text: 'Too long (' + p.len.toFixed(1) + ' s). A part may not pass 30 s.' });
-    else if (p.len > R.max) out.push({ level: 'warn', text: 'A bit long (' + p.len.toFixed(1) + ' s). Aim for 12 to 25 s.' });
-    if (p.len < R.min && !isLast) out.push({ level: 'warn', text: 'Short (' + p.len.toFixed(1) + ' s). Aim for 12 to 25 s.' });
-    if (p.words && (p.wps < R.wpsLow - .4 || p.wps > R.wpsHigh + .4)) out.push({ level: 'warn', text: p.wps.toFixed(1) + ' words a second. A normal voice is 2.2 to 3.6.' });
-    if (!p.words) out.push({ level: 'bad', text: 'No words in this part.' });
+    if (p.len > R.hard) out.push({ level: 'bad', short: 'Too long', text: 'Too long (' + p.len.toFixed(1) + ' s). A part may not pass 30 s.' });
+    else if (p.len > R.max) out.push({ level: 'warn', short: 'A bit long', text: 'A bit long (' + p.len.toFixed(1) + ' s). Aim for 12 to 25 s.' });
+    if (p.len < R.min && !isLast) out.push({ level: 'warn', short: 'Short', text: 'Short (' + p.len.toFixed(1) + ' s). Aim for 12 to 25 s.' });
+    if (p.words && (p.wps < R.wpsLow - .4 || p.wps > R.wpsHigh + .4)) out.push({ level: 'warn', short: 'Speech speed', text: p.wps.toFixed(1) + ' words a second. A normal voice is 2.2 to 3.6.' });
+    if (!p.words) out.push({ level: 'bad', short: 'No words', text: 'No words in this part.' });
     return out;
   };
 
