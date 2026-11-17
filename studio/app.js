@@ -408,7 +408,7 @@
       var pk = T.peaks || [], n = pk.length;
       // speech pieces (the audio map) as a faint band, then the waveform
       g.fillStyle = 'rgba(255,255,255,.05)'; (T.map || []).forEach(function (m) { g.fillRect(m[0] * pps, 0, (m[1] - m[0]) * pps, 80) });
-      var grad = g.createLinearGradient(0, 0, 0, 80); grad.addColorStop(0, '#ffcf9e'); grad.addColorStop(.5, '#f6dE8c'); grad.addColorStop(1, '#ffcf9e');
+      var grad = g.createLinearGradient(0, 0, 0, 80); grad.addColorStop(0, '#b9b2a4'); grad.addColorStop(.5, '#ECE6D8'); grad.addColorStop(1, '#b9b2a4');
       g.fillStyle = grad;
       for (var x = 0; x < full; x++) { var v = pk[Math.min(n - 1, Math.floor(x / full * n))] || 0, hh = Math.max(1, v * 36); g.fillRect(x, 40 - hh, 1, hh * 2) }
       var sel = parts[SELPART]; if (sel) inner.appendChild(h('div', { class: 'shade', style: { left: sel.start * pps + 'px', width: (sel.end - sel.start) * pps + 'px' } }));
