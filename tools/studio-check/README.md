@@ -8,5 +8,6 @@ mkdir -p /tmp/sc && cd /tmp/sc         # test audio: any narration WAV saved as 
                                        # script-short.txt / script-long.txt (its words), notes.txt (any text file)
 node <repo>/tools/studio-check/check.js /tmp/sc
 node <repo>/tools/studio-check/script-change.js /tmp/sc
+node <repo>/tools/studio-check/controls.js /tmp/sc       # play, pause, stop, keys, undo, back buttons
 ```
 Every line must say PASS. The test audio can be made from `facet/films/under-the-ice-20/narration.wav` and `words.js`.

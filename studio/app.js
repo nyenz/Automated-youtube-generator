@@ -21,7 +21,7 @@
     folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', wave: '<path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/>',
     split: '<path d="M12 3v18M5 8l-3 4 3 4M19 8l3 4-3 4"/>', check: '<path d="M5 12l4 4 10-10"/>', chev: '<path d="M9 6l6 6-6 6"/>', download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>', trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
-    undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>', install: '<path d="M12 3v12M7 10l5 5 5-5"/><rect x="3" y="17" width="18" height="4" rx="1"/>', lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
+    undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>', stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>', prev: '<path d="M18 5L8 12l10 7z"/><path d="M6 5v14"/>', next: '<path d="M6 5l10 7-10 7z"/><path d="M18 5v14"/>', install: '<path d="M12 3v12M7 10l5 5 5-5"/><rect x="3" y="17" width="18" height="4" rx="1"/>', lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
   };
   function icon(n, cls) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'ic ' + (cls || '')); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.8'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.innerHTML = ICONS[n] || ''; return s }
   /* the app logo (Ink N), drawn inline so it can never show an old cached picture */
@@ -41,8 +41,10 @@
 
   /* ================= shared components ================= */
   var TOASTS = h('div', { class: 'toasts' });
-  function toast(msg, kind, ms) {
-    var t = h('div', { class: 'toast ' + (kind || '') }, h('div', null, msg), h('button', { class: 'x', 'aria-label': 'Close', onclick: function () { t.remove() } }, '×'));
+  function toast(msg, kind, ms, action) {
+    var t = h('div', { class: 'toast ' + (kind || '') }, h('div', null, msg),
+      action ? h('button', { class: 'act', onclick: function () { t.remove(); action.do() } }, action.label) : null,
+      h('button', { class: 'x', 'aria-label': 'Close', onclick: function () { t.remove() } }, '×'));
     TOASTS.appendChild(t); setTimeout(function () { t.remove() }, ms || 4200);
   }
   var MENU = null;
@@ -149,7 +151,7 @@
   }
   function crumb() {
     var c = document.getElementById('crumb'); c.innerHTML = '';
-    if (P) c.appendChild(h('span', null, '/  ', h('b', null, P.name)));
+    if (P) c.appendChild(h('span', null, h('a', { onclick: function () { go('') } }, 'Your videos'), '  /  ', h('b', { title: 'Rename', onclick: function () { rename(P) } }, P.name)));
   }
 
   /* ================= routing ================= */
@@ -163,12 +165,13 @@
     var load = have ? Promise.resolve(have) : S.get(id);
     load.then(function (p) {
       if (!p) { toast('That video was not found. It may have been deleted.', 'warn'); go(''); return }
-      if (!P || P.id !== p.id) { P = p; SELPART = 0; SELWORD = -1; AUDIOTAB = p.timing ? 'parts' : 'inputs'; PREVIEW = p.style; loadAudio() }
+      if (!P || P.id !== p.id) { UNDO = []; CURKEY = ''; P = p; SELPART = 0; SELWORD = -1; AUDIOTAB = p.timing ? 'parts' : 'inputs'; PREVIEW = p.style; loadAudio() }
       STAGE = STAGES.some(function (s) { return s.id === stage && !s.locked }) ? stage : 'style';
       render();
     });
   }
   function render() {
+    PLAYBTNS = []; PLAYERUI = null;
     sidebar(); crumb();
     mainEl.innerHTML = ''; mainEl.scrollTop = 0;
     if (!P) { saveEl.textContent = ''; mainEl.appendChild(home()); return }
@@ -259,9 +262,73 @@
     }));
     head.addEventListener('click', function () { var open = body.style.display === 'none'; body.style.display = open ? '' : 'none'; head.classList.toggle('open', open) });
     return h('div', { class: 'page' },
-      h('div', { class: 'titlebar' }, h('div', null, h('h1', null, '1. Pick a style'), h('p', null, 'Every video in a style looks the same, and each style keeps its own assets.'))),
-      h('div', { class: 'cols' }, h('div', { class: 'stack' }, mainCard, h('div', { class: 'card' }, head, body)), demo));
+      h('div', { class: 'titlebar' }, backBtn(), h('div', null, h('h1', null, '1. Pick a style'), h('p', null, 'Every video in a style looks the same, and each style keeps its own assets.'))),
+      h('div', { class: 'cols' }, h('div', { class: 'stack' }, mainCard, h('div', { class: 'card' }, head, body)), demo),
+      nextBar(null, P.styleChosen ? { label: 'Next: Script & audio', go: 'audio' } : { label: 'Pick a style to go on', off: true }));
   }
+
+  /* ================= shared page pieces ================= */
+  function backBtn() { return h('button', { class: 'back', title: 'Back to your videos', 'aria-label': 'Back to your videos', onclick: function () { go('') } }, icon('chev')) }
+  function nextBar(back, next) {
+    return h('div', { class: 'nextbar' },
+      back ? h('button', { class: 'btn quiet', onclick: function () { go(P.id + '/' + back.go) } }, h('span', { style: { display: 'inline-flex', transform: 'rotate(180deg)' } }, icon('chev')), back.label) : h('button', { class: 'btn quiet', onclick: function () { go('') } }, h('span', { style: { display: 'inline-flex', transform: 'rotate(180deg)' } }, icon('chev')), 'Your videos'),
+      h('div', { class: 'grow' }),
+      next ? h('button', { class: 'btn' + (next.off ? '' : ' primary'), disabled: next.off ? true : null, onclick: function () { if (!next.off) go(P.id + '/' + next.go) } }, next.label, next.off ? null : icon('chev')) : null);
+  }
+
+  /* ================= playback: one player, every play button shows its real state ================= */
+  var CURKEY = '', PLAYBTNS = [], PLAYERUI = null;
+  function playToggle(key, a, b) {
+    if (!AUDIOEL.src) { toast('Add the audio first.', 'warn'); return }
+    if (CURKEY === key && !AUDIOEL.paused) { AUDIOEL.pause(); return }
+    var t = AUDIOEL.currentTime;
+    if (CURKEY === key && t > a + .05 && t < b - .05) { PLAYEND = b; AUDIOEL.play().catch(function () {}); return }   // resume where it paused
+    CURKEY = key; playRange(a, b);
+  }
+  function playBtn(key, a, b, label, cls) {
+    var btn = h('button', { class: 'btn ' + (cls || 'small'), 'aria-label': 'Play', onclick: function (e) { e.stopPropagation(); playToggle(key, a(), b()) } });
+    btn._key = key; btn._label = label; PLAYBTNS.push(btn); paintBtn(btn); return btn;
+  }
+  function paintBtn(btn) {
+    var on = CURKEY === btn._key && !AUDIOEL.paused;
+    btn.innerHTML = ''; btn.appendChild(icon(on ? 'pause' : 'play')); if (btn._label) btn.appendChild(document.createTextNode(on ? 'Pause' : btn._label));
+    btn.classList.toggle('playing', on); btn.setAttribute('aria-label', on ? 'Pause' : 'Play'); btn.title = on ? 'Pause (Space)' : 'Play (Space)';
+  }
+  function syncPlay() { PLAYBTNS = PLAYBTNS.filter(function (b) { return b.isConnected }); PLAYBTNS.forEach(paintBtn); paintPlayer() }
+  function stopAll() { stopAudio(); AUDIOEL.currentTime = 0; CURKEY = ''; syncPlay(); paintPlayhead(0, true) }
+  function playerBar(parts) {
+    var dur = (P.timing && P.timing.duration) || (P.audio && P.audio.duration) || 0;
+    var time = h('span', { class: 'time' }), where = h('span', { class: 'where' }), fill = h('i');
+    var bar = h('div', { class: 'bar', title: 'Click to play from here', onclick: function (e) { var r = bar.getBoundingClientRect(), t = (e.clientX - r.left) / r.width * dur; CURKEY = 'all'; playRange(t, dur) } }, fill);
+    function stepPart(d) { if (!parts.length) return; SELPART = Math.max(0, Math.min(parts.length - 1, SELPART + d)); SELWORD = -1; render(); var q = parts[SELPART]; CURKEY = 'part' + SELPART; playRange(q.start, q.end) }
+    var el = h('div', { class: 'player' },
+      parts.length ? h('button', { class: 'btn round', title: 'Previous part (Left arrow)', 'aria-label': 'Previous part', onclick: function () { stepPart(-1) } }, icon('prev')) : null,
+      playBtn(parts.length && AUDIOTAB === 'parts' ? 'part' + SELPART : 'all', function () { return parts.length && AUDIOTAB === 'parts' ? parts[SELPART].start : 0 }, function () { return parts.length && AUDIOTAB === 'parts' ? parts[SELPART].end : dur }, null, 'round primary'),
+      h('button', { class: 'btn round', title: 'Stop', 'aria-label': 'Stop', onclick: stopAll }, icon('stop')),
+      parts.length ? h('button', { class: 'btn round', title: 'Next part (Right arrow)', 'aria-label': 'Next part', onclick: function () { stepPart(1) } }, icon('next')) : null,
+      time, bar, where, h('span', { class: 'keys' }, 'Space: play or pause'));
+    PLAYERUI = { time: time, fill: fill, where: where, dur: dur, parts: parts };
+    paintPlayer();
+    return el;
+  }
+  function paintPlayer() {
+    if (!PLAYERUI || !PLAYERUI.time.isConnected) return;
+    var t = AUDIOEL.currentTime || 0, d = PLAYERUI.dur || 0, ps = PLAYERUI.parts, cur = -1;
+    for (var i = 0; i < ps.length; i++) if (t >= ps[i].start && t < ps[i].end) cur = i;
+    PLAYERUI.time.textContent = fmtT(t) + ' / ' + fmtT(d);
+    PLAYERUI.fill.style.width = (d ? Math.min(100, t / d * 100) : 0) + '%';
+    PLAYERUI.where.textContent = cur >= 0 ? 'Part ' + ps[cur].id : '';
+  }
+
+  /* ================= undo for small edits (cuts, word times) ================= */
+  var UNDO = [];
+  function remember(label) { UNDO.push({ label: label, cuts: (P.cuts || []).slice(), words: P.timing ? JSON.stringify(P.timing.words) : null, guessed: P.timing && P.timing.guessed ? P.timing.guessed.slice() : null }); if (UNDO.length > 50) UNDO.shift() }
+  function undo() {
+    var u = UNDO.pop(); if (!u) { toast('Nothing to undo.', 'info'); return }
+    P.cuts = u.cuts; if (u.words && P.timing) { P.timing.words = JSON.parse(u.words); P.timing.guessed = u.guessed }
+    save(); render(); toast('Undone: ' + u.label + '.', 'info');
+  }
+  var undoAct = { label: 'Undo', do: function () { undo() } };
 
   /* ================= stage 2: script & audio ================= */
   function loadAudio() {
@@ -280,7 +347,7 @@
     RAF = requestAnimationFrame(function step() {
       var t = AUDIOEL.currentTime;
       if (PLAYEND != null && t >= PLAYEND) { AUDIOEL.pause(); PLAYEND = null }
-      paintPlayhead(t);
+      paintPlayhead(t); paintPlayer();
       if (!AUDIOEL.paused) RAF = requestAnimationFrame(step); else paintPlayhead(t, true);
     });
   }
@@ -289,11 +356,13 @@
   function audioPage() {
     var T = P.timing, parts = T ? AU.parts(T.words, P.cuts || [], T.duration) : [];
     var pg = h('div', { class: 'page' },
-      h('div', { class: 'titlebar' }, h('div', null, h('h1', null, '2. Script & audio'), h('p', null, 'The app listens to your narration, matches every word to the script and splits it into parts.')), h('div', { class: 'grow' }),
+      h('div', { class: 'titlebar' }, backBtn(), h('div', null, h('h1', null, '2. Script & audio'), h('p', null, 'The app listens to your narration, matches every word to the script and splits it into parts.')), h('div', { class: 'grow' }),
         T ? h('button', { class: 'btn', onclick: function (e) { e.stopPropagation(); menu(e.currentTarget, [
           { label: 'Copy the plan (JSON)', icon: 'copy', do: copyPlan }, { label: 'Download the plan', icon: 'download', do: downloadPlan }, '-', { label: 'Undo: earlier versions', icon: 'undo', do: versions }]) } }, icon('more'), 'More') : null),
       tabs([{ id: 'inputs', label: 'Script & audio' }, { id: 'parts', label: 'Timing & parts', count: T ? parts.length : null }], AUDIOTAB, function (t) { if (t === 'parts' && !T) { toast('Press "Listen and split" first.', 'warn'); return } AUDIOTAB = t; render() }));
     pg.appendChild(AUDIOTAB === 'parts' && T ? partsPane(T, parts) : inputsPane());
+    pg.appendChild(nextBar({ label: 'Style', go: 'style' }, { label: 'Next: Prompts (coming next)', off: true }));
+    if (P.audio) pg.appendChild(playerBar(parts));
     return pg;
   }
 
@@ -309,8 +378,8 @@
     ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over') }) });
     drop.addEventListener('drop', function (e) { var f = e.dataTransfer.files[0]; if (f) takeAudio(f) });
     file.addEventListener('change', function () { if (file.files[0]) takeAudio(file.files[0]) });
-    var playBtn = h('button', { class: 'btn small', onclick: function () { if (AUDIOEL.paused) { AUDIOEL.play(); playBtn.firstChild.replaceWith(icon('pause')) } else { AUDIOEL.pause(); playBtn.firstChild.replaceWith(icon('play')) } } }, icon('play'));
-    var line = P.audio ? h('div', { class: 'audio-line' }, playBtn, h('div', { style: { minWidth: 0, flex: 1 } }, h('div', { class: 'nm' }, P.audio.name), h('div', { class: 'muted mono', style: { fontSize: '11.5px' } }, (P.audio.duration ? fmtLen(P.audio.duration) + ' · ' : '') + (P.audio.size / 1048576).toFixed(1) + ' MB'))) : null;
+    var playBtn0 = playBtn('all', function () { return 0 }, function () { return (P.timing && P.timing.duration) || (P.audio && P.audio.duration) || 1e9 });
+    var line = P.audio ? h('div', { class: 'audio-line' }, playBtn0, h('div', { style: { minWidth: 0, flex: 1 } }, h('div', { class: 'nm' }, P.audio.name), h('div', { class: 'muted mono', style: { fontSize: '11.5px' } }, (P.audio.duration ? fmtLen(P.audio.duration) + ' · ' : '') + (P.audio.size / 1048576).toFixed(1) + ' MB'))) : null;
 
     var go1 = h('button', { class: 'btn primary', onclick: run }, icon('split'), P.timing ? 'Listen and split again' : 'Listen and split into parts');
     var prog = h('div', { style: { display: BUSY ? '' : 'none', marginTop: '12px' } }, h('div', { class: 'status-line' }, PROG.msg), h('div', { class: 'progress' + (PROG.f == null ? ' indeterminate' : '') }, h('i', { style: { width: ((PROG.f || 0) * 100) + '%' } })));
@@ -393,13 +462,13 @@
     box.appendChild(timeline(T, parts));
     var listBox = h('div', { class: 'plist' }, parts.map(function (p, i) {
       var checks = AU.check(p, i === parts.length - 1), lvl = checks.some(function (c) { return c.level === 'bad' }) ? 'bad' : checks.length ? 'warn' : '';
-      return h('div', { class: 'pitem ' + lvl + (i === SELPART ? ' on' : ''), onclick: function () { SELPART = i; SELWORD = -1; render(); playRange(p.start, p.end) } },
+      return h('div', { class: 'pitem ' + lvl + (i === SELPART ? ' on' : ''), onclick: function () { if (SELPART !== i) { SELPART = i; SELWORD = -1; render() } } },
         h('div', { class: 'num' }, String(p.id)),
         h('div', { style: { minWidth: 0 } },
           h('div', { class: 'hd' }, h('span', { class: 'mono' }, fmtT(p.start) + ' – ' + fmtT(p.end)), h('span', { class: 'mono muted' }, p.len.toFixed(1) + ' s'), h('span', { class: 'mono muted' }, p.wps.toFixed(1) + ' w/s'),
             checks.length ? h('span', { class: lvl === 'bad' ? 't-bad' : 't-warn' }, checks[0].short) : h('span', { class: 't-ok' }, 'Good')),
           h('div', { class: 'txt' }, p.text)),
-        h('button', { class: 'btn small', 'aria-label': 'Play part', onclick: function (e) { e.stopPropagation(); SELPART = i; playRange(p.start, p.end); markSel() } }, icon('play')));
+        playBtn('part' + i, function () { return p.start }, function () { return p.end }));
     }));
     function markSel() { Array.prototype.forEach.call(listBox.children, function (c, k) { c.classList.toggle('on', k === SELPART) }) }
     box.appendChild(h('div', { class: 'cols', style: { marginTop: 'var(--gap)' } }, listBox, partDetail(T, parts[SELPART], SELPART === parts.length - 1)));
@@ -412,7 +481,7 @@
     var gaps = AU.gaps(T.words, P.script), cutSet = {}; (P.cuts || []).forEach(function (c) { cutSet[c] = 1 });
     var head = h('div', { class: 'head', style: { display: 'none' } });
     wrap.appendChild(h('div', { class: 'bar2' }, h('span', { class: 'legend' }, h('i'), 'Cut between parts'), h('span', { class: 'legend' }, h('i', { class: 'c' }), 'Other long pause after a sentence (click to cut here)'), h('div', { class: 'grow' }),
-      h('button', { class: 'btn small', onclick: function () { S.snapshot(P, 'Before automatic split'); P.cuts = AU.split(T.words, P.script, T.duration); save(); toast('Split again automatically: ' + (P.cuts.length + 1) + ' parts.', 'ok'); render() } }, icon('split'), 'Split again automatically')));
+      h('button', { class: 'btn small', onclick: function () { S.snapshot(P, 'Before automatic split'); remember('the automatic split'); P.cuts = AU.split(T.words, P.script, T.duration); save(); toast('Split again automatically: ' + (P.cuts.length + 1) + ' parts.', 'ok', 6000, undoAct); render() } }, icon('split'), 'Split again automatically')));
     function layout() {
       var W = Math.max(200, scroller.clientWidth - 24), pps = Math.max(W / T.duration, 9), full = Math.ceil(T.duration * pps);
       inner.style.width = full + 'px';
@@ -428,7 +497,7 @@
       var sel = parts[SELPART]; if (sel) inner.appendChild(h('div', { class: 'shade', style: { left: sel.start * pps + 'px', width: (sel.end - sel.start) * pps + 'px' } }));
       parts.forEach(function (p, i) {
         var checks = AU.check(p, i === parts.length - 1), lvl = checks.some(function (c) { return c.level === 'bad' }) ? ' bad' : checks.length ? ' warn' : '';
-        inner.appendChild(h('div', { class: 'part' + (i === SELPART ? ' on' : '') + lvl, style: { left: p.start * pps + 1 + 'px', width: Math.max(10, (p.end - p.start) * pps - 2) + 'px' }, title: 'Part ' + p.id + ': ' + p.len.toFixed(1) + ' s', onclick: function () { SELPART = i; SELWORD = -1; render(); playRange(p.start, p.end) } }, 'Part ' + p.id + ' · ' + p.len.toFixed(0) + ' s'));
+        inner.appendChild(h('div', { class: 'part' + (i === SELPART ? ' on' : '') + lvl, style: { left: p.start * pps + 1 + 'px', width: Math.max(10, (p.end - p.start) * pps - 2) + 'px' }, title: 'Part ' + p.id + ': ' + p.len.toFixed(1) + ' s', onclick: function () { SELPART = i; SELWORD = -1; render(); CURKEY = 'part' + i; playRange(p.start, p.end) } }, 'Part ' + p.id + ' · ' + p.len.toFixed(0) + ' s'));
       });
       gaps.forEach(function (gp) {
         var isCut = cutSet[gp.after + 1]; if (!isCut && !AU.isCandidate(gp)) return;
@@ -439,7 +508,7 @@
       for (var t = 0; t <= T.duration; t += step) ru.appendChild(h('span', { style: { left: t * pps + 'px' } }, fmtT(t).replace(/\.\d$/, '')));
       inner.appendChild(ru); inner.appendChild(head);
       paintPlayhead = function (tt, stopped) { head.style.display = stopped && tt <= 0 ? 'none' : ''; head.style.left = tt * pps + 'px'; paintWord(tt) };
-      inner.onclick = function (e) { if (e.target !== inner && e.target !== cv) return; var r = inner.getBoundingClientRect(), tt = (e.clientX - r.left) / pps; playRange(tt, T.duration) };
+      inner.onclick = function (e) { if (e.target !== inner && e.target !== cv) return; var r = inner.getBoundingClientRect(), tt = (e.clientX - r.left) / pps; CURKEY = 'all'; playRange(tt, T.duration) };
       if (sel && full > W) scroller.scrollLeft = Math.max(0, sel.start * pps - 40);
     }
     requestAnimationFrame(layout);
@@ -447,9 +516,9 @@
     return wrap;
   }
   function toggleCut(idx) {
-    S.snapshot(P, 'Before moving a cut');
+    S.snapshot(P, 'Before moving a cut'); remember('the cut change');
     var i = (P.cuts || []).indexOf(idx);
-    if (i >= 0) { P.cuts.splice(i, 1); toast('Joined the two parts.', 'info') } else { P.cuts.push(idx); P.cuts.sort(function (a, b) { return a - b }); toast('Cut added: a new part starts at "' + P.timing.words[idx][0] + '".', 'info') }
+    if (i >= 0) { P.cuts.splice(i, 1); toast('Joined the two parts.', 'info', 6000, undoAct) } else { P.cuts.push(idx); P.cuts.sort(function (a, b) { return a - b }); toast('Cut added: a new part starts at "' + P.timing.words[idx][0] + '".', 'info', 6000, undoAct) }
     save(); render();
   }
 
@@ -459,7 +528,7 @@
     var checks = AU.check(p, isLast), wordsEl = h('div', { class: 'words' });
     var spans = [];
     for (var i = p.w0; i <= p.w1 && i >= 0; i++) (function (i) {
-      var s = h('span', { class: (T.guessed && T.guessed[i] ? 'g' : '') + (i === SELWORD ? ' sel' : ''), title: fmtT(T.words[i][1]) + ' – ' + fmtT(T.words[i][2]) + (T.guessed && T.guessed[i] ? ' · not clearly heard, time placed between its neighbours' : ''), onclick: function () { SELWORD = i; render(); playRange(T.words[i][1], T.words[i][2] + .05) } }, T.words[i][0]);
+      var s = h('span', { class: (T.guessed && T.guessed[i] ? 'g' : '') + (i === SELWORD ? ' sel' : ''), title: fmtT(T.words[i][1]) + ' – ' + fmtT(T.words[i][2]) + (T.guessed && T.guessed[i] ? ' · not clearly heard, time placed between its neighbours' : ''), onclick: function () { SELWORD = i; render(); CURKEY = 'word'; playRange(T.words[i][1], T.words[i][2] + .05) } }, T.words[i][0]);
       spans.push([i, s]); wordsEl.appendChild(s); wordsEl.appendChild(document.createTextNode(' '));
     })(i);
     paintWord = function (t) { spans.forEach(function (x) { var w = T.words[x[0]]; x[1].classList.toggle('now', t >= w[1] && t < w[2] + .02 && !AUDIOEL.paused) }) };
@@ -467,11 +536,12 @@
     if (SELWORD >= p.w0 && SELWORD <= p.w1) {
       var w = T.words[SELWORD];
       function shift(which, d) {
+        remember('the word time change');
         var W = T.words, k = SELWORD, lo = k > 0 ? W[k - 1][2] : 0, hi = k < W.length - 1 ? W[k + 1][1] : T.duration;
         if (which === 'start') W[k][1] = Math.round(Math.min(W[k][2] - .03, Math.max(lo, W[k][1] + d)) * 100) / 100;
         else W[k][2] = Math.round(Math.max(W[k][1] + .03, Math.min(hi, W[k][2] + d)) * 100) / 100;
         if (T.guessed) T.guessed[k] = false;
-        save(); render(); playRange(W[k][1], W[k][2] + .05);
+        save(); render(); CURKEY = 'word'; playRange(W[k][1], W[k][2] + .05);
       }
       nud = h('div', { class: 'glass', style: { marginTop: '12px' } }, h('div', { class: 'row' }, h('b', null, '"' + w[0] + '"'), h('span', { class: 'mono muted' }, fmtT(w[1]) + ' – ' + fmtT(w[2]))),
         h('div', { class: 'nudger' }, h('span', { class: 'muted' }, 'Starts'), h('button', { class: 'btn small', onclick: function () { shift('start', -.05) } }, 'Earlier'), h('button', { class: 'btn small', onclick: function () { shift('start', .05) } }, 'Later'),
@@ -480,7 +550,7 @@
     }
     return h('div', { class: 'panel', style: { position: 'sticky', top: '0' } },
       h('div', { class: 'row' }, h('h2', { style: { margin: 0 } }, 'Part ' + p.id), h('span', { class: 'mono muted' }, fmtT(p.start) + ' – ' + fmtT(p.end)), h('div', { style: { flex: 1 } }),
-        h('button', { class: 'btn small primary', onclick: function () { playRange(p.start, p.end) } }, icon('play'), 'Play part')),
+        playBtn('part' + SELPART, function () { return p.start }, function () { return p.end }, 'Play part', 'small primary')),
       h('div', { class: 'facts' }, [['Length', p.len.toFixed(1) + ' s'], ['Words', String(p.words)], ['Words a second', p.wps.toFixed(1)]].map(function (f) { return h('div', { class: 'glass' }, h('div', { class: 'k' }, f[0]), h('div', { class: 'v mono' }, f[1])) })),
       checks.length ? h('div', { style: { marginBottom: '10px' } }, checks.map(function (c) { return h('div', { class: c.level === 'bad' ? 't-bad' : 't-warn', style: { fontSize: '12.5px' } }, c.text) })) : h('div', { class: 't-ok', style: { fontSize: '12.5px', marginBottom: '10px' } }, 'This part follows the rulebook.'),
       h('span', { class: 'label' }, 'Words (click one to hear it)'), wordsEl,
@@ -510,10 +580,26 @@
     Promise.all([S.list(), S.loadFolder()]).then(function (r) { ALL = r[0]; paintFolder(); route() })
       .catch(function (e) { mainEl.appendChild(h('div', { class: 'card' }, 'The app could not open its storage: ' + (e && e.message || e) + '. Close other tabs of this app and reload.')) });
     window.addEventListener('hashchange', route);
-    AUDIOEL.addEventListener('play', tick);
+    AUDIOEL.addEventListener('play', function () { tick(); syncPlay() });
+    AUDIOEL.addEventListener('pause', syncPlay); AUDIOEL.addEventListener('ended', syncPlay);
+    document.addEventListener('keydown', function (e) {
+      var tag = (e.target && e.target.tagName) || '', typing = /INPUT|TEXTAREA/.test(tag) || e.target.isContentEditable;
+      if (e.key === 'Escape') closeMenu();
+      if (typing || document.querySelector('.veil')) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && P && STAGE === 'audio') { e.preventDefault(); undo(); return }
+      if (!P || STAGE !== 'audio' || !AUDIOEL.src) return;
+      var T = P.timing, parts = T ? AU.parts(T.words, P.cuts || [], T.duration) : [], onParts = AUDIOTAB === 'parts' && parts.length;
+      if (e.code === 'Space') { e.preventDefault(); var q = onParts ? parts[SELPART] : null; playToggle(q ? 'part' + SELPART : 'all', q ? q.start : 0, q ? q.end : (T ? T.duration : AUDIOEL.duration || 1e9)) }
+      else if (onParts && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); SELPART = Math.max(0, Math.min(parts.length - 1, SELPART + (e.key === 'ArrowRight' ? 1 : -1))); SELWORD = -1; render(); CURKEY = 'part' + SELPART; playRange(parts[SELPART].start, parts[SELPART].end) }
+    });
+    window.addEventListener('beforeunload', function (e) { if (BUSY) { e.preventDefault(); e.returnValue = '' } });
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       var hadController = !!navigator.serviceWorker.controller, reloaded = false;
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        // look for a new version when the app comes back to the front, and every 30 minutes
+        document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') reg.update().catch(function () {}) });
+        setInterval(function () { reg.update().catch(function () {}) }, 30 * 60 * 1000);
+      }).catch(function () {});
       // a new version took over: reload once to use it, but never in the middle of listening to audio
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (!hadController || reloaded) return;
