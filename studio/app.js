@@ -24,6 +24,16 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>', install: '<path d="M12 3v12M7 10l5 5 5-5"/><rect x="3" y="17" width="18" height="4" rx="1"/>', lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
   };
   function icon(n, cls) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'ic ' + (cls || '')); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.8'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.innerHTML = ICONS[n] || ''; return s }
+  /* the app logo (Ink N), drawn inline so it can never show an old cached picture */
+  function logo() {
+    var w = h('span', { class: 'logo', 'aria-hidden': 'true' });
+    w.innerHTML = '<svg viewBox="0 0 120 120"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#26262a"/><stop offset="1" stop-color="#101012"/></linearGradient></defs>' +
+      '<rect width="120" height="120" rx="28" fill="url(#lgA)"/><rect x="1" y="1" width="118" height="118" rx="27" fill="none" stroke="rgba(236,230,216,.18)"/>' +
+      '<path d="M34 88 V32 h10 l32 40 V32 h10 v56 h-10 L44 48 v40z" fill="#ECE6D8"/><path d="M30 96 C52 80 70 56 92 26 C96 22 100 24 98 30 C82 60 62 84 38 100 C32 104 26 100 30 96Z" fill="#C8202B"/>' +
+      '<circle cx="96" cy="94" r="5" fill="#C8202B"/><circle cx="86" cy="102" r="2.6" fill="#C8202B"/></svg>';
+    return w;
+  }
+  function standalone() { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true }
   function fmtT(t) { t = Math.max(0, t || 0); var m = Math.floor(t / 60), s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1) }
   function fmtLen(t) { t = Math.round(t || 0); var m = Math.floor(t / 60), s = t % 60; return m ? m + ' min ' + s + ' s' : s + ' s' }
   function ago(ms) { var d = (Date.now() - ms) / 1000; if (d < 60) return 'just now'; if (d < 3600) return Math.floor(d / 60) + ' min ago'; if (d < 86400) return Math.floor(d / 3600) + ' h ago'; return Math.floor(d / 86400) + ' days ago' }
@@ -91,9 +101,10 @@
     saveEl = h('span', { class: 'save-state' });
     folderChip = h('button', { class: 'chip', onclick: folderAction });
     var installBtn = h('button', { class: 'chip', style: { display: 'none' }, onclick: function () { if (INSTALL) { INSTALL.prompt(); INSTALL.userChoice.then(function () { INSTALL = null; installBtn.style.display = 'none' }) } } }, icon('install'), h('span', { class: 'lbl' }, 'Install app'));
-    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); INSTALL = e; installBtn.style.display = '' });
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); INSTALL = e; if (!standalone()) installBtn.style.display = '' });
+    window.addEventListener('appinstalled', function () { INSTALL = null; installBtn.style.display = 'none'; toast('Installed. Nyenz Auto-Edit now has its own window and icon.', 'ok') });
     topEl = h('header', { class: 'top' },
-      h('div', { class: 'brand', onclick: function () { go('') } }, h('img', { src: 'icons/icon-192.png', alt: '' }), h('span', null, 'Nyenz Auto-Edit')),
+      h('div', { class: 'brand', onclick: function () { go('') }, title: 'Home' }, logo(), h('span', null, 'Nyenz Auto-Edit')),
       h('div', { class: 'crumb', id: 'crumb' }), h('div', { class: 'grow' }), saveEl, installBtn, folderChip);
     sideEl = h('nav', { class: 'side' });
     mainEl = h('main', { class: 'main' });
@@ -120,7 +131,7 @@
     if (!P) {
       sideEl.appendChild(h('div', { class: 'cap' }, 'Home'));
       sideEl.appendChild(h('div', { class: 'stage on' }, h('span', { class: 'n' }, icon('wave')), h('span', { class: 'l' }, h('span', { class: 't' }, 'Your videos'), h('span', { class: 's' }, ALL.filter(function (p) { return !p.trashed }).length + ' saved'))));
-      sideEl.appendChild(h('div', { class: 'foot' }, 'Old app: ', h('a', { href: 'legacy.html', style: { color: 'var(--gold)' } }, 'open it here')));
+      sideEl.appendChild(h('div', { class: 'foot' }, h('div', null, 'Old app: ', h('a', { href: 'legacy.html', style: { color: 'var(--gold)' } }, 'open it here')), h('div', { class: 'mono', style: { marginTop: '6px', fontSize: '10.5px' } }, 'Version ' + (window.APP_VERSION || ''))));
       return;
     }
     sideEl.appendChild(h('div', { class: 'cap' }, 'Stages'));
@@ -345,7 +356,7 @@
   }
 
   function analyse() {
-    BUSY = true; PROG = { msg: 'Reading the audio…', f: null }; render();
+    BUSY = true; AUDIOTAB = 'inputs'; PROG = { msg: 'Reading the audio…', f: null }; render();
     var shown = null;
     function status(msg, f) { PROG = { msg: msg, f: f == null ? null : f }; var pl = mainEl.querySelector('.status-line'), bar = mainEl.querySelector('.progress'); if (pl) pl.textContent = msg; if (bar) { bar.classList.toggle('indeterminate', f == null); bar.firstChild.style.width = ((f || 0) * 100) + '%' } }
     S.getBlob(P.id + ':audio').then(function (blob) {
@@ -353,7 +364,7 @@
       return AU.analyse(P.script, blob, status);
     }).then(function (r) {
       if (P.timing) S.snapshot(P, 'Before listening again');
-      P.timing = r; P.audio.duration = r.duration;
+      r.script = P.script; P.timing = r; P.audio.duration = r.duration;
       P.cuts = AU.split(r.words, P.script, r.duration);
       BUSY = false; AUDIOTAB = 'parts'; SELPART = 0;
       return save(true).then(function () {
@@ -375,6 +386,9 @@
         stat(fmtT(T.duration), 'Length'), stat(String(T.words.length), 'Words'), stat(String(parts.length), 'Parts', bad ? 'bad' : warn ? 'warn' : 'ok'),
         stat(wps.toFixed(1), 'Words a second', wps < AU.RULES.wpsLow || wps > AU.RULES.wpsHigh ? 'warn' : 'ok'),
         stat(heard == null ? 'Pauses' : heard + '%', heard == null ? 'Timing method' : 'Heard clearly', heard == null ? 'warn' : heard >= 90 ? 'ok' : 'warn')));
+    if (T.script != null && T.script !== P.script) box.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)', borderLeft: '4px solid var(--warn)' } },
+      h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '220px' } }, h('b', null, 'The script changed after the timing was made. '), h('span', { class: 'muted' }, 'The parts below still use the old words. Listen again so the words, times and parts match.')),
+        h('button', { class: 'btn primary', onclick: function () { analyse() } }, icon('split'), 'Listen and split again'))));
     if (T.method !== 'whisper') box.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)', borderLeft: '4px solid var(--warn)' } }, h('b', null, 'The times are estimated. '), h('span', { class: 'muted' }, 'Whisper could not run in this browser, so words were placed from the pauses (rulebook timing level B). Use Chrome or Edge and press "Listen and split again" for exact times.')));
     box.appendChild(timeline(T, parts));
     var listBox = h('div', { class: 'plist' }, parts.map(function (p, i) {
@@ -383,7 +397,7 @@
         h('div', { class: 'num' }, String(p.id)),
         h('div', { style: { minWidth: 0 } },
           h('div', { class: 'hd' }, h('span', { class: 'mono' }, fmtT(p.start) + ' – ' + fmtT(p.end)), h('span', { class: 'mono muted' }, p.len.toFixed(1) + ' s'), h('span', { class: 'mono muted' }, p.wps.toFixed(1) + ' w/s'),
-            checks.length ? h('span', { class: lvl === 'bad' ? 't-bad' : 't-warn' }, checks[0].text.split('.')[0]) : h('span', { class: 't-ok' }, 'Good')),
+            checks.length ? h('span', { class: lvl === 'bad' ? 't-bad' : 't-warn' }, checks[0].short) : h('span', { class: 't-ok' }, 'Good')),
           h('div', { class: 'txt' }, p.text)),
         h('button', { class: 'btn small', 'aria-label': 'Play part', onclick: function (e) { e.stopPropagation(); SELPART = i; playRange(p.start, p.end); markSel() } }, icon('play')));
     }));
@@ -497,7 +511,16 @@
       .catch(function (e) { mainEl.appendChild(h('div', { class: 'card' }, 'The app could not open its storage: ' + (e && e.message || e) + '. Close other tabs of this app and reload.')) });
     window.addEventListener('hashchange', route);
     AUDIOEL.addEventListener('play', tick);
-    if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {});
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      var hadController = !!navigator.serviceWorker.controller, reloaded = false;
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+      // a new version took over: reload once to use it, but never in the middle of listening to audio
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (!hadController || reloaded) return;
+        function tryReload() { if (BUSY) return setTimeout(tryReload, 3000); reloaded = true; save(true).then(function () { location.reload() }) }
+        tryReload();
+      });
+    }
   }
   start();
 })();

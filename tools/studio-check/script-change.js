@@ -1,0 +1,13 @@
+const { chromium } = require('playwright'); const SP=process.argv[2];
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1300,height:860}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:8125/');await p.waitForTimeout(800);
+await p.click('.newcard');await p.fill('.modal input','Change test');await p.press('.modal input','Enter');await p.waitForTimeout(800);
+await p.click('text=Use Gilded');await p.waitForTimeout(700);await p.fill('textarea',require('fs').readFileSync(SP+'/script-short.txt','utf8'));
+await p.setInputFiles('input[type=file]',SP+'/a.wav');await p.waitForTimeout(1200);
+await p.click('text=Listen and split into parts');await p.waitForTimeout(400);const prog=await p.locator('.status-line').count();
+await p.waitForSelector('.tl',{timeout:120000});await p.waitForTimeout(500);const one=await p.locator('.pitem').count();
+await p.click('.tabs >> text=Script & audio');await p.fill('textarea','Seven degrees Celsius. '+require('fs').readFileSync(SP+'/script-short.txt','utf8'));await p.waitForTimeout(700);
+await p.click('.tabs >> text=Timing & parts');await p.waitForTimeout(400);const warn=await p.locator('text=The script changed after the timing').count();
+await p.click('text=Listen and split again >> nth=0');await p.waitForTimeout(300);const prog2=await p.locator('.status-line').isVisible();
+await p.waitForSelector('.tl',{timeout:120000});await p.waitForTimeout(400);const warn2=await p.locator('text=The script changed after the timing').count();
+console.log({progressShown:prog,oneShortPart:one,changedWarning:warn,progressFromParts:prog2,warningGoneAfter:warn2===0,errs});await b.close();})();
