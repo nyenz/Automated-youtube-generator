@@ -320,3 +320,14 @@ body.calm *, body.calm *::before, body.calm *::after { animation-duration: .001s
 .toast .act { border: 1px solid var(--edge-2); background: var(--glass); color: var(--ink); border-radius: 8px; padding: 4px 10px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: border-color var(--t); }
 .toast .act:hover { border-color: var(--accent); }
 @media (max-width: 860px) { .player .keys { display: none; } .player .time { min-width: 0; } }
+
+/* sliders (custom) and the pick layout */
+.range { -webkit-appearance: none; appearance: none; flex: 1 1 160px; min-width: 120px; height: 6px; border-radius: 6px; background: rgba(236,230,216,.12); outline: none; cursor: pointer; }
+.range::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid #ECE6D8; box-shadow: 0 2px 8px rgba(200,32,43,.5); transition: transform var(--t); }
+.range::-webkit-slider-thumb:hover { transform: scale(1.12); }
+.range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 2px solid #ECE6D8; }
+.range::-moz-range-track { height: 6px; border-radius: 6px; background: rgba(236,230,216,.12); }
+.range:focus-visible { box-shadow: 0 0 0 3px rgba(200,32,43,.25); }
+.pickcols { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); }
+@media (max-width: 1100px) { .pickcols { grid-template-columns: 1fr; } }
+.grow { flex: 1; }
