@@ -10,13 +10,19 @@ A free app that makes narrated videos in the **Gilded Kasumi** style (Japanese w
 
 ## The stages
 1. **Style** – pick a style and watch its demo. Gilded is the main style; the older styles are kept aside.
-2. **Script & audio** – choose Short (9:16) or Long (16:9), paste the script, drop the audio, press **Listen and split into parts**. Whisper times every word (in the browser, free), the app matches the words to your script and splits the narration into parts of 12–25 s at long pauses, as the Gilded rulebook says. Click a dashed line on the timeline to cut there, or a solid one to join two parts.
-3. Prompts · 4. Pick the best (A/B + critic) · 5. Sound · 6. Thumbnails · 7. Watch & export – coming next.
+2. **Script & audio** – Short (9:16) or Long (16:9), paste the script, drop the audio, press **Listen and split into parts**. Whisper times every word (free, in the browser), the words are matched to your script and the narration is split into parts of 12–25 s at long pauses, as the Gilded rulebook says.
+3. **Prompts** – one Sonnet chat per job: the plan, then assets and people (hard ones alone, simple ones bunched), then one scene per part. Copy the prompt, attach the project file (button at the top), paste the reply. Every reply is checked in a locked frame (does it draw, does it pass LINT). Two chats per job by default (A and B); or one chat that writes both.
+4. **Pick the best** – the app draws A and B side by side (asset cards, people from three sides, scene frames with the words). Gemini judges by itself with a free key, or copy the critic prompt and picture into Sonnet. You can always overrule it.
+5. **Sound** – optional music that drops under the voice (levels, drop amount and speeds), and sound effects on whips and big hits (or from a Sonnet prompt). Sounds come from your own folder first, then Freesound (free key, CC0 only); Redo takes the next best one. The mix is brought to about -14 LUFS.
+6. **Thumbnails** – a Sonnet prompt writes three detailed designs that fit the story and the format; make them in an image AI, add the pictures, pick a favourite.
+7. **Watch & export** – the joined video plays with all the sound; Improve this moment builds an IMPROVE prompt for that part and time; Make the MP4 (1080 x 1920 or 1920 x 1080, 30 fps) and the upload package prompt.
 
-The plan for the whole redesign is in the notes doc. The Gilded Kasumi project file is in `styles/gilded-kasumi/project.html`, exactly as it was given (never edit it).
+Settings (top right): the Gemini key, the Freesound key and calm mode. Keys stay only in this browser.
+
+The plan for the whole redesign is in the notes doc. The Gilded Kasumi project file is in `styles/gilded-kasumi/project.html`, exactly as it was given (never edit it). The app keeps the worked example (part 1) switched off in new videos (`data-example-part`) and adds each reply as its own script block.
 
 ## For a new chat (handoff)
-- New app: `index.html` + `studio/` (`app.js` screens, `audio.js` timing and parts, `store.js` saving and the backup folder, `styles.js` the style list, `studio.css` the look). `sw.js` + `manifest.webmanifest` make it installable. Whisper comes from `app/timing.js` + `app/asr-worker.js`.
+- New app: `index.html` + `studio/`: `app.js` (all screens), `audio.js` (timing and parts), `gk.js` (the project file: plan, blocks, locked frame, reading replies), `jobs.js` (jobs, prompts, A/B), `critic.js` (checks, pictures, Gemini), `sound.js` (music, ducking, effects, mix), `export.js` (MP4), `store.js` (saving, backup folder, versions), `styles.js`, `studio.css`. `sw.js` + `manifest.webmanifest` make it installable. Whisper comes from `app/timing.js` + `app/asr-worker.js`.
 - Checks: `tools/studio-check/` (run before every merge; every line must PASS). Bump the version in `index.html` and `sw.js` with every change so installed apps update at once.
 - Old app (kept aside, untouched, with its own saved projects): `legacy.html`.
 - Rules: Nyenz's design rules (no browser defaults, no underlines, sidebars and tabs, light strips, feedback on everything); no update may break the app or lose data (projects live in IndexedDB + the backup folder; a version is kept before every big change).
