@@ -21,7 +21,7 @@
     folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', wave: '<path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/>',
     split: '<path d="M12 3v18M5 8l-3 4 3 4M19 8l3 4-3 4"/>', check: '<path d="M5 12l4 4 10-10"/>', chev: '<path d="M9 6l6 6-6 6"/>', download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>', trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
-    undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>', stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>', prev: '<path d="M18 5L8 12l10 7z"/><path d="M6 5v14"/>', next: '<path d="M6 5l10 7-10 7z"/><path d="M18 5v14"/>', install: '<path d="M12 3v12M7 10l5 5 5-5"/><rect x="3" y="17" width="18" height="4" rx="1"/>', lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
+    undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>', stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>', prev: '<path d="M18 5L8 12l10 7z"/><path d="M6 5v14"/>', next: '<path d="M6 5l10 7-10 7z"/><path d="M18 5v14"/>', gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>', paste: '<path d="M9 4h6v3H9z"/><path d="M7 5H5v16h14V5h-2"/>', image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>', spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>', redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/>', film: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>', install: '<path d="M12 3v12M7 10l5 5 5-5"/><rect x="3" y="17" width="18" height="4" rx="1"/>', lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
   };
   function icon(n, cls) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'ic ' + (cls || '')); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.8'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.innerHTML = ICONS[n] || ''; return s }
   /* the app logo (Ink N), drawn inline so it can never show an old cached picture */
@@ -74,11 +74,11 @@
   var STAGES = [
     { id: 'style', t: 'Style', s: 'Pick the look' },
     { id: 'audio', t: 'Script & audio', s: 'Timing and parts' },
-    { id: 'prompts', t: 'Prompts', s: 'Plan, assets, scenes', locked: true },
-    { id: 'pick', t: 'Pick the best', s: 'A/B and the critic', locked: true },
-    { id: 'sound', t: 'Sound', s: 'Music and effects', locked: true },
-    { id: 'thumbs', t: 'Thumbnails', s: 'Three prompts', locked: true },
-    { id: 'export', t: 'Watch & export', s: 'MP4 and upload pack', locked: true }
+    { id: 'prompts', t: 'Prompts', s: 'Plan, assets, scenes' },
+    { id: 'pick', t: 'Pick the best', s: 'A/B and the critic' },
+    { id: 'sound', t: 'Sound', s: 'Music and effects' },
+    { id: 'thumbs', t: 'Thumbnails', s: 'Three designs' },
+    { id: 'export', t: 'Watch & export', s: 'MP4 and upload pack' }
   ];
   var ALL = [], P = null, STAGE = 'style', HOMETAB = 'videos', AUDIOTAB = 'inputs', SELPART = 0, SELWORD = -1, PREVIEW = null, INSTALL = null;
   var AUDIOEL = new Audio(), AUDIOURL = '', PLAYEND = null, RAF = 0, BUSY = false, PROG = { msg: '', f: null };
@@ -107,7 +107,7 @@
     window.addEventListener('appinstalled', function () { INSTALL = null; installBtn.style.display = 'none'; toast('Installed. Nyenz Auto-Edit now has its own window and icon.', 'ok') });
     topEl = h('header', { class: 'top' },
       h('div', { class: 'brand', onclick: function () { go('') }, title: 'Home' }, logo(), h('span', null, 'Nyenz Auto-Edit')),
-      h('div', { class: 'crumb', id: 'crumb' }), h('div', { class: 'grow' }), saveEl, installBtn, folderChip);
+      h('div', { class: 'crumb', id: 'crumb' }), h('div', { class: 'grow' }), saveEl, installBtn, h('button', { class: 'chip', title: 'Settings: keys, folders and A/B', onclick: settings }, icon('gear'), h('span', { class: 'lbl' }, 'Settings')), folderChip);
     sideEl = h('nav', { class: 'side' });
     mainEl = h('main', { class: 'main' });
     root = h('div', { class: 'app' }, topEl, sideEl, mainEl);
@@ -147,6 +147,12 @@
   function stageDone(id) {
     if (id === 'style') return !!P.styleChosen;
     if (id === 'audio') return !!(P.timing && P.timing.words && P.timing.words.length);
+    var L = P.jobs ? window.JOBS.list(P) : [];
+    if (id === 'prompts') return L.length > 1 && L.every(function (j) { return j.A || j.B });
+    if (id === 'pick') return L.length > 1 && L.every(function (j) { return window.JOBS.picked(j) });
+    if (id === 'sound') return !!(P.sound && (P.sound.music || (P.sound.cues || []).length));
+    if (id === 'thumbs') return !!(P.thumbs && P.thumbs.concepts && P.thumbs.concepts.length);
+    if (id === 'export') return !!P.exported;
     return false;
   }
   function crumb() {
@@ -157,15 +163,15 @@
   /* ================= routing ================= */
   function go(path) { if (location.hash.slice(2) === path) route(); else location.hash = '#/' + path }
   function route() {
-    stopAudio();
+    stopAudio(); SD.stop(); WATCH.on = false; SPLAY.on = false;
     var parts = location.hash.replace(/^#\/?/, '').split('/');
-    if (!parts[0]) { P = null; render(); return }
+    if (!parts[0]) { closeMaster(); SD.stop(); P = null; render(); return }
     var id = parts[0], stage = parts[1] || 'style';
     var have = ALL.filter(function (x) { return x.id === id })[0];
     var load = have ? Promise.resolve(have) : S.get(id);
     load.then(function (p) {
       if (!p) { toast('That video was not found. It may have been deleted.', 'warn'); go(''); return }
-      if (!P || P.id !== p.id) { UNDO = []; CURKEY = ''; P = p; SELPART = 0; SELWORD = -1; AUDIOTAB = p.timing ? 'parts' : 'inputs'; PREVIEW = p.style; loadAudio() }
+      if (!P || P.id !== p.id) { closeMaster(); SD.stop(); UNDO = []; CURKEY = ''; P = p; SELPART = 0; SELWORD = -1; AUDIOTAB = p.timing ? 'parts' : 'inputs'; PREVIEW = p.style; loadAudio() }
       STAGE = STAGES.some(function (s) { return s.id === stage && !s.locked }) ? stage : 'style';
       render();
     });
@@ -176,7 +182,8 @@
     mainEl.innerHTML = ''; mainEl.scrollTop = 0;
     if (!P) { saveEl.textContent = ''; mainEl.appendChild(home()); return }
     if (!saveEl.textContent) { saveEl.textContent = 'Saved'; saveEl.className = 'save-state ok' }
-    mainEl.appendChild(STAGE === 'style' ? stylePage() : audioPage());
+    var pages = { style: stylePage, audio: audioPage, prompts: promptsPage, pick: pickPage, sound: soundPage, thumbs: thumbsPage, export: exportPage };
+    mainEl.appendChild((pages[STAGE] || stylePage)());
   }
 
   /* ================= home ================= */
@@ -361,7 +368,7 @@
           { label: 'Copy the plan (JSON)', icon: 'copy', do: copyPlan }, { label: 'Download the plan', icon: 'download', do: downloadPlan }, '-', { label: 'Undo: earlier versions', icon: 'undo', do: versions }]) } }, icon('more'), 'More') : null),
       tabs([{ id: 'inputs', label: 'Script & audio' }, { id: 'parts', label: 'Timing & parts', count: T ? parts.length : null }], AUDIOTAB, function (t) { if (t === 'parts' && !T) { toast('Press "Listen and split" first.', 'warn'); return } AUDIOTAB = t; render() }));
     pg.appendChild(AUDIOTAB === 'parts' && T ? partsPane(T, parts) : inputsPane());
-    pg.appendChild(nextBar({ label: 'Style', go: 'style' }, { label: 'Next: Prompts (coming next)', off: true }));
+    pg.appendChild(nextBar({ label: 'Style', go: 'style' }, T ? { label: 'Next: Prompts', go: 'prompts' } : { label: 'Listen and split first', off: true }));
     if (P.audio) pg.appendChild(playerBar(parts));
     return pg;
   }
@@ -558,6 +565,506 @@
       nud);
   }
 
+  /* ================= the project file in the locked frame (one at a time, rebuilt when the picks change) ================= */
+  var J = window.JOBS, GK = window.GK, CR = window.CRITIC, SD = window.SOUND;
+  var MASTER = { key: '', host: null, info: null, job: null };
+  function masterKey() { return JSON.stringify([GK.plan(P), J.blocks(P)]) }
+  function master() {
+    var k = masterKey();
+    if (MASTER.key === k && MASTER.job) return MASTER.job;
+    if (MASTER.host) MASTER.host.close();
+    MASTER.key = k; MASTER.host = null; MASTER.info = null;
+    MASTER.job = GK.open(P, J.blocks(P)).then(function (H) { MASTER.host = H; return H.ask({ cmd: 'info' }) }).then(function (info) { MASTER.info = info || { errors: ['The project file did not answer.'], built: [], lint: {}, assets: [], cast: [] }; return MASTER });
+    return MASTER.job;
+  }
+  function closeMaster() { if (MASTER.host) MASTER.host.close(); MASTER = { key: '', host: null, info: null, job: null } }
+  function ensureJobs() { if (!P.jobs || !P.jobs.plan) J.build(P, { assets: Object.keys(GK.libraryNames().assets), cast: Object.keys(GK.libraryNames().cast) }) }
+  function rebuildJobs() { J.build(P, { assets: Object.keys(GK.libraryNames().assets), cast: Object.keys(GK.libraryNames().cast) }) }
+  function download(name, blob) { var a = h('a', { href: URL.createObjectURL(blob), download: name }); document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove() }, 4000) }
+  function safeName(n) { return String(n || 'video').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'video' }
+  function fileForModel() {
+    return GK.compose(P, J.blocks(P)).then(function (t) { download(safeName(P.name) + ' - project.html', new Blob([t], { type: 'text/html' })); toast('The project file is downloaded. Attach it in the Sonnet chat together with the prompt.', 'ok', 6000) })
+      .catch(function (e) { toast('Could not make the file: ' + e.message, 'bad') });
+  }
+  function copyText(t, what) { return navigator.clipboard.writeText(t).then(function () { toast((what || 'Copied') + '. Paste it into the Sonnet chat.', 'ok') }, function () { modal({ title: 'Copy this', body: h('textarea', { class: 'area', style: { minHeight: '260px' } }, t), actions: [] }) }) }
+  function needTiming() {
+    if (P.timing && P.timing.words && P.timing.words.length) return null;
+    return h('div', { class: 'card locked-page' }, h('h2', null, 'Finish Script & audio first'), h('p', { class: 'muted' }, 'This stage uses the parts and word times from stage 2.'), h('button', { class: 'btn primary', onclick: function () { go(P.id + '/audio') } }, 'Go to Script & audio'));
+  }
+  function pageHead(n, title, sub, extra) { return h('div', { class: 'titlebar' }, backBtn(), h('div', null, h('h1', null, n + '. ' + title), h('p', null, sub)), h('div', { class: 'grow' }), extra || null) }
+
+  /* check one pasted version in the frame: does it draw, does it pass LINT */
+  function checkVersion(job, ver) {
+    if (job.kind === 'plan') {
+      var pl = ver.plan, want = GK.plan(P).parts, ids = (pl.parts || []).map(function (p) { return p.id }), issues = [];
+      want.forEach(function (w) { if (ids.indexOf(w.id) < 0) issues.push('Part ' + w.id + ' is missing') });
+      (pl.parts || []).forEach(function (p) { var w = want.filter(function (x) { return x.id === p.id })[0]; if (!w) { issues.push('Part ' + p.id + ' is not in the timing (it will be ignored)'); return } if (p.start != null && Math.abs(p.start - w.start) > .05 || p.end != null && Math.abs(p.end - w.end) > .05) issues.push('Part ' + p.id + ' times were changed (the app keeps its own)'); if (!(p.cast || []).length && !(p.assets || []).length) issues.push('Part ' + p.id + ' has no cast or assets') });
+      ver.check = { ok: !issues.some(function (i) { return /missing|no cast/.test(i) }), issues: issues };
+      return Promise.resolve(ver);
+    }
+    return CR.inspect(P, job, ver === job.A ? 'A' : 'B').then(function (r) {
+      var issues = (r.errors || []).slice(0, 3);
+      if (r.broken) issues.unshift(r.broken);
+      if (r.cards) r.cards.forEach(function (c) { if (c.missing) issues.push(c.name + ' was not made'); else if (c.error) issues.push(c.name + ' does not draw: ' + c.error) });
+      if (r.lint) r.lint.filter(function (x) { return !x.ok }).forEach(function (x) { issues.push(x.msg) });
+      ver.check = { ok: !issues.length, issues: issues, lintPass: r.lint ? r.lint.filter(function (x) { return x.ok }).length : null, lintAll: r.lint ? r.lint.length : null };
+      return ver;
+    }).catch(function (e) { ver.check = { ok: false, issues: ['Could not be checked: ' + e.message] }; return ver });
+  }
+  function storeVersion(job, v, text) {
+    var r = GK.parse(job.kind, text, job);
+    if (r.error) return Promise.reject(new Error(r.error));
+    var ver = { at: Date.now(), raw: String(text).slice(0, 200000) };
+    if (job.kind === 'plan') ver.plan = r.plan; else { ver.code = r.code; ver.full = !!r.full; ver.note = r.note || '' }
+    job[v] = ver; if (job.pick === v) job.pick = null; job.critic = null;
+    return checkVersion(job, ver).then(function () { return save(true) }).then(function () { return ver });
+  }
+  function pasteBox(job, v) {
+    var ta = h('textarea', { class: 'area', placeholder: 'Paste the whole Sonnet reply here.' }), err = h('div', { class: 't-bad', style: { fontSize: '12.5px', marginTop: '8px' } });
+    var one = P.abMode === 'one' && !v;
+    modal({ title: (one ? 'Paste the reply with both versions' : 'Paste version ' + v) + ' · ' + job.title, body: h('div', null, h('p', { class: 'muted', style: { margin: '0 0 10px', fontSize: '12.5px' } }, 'Paste everything Sonnet wrote. The app finds the code and checks it.'), ta, err),
+      actions: [{ label: 'Check and save', primary: true, do: function () {
+        var txt = ta.value; if (!txt.trim()) { ta.classList.add('field-bad'); return false }
+        var pairs = one ? GK.splitVersions(txt) : null;
+        if (one && !pairs) { err.textContent = 'The two versions were not found. The reply must have "=== VERSION A ===" and "=== VERSION B ===" lines. You can also paste each version on its own.'; return false }
+        var jobsTo = one ? [['A', pairs.A], ['B', pairs.B]] : [[v, txt]];
+        var btn = document.querySelector('.modal .btn.primary'); btn.setAttribute('disabled', ''); btn.textContent = 'Checking…';
+        jobsTo.reduce(function (pr, x) { return pr.then(function () { return storeVersion(job, x[0], x[1]) }) }, Promise.resolve())
+          .then(function () { var cv = document.querySelector('.veil'); if (cv) cv.remove(); var vv = job[jobsTo[jobsTo.length - 1][0]]; toast(vv.check && vv.check.ok ? 'Saved and checked: it draws and passes.' : 'Saved. The check found problems; see the card.', vv.check && vv.check.ok ? 'ok' : 'warn', 6000); render() })
+          .catch(function (e) { btn.removeAttribute('disabled'); btn.textContent = 'Check and save'; err.textContent = e.message });
+        return false;
+      } }] });
+  }
+
+  /* ================= stage 3: prompts ================= */
+  function promptsPage() {
+    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(3, 'Prompts', 'One Sonnet chat per job.'), nt);
+    ensureJobs();
+    var L = J.list(P), done = L.filter(function (j) { return J.picked(j) }).length, ready = L.filter(function (j) { return J.state(j).key === 'pick' }).length;
+    var two = P.abMode !== 'one';
+    var pg = h('div', { class: 'page' }, pageHead(3, 'Prompts', 'Copy a prompt, attach the project file, paste the reply. The app checks every reply.',
+      h('button', { class: 'btn', onclick: fileForModel }, icon('download'), 'Project file for Sonnet')));
+    pg.appendChild(h('div', { class: 'stats' }, stat(String(L.length), 'Jobs'), stat(String(done), 'Picked', done === L.length ? 'ok' : ''), stat(String(ready), 'Ready to pick', ready ? 'warn' : ''), stat(two ? '2 chats' : '1 chat', 'Per job')));
+    pg.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)' } },
+      h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('b', null, 'How each job works'),
+        h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, two ? '1. Copy the prompt. 2. Open a new Sonnet chat, attach the project file, paste the prompt. 3. Do the same in a second new chat. 4. Paste each reply as A and B. Then pick the best in stage 4.' : '1. Copy the prompt (it asks for two versions). 2. Open a new Sonnet chat, attach the project file, paste. 3. Paste the whole reply. The app splits it into A and B.')),
+        seg([{ id: 'two', label: 'Two chats per job' }, { id: 'one', label: 'One chat, two versions' }], two ? 'two' : 'one', function (m) { P.abMode = m; save(); render() }))));
+    var groups = [['plan', '1 · The plan', 'Sonnet plans places, people, assets and beats for every part. The times and words are already fixed by the app.'],
+      ['make', '2 · Assets and people', 'Hard things get a chat of their own; simple ones are bunched. Can run in many chats at the same time.'],
+      ['scene', '3 · Scenes', 'One part per chat, in any order. Each chat gets the same project file.']];
+    groups.forEach(function (g) {
+      var list = L.filter(function (j) { return g[0] === 'make' ? (j.kind === 'assets' || j.kind === 'cast') : j.kind === g[0] });
+      pg.appendChild(h('div', { style: { margin: 'var(--gap) 0 8px' } }, h('h2', { style: { font: '600 20px/1.2 var(--f-display)', margin: '0 0 2px' } }, g[1]), h('div', { class: 'muted', style: { fontSize: '12.5px' } }, g[2])));
+      if (!list.length) { pg.appendChild(h('div', { class: 'card muted', style: { fontSize: '13px' } }, g[0] === 'make' && J.picked(P.jobs.plan) ? 'Nothing new to make: every planned person and asset is already in the library.' : 'These jobs appear when the plan is picked.')); return }
+      pg.appendChild(h('div', { class: 'plist' }, list.map(jobCard)));
+    });
+    pg.appendChild(nextBar({ label: 'Script & audio', go: 'audio' }, { label: 'Next: Pick the best', go: 'pick' }));
+    return pg;
+  }
+  function verLine(job, v) {
+    var x = job[v];
+    if (!x) return h('span', { class: 'muted' }, v + ': not pasted');
+    var c = x.check || {}, txt = v + ': ' + (c.ok ? (c.lintAll ? 'checks pass (' + c.lintPass + '/' + c.lintAll + ')' : 'checks pass') : (c.issues && c.issues.length ? c.issues.length + ' problem' + (c.issues.length > 1 ? 's' : '') : 'saved'));
+    return h('span', { class: c.ok ? 't-ok' : 't-warn', title: (c.issues || []).join('\n') }, txt);
+  }
+  function jobCard(job) {
+    var st = J.state(job), block = J.blockedBy(P, job), two = P.abMode !== 'one';
+    var items = job.kind === 'scene' ? (function () { var p = GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0] || {}; return fmtT(p.start) + ' – ' + fmtT(p.end) + ' · ' + (p.text || '').split(' ').slice(0, 14).join(' ') + '…' })()
+      : job.items ? job.items.map(function (x) { return x.name + (x.level ? ' (' + ['', 'simple', 'medium', 'hard'][x.level] + ')' : '') }).join(', ') : 'Places, people, assets and beats for all parts';
+    var acts = h('div', { class: 'row', style: { justifyContent: 'flex-end' } });
+    if (block) acts.appendChild(h('span', { class: 'muted', style: { fontSize: '12px' } }, block));
+    else {
+      acts.appendChild(h('button', { class: 'btn small', onclick: function () { copyText(J.prompt(P, job, !two), 'The prompt is copied') } }, icon('copy'), 'Copy prompt'));
+      if (two) { acts.appendChild(h('button', { class: 'btn small' + (job.A ? '' : ' primary'), onclick: function () { pasteBox(job, 'A') } }, icon('paste'), job.A ? 'Replace A' : 'Paste A')); acts.appendChild(h('button', { class: 'btn small' + (job.A && !job.B ? ' primary' : ''), onclick: function () { pasteBox(job, 'B') } }, icon('paste'), job.B ? 'Replace B' : 'Paste B')) }
+      else acts.appendChild(h('button', { class: 'btn small primary', onclick: function () { pasteBox(job, null) } }, icon('paste'), job.A ? 'Replace reply' : 'Paste reply'));
+      if (job.A || job.B) acts.appendChild(h('button', { class: 'btn small', onclick: function () { PICKJOB = job.id; go(P.id + '/pick') } }, J.picked(job) ? 'See the pick' : 'Pick the best'));
+    }
+    return h('div', { class: 'pitem ' + (st.key === 'done' ? '' : st.key === 'pick' ? '' : 'warn'), style: { gridTemplateColumns: '1fr auto', cursor: 'default', borderLeftColor: st.key === 'done' ? 'var(--ok)' : st.key === 'pick' ? 'var(--info)' : st.key === 'one' ? 'var(--warn)' : 'var(--line-2)' } },
+      h('div', { style: { minWidth: 0 } }, h('div', { class: 'hd' }, h('b', { style: { fontSize: '13.5px' } }, job.title), h('span', { class: st.cls }, st.text)),
+        h('div', { class: 'txt' }, items),
+        h('div', { class: 'hd', style: { marginTop: '6px', marginBottom: 0 } }, verLine(job, 'A'), verLine(job, 'B'))),
+      acts);
+  }
+
+  /* ================= stage 4: pick the best ================= */
+  var PICKJOB = null, SHEETS = {};
+  function pickPage() {
+    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(4, 'Pick the best', 'The critic compares A and B.'), nt);
+    ensureJobs();
+    var L = J.list(P).filter(function (j) { return j.A || j.B });
+    var pg = h('div', { class: 'page' }, pageHead(4, 'Pick the best', 'The app runs both versions, then the critic compares them. You can always overrule it.',
+      h('button', { class: 'btn', onclick: judgeAll, disabled: CR.mode() === 'gemini' && CR.ready() ? null : true, title: 'Gemini judges every job that has both versions' }, icon('spark'), 'Judge all with Gemini')));
+    pg.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)' } }, h('div', { class: 'row' },
+      h('div', { style: { flex: 1, minWidth: '240px' } }, h('b', null, 'Critic'), h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, CR.mode() === 'gemini' ? (CR.ready() ? 'Gemini judges by itself with your free key.' : 'Add your free Gemini key in Settings, or use Sonnet copy-paste.') : 'You copy the critic prompt and the comparison picture into Sonnet and paste back its answer.')),
+      seg([{ id: 'gemini', label: 'Gemini (automatic)' }, { id: 'sonnet', label: 'Sonnet (copy-paste)' }], CR.mode(), function (m) { CR.setMode(m); render() }),
+      CR.mode() === 'gemini' && !CR.ready() ? h('button', { class: 'btn small primary', onclick: settings }, 'Add key') : null)));
+    if (!L.length) { pg.appendChild(h('div', { class: 'card empty' }, 'No versions yet. Paste replies in stage 3 first.', h('div', { style: { marginTop: '12px' } }, h('button', { class: 'btn primary', onclick: function () { go(P.id + '/prompts') } }, 'Go to Prompts')))); return pg }
+    if (!PICKJOB || !P.jobs[PICKJOB] || !(P.jobs[PICKJOB].A || P.jobs[PICKJOB].B)) PICKJOB = (L.filter(function (j) { return !J.picked(j) })[0] || L[0]).id;
+    var list = h('div', { class: 'plist' }, L.map(function (j) {
+      var st = J.state(j);
+      return h('div', { class: 'pitem' + (j.id === PICKJOB ? ' on' : ''), style: { gridTemplateColumns: '1fr', borderLeftColor: st.key === 'done' ? 'var(--ok)' : st.key === 'pick' ? 'var(--info)' : 'var(--warn)' }, onclick: function () { PICKJOB = j.id; render() } },
+        h('div', null, h('div', { class: 'hd' }, h('b', null, j.title)), h('div', { class: st.cls, style: { fontSize: '12px' } }, st.text + (j.critic ? ' · critic: ' + j.critic.winner : ''))));
+    }));
+    pg.appendChild(h('div', { class: 'cols pickcols' }, list, pickDetail(P.jobs[PICKJOB])));
+    pg.appendChild(nextBar({ label: 'Prompts', go: 'prompts' }, { label: 'Next: Sound', go: 'sound' }));
+    return pg;
+  }
+  function pickDetail(job) {
+    var box = h('div', { class: 'panel' }), both = job.A && job.B && !job.A.error && !job.B.error;
+    box.appendChild(h('div', { class: 'row' }, h('h2', { style: { margin: 0 } }, job.title), h('span', { class: J.state(job).cls }, J.state(job).text)));
+    var verdict = h('div', { style: { margin: '10px 0' } });
+    if (job.critic) verdict.appendChild(h('div', { class: 'glass' }, h('div', { class: 'row' }, h('b', null, (job.critic.by || 'Critic') + ' picks ' + job.critic.winner), job.critic.score_a != null ? h('span', { class: 'mono muted' }, 'A ' + job.critic.score_a + ' · B ' + job.critic.score_b) : null),
+      h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, job.critic.why || ''), job.critic.fix_for_winner ? h('div', { class: 't-info', style: { fontSize: '12.5px', marginTop: '4px' } }, 'Next fix: ' + job.critic.fix_for_winner) : null));
+    box.appendChild(verdict);
+    var view = h('div', { style: { marginTop: '6px' } });
+    if (job.kind === 'plan') view.appendChild(planCompare(job));
+    else if (SHEETS[job.id]) view.appendChild(h('img', { src: SHEETS[job.id].url, alt: 'A and B side by side', style: { width: '100%', borderRadius: '10px', border: '1px solid var(--edge)', display: 'block' } }));
+    else view.appendChild(h('div', { class: 'glass', style: { textAlign: 'center', padding: '30px 12px' } }, h('div', { class: 'muted', style: { marginBottom: '10px' } }, 'Draw both versions side by side to compare them.'), h('button', { class: 'btn primary', onclick: function (e) { e.currentTarget.setAttribute('disabled', ''); e.currentTarget.textContent = 'Drawing…'; makeSheet(job).then(render, function (er) { toast(er.message, 'bad'); render() }) } }, icon('image'), 'Draw A and B')));
+    box.appendChild(view);
+    var facts = ['A', 'B'].map(function (v) { var x = job[v]; return h('div', { class: 'glass' }, h('div', { class: 'k', style: { font: '700 9.5px/1 var(--f-sans)', letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--on-dark-2)', marginBottom: '6px' } }, 'Version ' + v),
+      !x ? h('div', { class: 'muted' }, 'Not pasted yet') : h('div', null, h('div', { class: x.check && x.check.ok ? 't-ok' : 't-warn', style: { fontSize: '12.5px' } }, x.check && x.check.ok ? 'Draws and passes the checks' + (x.check.lintAll ? ' (' + x.check.lintPass + '/' + x.check.lintAll + ')' : '') : 'Problems found'),
+        (x.check && x.check.issues || []).slice(0, 4).map(function (s) { return h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '3px' } }, '· ' + s) }))) });
+    box.appendChild(h('div', { class: 'facts' }, facts));
+    var acts = h('div', { class: 'row', style: { marginTop: '6px' } });
+    if (both) {
+      if (CR.mode() === 'gemini') acts.appendChild(h('button', { class: 'btn primary', disabled: CR.ready() ? null : true, onclick: function (e) { var b = e.currentTarget; b.setAttribute('disabled', ''); b.textContent = 'Gemini is judging…'; judge(job).then(function () { toast('Gemini picked ' + job.critic.winner + '.', 'ok'); render() }, function (er) { toast(er.message, 'bad', 8000); render() }) } }, icon('spark'), 'Ask Gemini'));
+      else {
+        acts.appendChild(h('button', { class: 'btn', onclick: function () { sonnetCritic(job) } }, icon('copy'), 'Copy critic prompt'));
+        acts.appendChild(h('button', { class: 'btn', onclick: function () { (SHEETS[job.id] ? Promise.resolve() : makeSheet(job)).then(function () { if (SHEETS[job.id]) download(safeName(P.name) + ' - ' + job.id + ' A vs B.png', SHEETS[job.id].blob); else toast('Plans are compared as text; no picture is needed.', 'info') }) } }, icon('image'), 'Comparison picture'));
+        acts.appendChild(h('button', { class: 'btn', onclick: function () { pasteCritic(job) } }, icon('paste'), 'Paste critic answer'));
+      }
+    }
+    acts.appendChild(h('div', { class: 'grow', style: { flex: 1 } }));
+    ['A', 'B'].forEach(function (v) { if (job[v] && !job[v].error) acts.appendChild(h('button', { class: 'btn' + (job.pick === v ? ' primary' : ''), onclick: function () { usePick(job, v) } }, job.pick === v ? 'Using ' + v : 'Use ' + v)) });
+    box.appendChild(acts);
+    if (!both) box.appendChild(h('div', { class: 'muted', style: { fontSize: '12px', marginTop: '8px' } }, 'Only one version so far. Paste the second one in stage 3 to let the critic compare, or use this one now.'));
+    return box;
+  }
+  function planCompare(job) {
+    function sum(x) { if (!x || !x.plan) return h('div', { class: 'muted' }, 'Not pasted'); var pl = x.plan, ps = pl.parts || []; var ppl = {}, as = {}; ps.forEach(function (p) { (p.cast || []).forEach(function (n) { ppl[n] = 1 }); (p.assets || []).forEach(function (n) { as[n] = 1 }) });
+      return h('div', null, h('div', { style: { fontSize: '12.5px' } }, ps.length + ' parts · ' + Object.keys(ppl).length + ' people · ' + Object.keys(as).length + ' assets'),
+        ps.slice(0, 8).map(function (p) { return h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '4px' } }, h('b', { style: { color: 'var(--ink)' } }, p.id + ' '), (p.title || '') + (p.place ? ' · ' + p.place : '') + (p.job ? ' · ' + p.job : '')) })) }
+    return h('div', { class: 'facts', style: { gridTemplateColumns: '1fr 1fr' } }, ['A', 'B'].map(function (v) { return h('div', { class: 'glass' }, h('b', null, 'Plan ' + v), sum(job[v])) }));
+  }
+  function makeSheet(job) {
+    if (job.kind === 'plan') return Promise.resolve();
+    return Promise.all([CR.inspect(P, job, 'A'), CR.inspect(P, job, 'B')]).then(function (r) {
+      var W = (P.timing && P.timing.words) || [];
+      function words(t) { var p = GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0], at = (p ? p.start : 0) + t; return W.filter(function (w) { return w[1] <= at + .4 && w[2] >= at - .6 }).map(function (w) { return w[0] }).slice(0, 3).join(' ') }
+      job._facts = CR.facts(job, r[0], r[1]); job._auto = [CR.score(r[0]), CR.score(r[1])];
+      return CR.sheet(job, r[0], r[1], job.kind === 'scene' ? words : null);
+    }).then(function (c) { return new Promise(function (res) { c.toBlob(function (b) { if (SHEETS[job.id]) URL.revokeObjectURL(SHEETS[job.id].url); SHEETS[job.id] = { blob: b, url: URL.createObjectURL(b), data: c.toDataURL('image/png') }; res() }, 'image/png') }) });
+  }
+  function judge(job) {
+    if (job.kind === 'plan') return CR.gemini(J.criticAsk(P, job, ''), null, 'PLAN A:\n' + JSON.stringify(job.A.plan) + '\n\nPLAN B:\n' + JSON.stringify(job.B.plan)).then(function (v) { job.critic = v; return save(true) });
+    return (SHEETS[job.id] ? Promise.resolve() : makeSheet(job)).then(function () {
+      var a = job._auto || [0, 0];
+      if (a[0] <= -100 && a[1] > -100) { job.critic = { winner: 'B', by: 'The checks', why: 'Version A does not draw.' }; return }
+      if (a[1] <= -100 && a[0] > -100) { job.critic = { winner: 'A', by: 'The checks', why: 'Version B does not draw.' }; return }
+      return CR.gemini(J.criticAsk(P, job, job._facts), SHEETS[job.id].data).then(function (v) { job.critic = v });
+    }).then(function () { return save(true) });
+  }
+  function judgeAll() {
+    var todo = J.list(P).filter(function (j) { return j.A && j.B && !j.A.error && !j.B.error && !j.critic });
+    if (!todo.length) { toast('Every job with two versions already has a verdict.', 'info'); return }
+    toast('Gemini is judging ' + todo.length + ' job' + (todo.length > 1 ? 's' : '') + '. Keep this page open.', 'info', 5000);
+    var n = 0;
+    todo.reduce(function (pr, j) { return pr.then(function () { return judge(j).then(function () { n++; if (!j.pick) usePick(j, j.critic.winner, true) }) }) }, Promise.resolve())
+      .then(function () { toast('Done: ' + n + ' verdict' + (n > 1 ? 's' : '') + '. The winners are picked; change any you disagree with.', 'ok', 7000); render() }, function (e) { toast(e.message + ' (' + n + ' judged before this)', 'bad', 8000); render() });
+  }
+  function sonnetCritic(job) {
+    var extra = job.kind === 'plan' ? '\n\nPLAN A:\n```json\n' + JSON.stringify(job.A.plan, null, 1) + '\n```\n\nPLAN B:\n```json\n' + JSON.stringify(job.B.plan, null, 1) + '\n```' : '\n\nThe attached picture shows both versions.';
+    var go2 = job.kind === 'plan' || SHEETS[job.id] ? Promise.resolve() : makeSheet(job);
+    go2.then(function () { copyText(J.criticAsk(P, job, job._facts || '') + extra, job.kind === 'plan' ? 'The critic prompt is copied' : 'The critic prompt is copied. Also attach the comparison picture') });
+  }
+  function pasteCritic(job) {
+    var ta = h('textarea', { class: 'area', style: { minHeight: '160px' }, placeholder: 'Paste the critic answer here.' });
+    modal({ title: 'Paste the critic answer · ' + job.title, body: ta, actions: [{ label: 'Save verdict', primary: true, do: function () { var v = J.parseCritic(ta.value); if (!v) { ta.classList.add('field-bad'); toast('No winner (A or B) was found in that answer.', 'warn'); return false } v.by = 'Sonnet'; job.critic = v; if (!job.pick) usePick(job, v.winner, true); save(true).then(render); toast('Sonnet picked ' + v.winner + '.', 'ok') } }] });
+  }
+  function usePick(job, v, quiet) {
+    if (!job[v] || job[v].error) return;
+    S.snapshot(P, 'Before picking ' + v + ' for ' + job.title);
+    job.pick = v;
+    if (job.kind === 'plan') { P.plan = job[v].plan; rebuildJobs() }
+    save(true).then(function () { if (!quiet) { toast('Using version ' + v + ' for ' + job.title + '.', 'ok'); render() } });
+  }
+
+  /* ================= stage 5: sound ================= */
+  var SFXFILES = null;
+  function soundBlobs() {
+    var Sx = SD.cfg(P), keys = Sx.cues.map(function (c) { return c.id });
+    return Promise.all([S.getBlob(P.id + ':audio'), Sx.music ? S.getBlob(P.id + ':music') : null].concat(keys.map(function (k) { return S.getBlob(P.id + ':sfx:' + k) })))
+      .then(function (r) { var sfx = {}; keys.forEach(function (k, i) { if (r[2 + i]) sfx[k] = r[2 + i] }); return { narr: r[0], music: r[1], sfx: sfx } });
+  }
+  function totalDur() { return (P.timing && P.timing.duration) || (P.audio && P.audio.duration) || 0 }
+  var SPLAY = { on: false, raf: 0 };
+  function soundPage() {
+    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(5, 'Sound', 'Music and sound effects.'), nt);
+    var Sx = SD.cfg(P);
+    var pg = h('div', { class: 'page' }, pageHead(5, 'Sound', 'Optional. Background music that drops while the narrator speaks, and sound effects on the right moments.'));
+    var mfile = h('input', { type: 'file', accept: 'audio/*', class: 'hidden-file' });
+    mfile.addEventListener('change', function () { var f = mfile.files[0]; if (!f) return; S.putBlob(P.id + ':music', f).then(function () { SD.forget(P.id + ':music'); Sx.music = { name: f.name, size: f.size }; save(true).then(render); toast('Music added: ' + f.name + '.', 'ok') }) });
+    function slider(label, key, min, max, step, fmt) {
+      var val = h('span', { class: 'mono', style: { minWidth: '64px', textAlign: 'right' } }, fmt(Sx[key])), inp = h('input', { type: 'range', class: 'range', min: min, max: max, step: step, value: Sx[key] });
+      inp.addEventListener('input', function () { Sx[key] = +inp.value; val.textContent = fmt(Sx[key]); save() });
+      return h('div', { class: 'row', style: { gap: '12px', marginTop: '10px' } }, h('span', { style: { width: '170px', fontSize: '12.5px' } }, label), inp, val);
+    }
+    var music = h('div', { class: 'card' }, h('h2', null, 'Background music'), h('p', { class: 'sub' }, 'Your own music file. It fades in, drops under every piece of speech and fades out at the end.'),
+      h('div', { class: 'fieldgroup' },
+        h('div', { class: 'drop', onclick: function () { mfile.click() } }, h('div', { class: 'ico' }, icon('music')), h('div', null, h('div', { class: 'big' }, Sx.music ? Sx.music.name : 'Add a music file'), h('div', { class: 'muted', style: { fontSize: '12px' } }, Sx.music ? 'Click to replace it' : 'MP3, WAV or M4A')), mfile),
+        Sx.music ? h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn small danger', onclick: function () { Sx.music = null; save(true).then(render); toast('Music removed.', 'info') } }, icon('trash'), 'Remove music')) : null),
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Levels'),
+        slider('Music volume', 'musicVol', 0, 1, .01, function (v) { return Math.round(v * 100) + '%' }),
+        slider('Drop while speaking', 'duckDb', -30, 0, 1, function (v) { return v + ' dB' }),
+        slider('Drop speed', 'attack', .03, .6, .01, function (v) { return v.toFixed(2) + ' s' }),
+        slider('Come back speed', 'release', .1, 2, .05, function (v) { return v.toFixed(2) + ' s' }),
+        slider('Fade in', 'fadeIn', 0, 6, .1, function (v) { return v.toFixed(1) + ' s' }),
+        slider('Fade out', 'fadeOut', 0, 8, .1, function (v) { return v.toFixed(1) + ' s' }),
+        slider('Effects volume', 'sfxVol', 0, 1.5, .01, function (v) { return Math.round(v * 100) + '%' }),
+        h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '10px' } }, 'The final mix is brought to about -14 LUFS, the loudness YouTube plays at, without clipping.')));
+    // preview
+    var tm = h('span', { class: 'mono' }, '0:00.0'), pbtn = h('button', { class: 'btn primary', onclick: function () { if (SPLAY.on) stopMix(); else startMix() } }, icon(SPLAY.on ? 'pause' : 'play'), SPLAY.on ? 'Pause' : 'Play the mix');
+    function startMix() { stopAudio(); soundBlobs().then(function (b) { return SD.play(P, SPLAY.t || 0, totalDur(), b) }).then(function () { SPLAY.on = true; pbtn.innerHTML = ''; pbtn.appendChild(icon('pause')); pbtn.appendChild(document.createTextNode('Pause')); loop() }) }
+    function stopMix() { SPLAY.t = SD.now() || 0; SD.stop(); SPLAY.on = false; cancelAnimationFrame(SPLAY.raf); pbtn.innerHTML = ''; pbtn.appendChild(icon('play')); pbtn.appendChild(document.createTextNode('Play the mix')) }
+    function loop() { var t = SD.now(); if (t != null) { tm.textContent = fmtT(t) + ' / ' + fmtT(totalDur()); if (t >= totalDur()) { SPLAY.t = 0; stopMix(); return } } if (tm.isConnected) SPLAY.raf = requestAnimationFrame(loop); else { SD.stop(); SPLAY.on = false } }
+    var preview = h('div', { class: 'panel' }, h('h2', null, 'Listen'), h('p', { class: 'sub' }, 'Narration, music and effects together, as they will be in the MP4.'),
+      h('div', { class: 'row' }, pbtn, h('button', { class: 'btn', onclick: function () { SPLAY.t = 0; stopMix(); tm.textContent = '0:00.0' } }, icon('stop'), 'From the start'), tm));
+    pg.appendChild(h('div', { class: 'cols' }, music, preview));
+    pg.appendChild(cuesCard(Sx));
+    pg.appendChild(nextBar({ label: 'Pick the best', go: 'pick' }, { label: 'Next: Thumbnails', go: 'thumbs' }));
+    return pg;
+  }
+  function cuesCard(Sx) {
+    var card = h('div', { class: 'card', style: { marginTop: 'var(--gap)' } }, h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('h2', null, 'Sound effects'), h('p', { class: 'sub', style: { margin: 0 } }, 'Placed on whips and big hits from the built scenes, plus any Sonnet suggests. Sounds come from your folder first, then Freesound.')),
+      h('button', { class: 'btn', onclick: autoCues }, icon('spark'), 'Find moments'),
+      h('button', { class: 'btn', onclick: function () { copyText(SD.cuePrompt(P), 'The sound prompt is copied') } }, icon('copy'), 'Sonnet prompt'),
+      h('button', { class: 'btn', onclick: pasteCues }, icon('paste'), 'Paste cues'),
+      h('button', { class: 'btn primary', onclick: findAll, disabled: Sx.cues.length ? null : true }, icon('music'), 'Find sounds')));
+    var src = S.folderSupported() ? (SFXFILES ? SFXFILES.length + ' sounds in your folder' : 'No sound folder yet') : 'Folders need Chrome or Edge';
+    card.appendChild(h('div', { class: 'row', style: { margin: '10px 0', fontSize: '12.5px' } }, h('span', { class: SFXFILES && SFXFILES.length ? 't-ok' : 'muted' }, src), S.folderSupported() ? h('button', { class: 'btn small', onclick: pickSfxFolder }, icon('folder'), SFXFILES ? 'Change folder' : 'Pick sound folder') : null,
+      h('span', { class: SD.fsKey() ? 't-ok' : 'muted' }, SD.fsKey() ? 'Freesound key added' : 'No Freesound key'), SD.fsKey() ? null : h('button', { class: 'btn small', onclick: settings }, 'Add key')));
+    if (!Sx.cues.length) { card.appendChild(h('div', { class: 'empty', style: { padding: '18px' } }, 'No sound effects yet. Press Find moments (after scenes are built) or paste cues from Sonnet.')); return card }
+    var list = h('div', { class: 'plist' });
+    Sx.cues.slice().sort(function (a, b) { return a.t - b.t }).forEach(function (c) {
+      var has = !!c.pickName;
+      list.appendChild(h('div', { class: 'pitem' + (c.off ? ' warn' : ''), style: { gridTemplateColumns: '70px 1fr auto', cursor: 'default', borderLeftColor: c.off ? 'var(--line-2)' : has ? 'var(--ok)' : 'var(--warn)' } },
+        h('div', { class: 'mono', style: { fontSize: '13px' } }, fmtT(c.t)),
+        h('div', { style: { minWidth: 0 } }, h('div', { class: 'hd' }, h('b', null, c.label), h('span', { class: 'muted' }, c.from === 'auto' ? 'from the video' : c.from === 'sonnet' ? 'from Sonnet' : '')),
+          h('div', { class: 'txt' }, has ? (c.pickFrom === 'folder' ? 'Your folder: ' : 'Freesound: ') + c.pickName : 'No sound yet · search: ' + c.query)),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn small', title: 'Hear it', disabled: has ? null : true, onclick: function () { S.getBlob(P.id + ':sfx:' + c.id).then(function (b) { if (b) SD.playOne(P.id + ':sfx:' + c.id + ':' + c.pickKey, b, c.vol) }) } }, icon('play')),
+          h('button', { class: 'btn small', title: 'Use the next best sound', onclick: function () { redoCue(c) } }, icon('redo'), has ? 'Redo' : 'Find'),
+          h('button', { class: 'btn small', onclick: function () { c.off = !c.off; save(); render() } }, c.off ? 'Turn on' : 'Turn off'),
+          h('button', { class: 'btn small danger', title: 'Remove', onclick: function () { Sx.cues = Sx.cues.filter(function (x) { return x !== c }); save(); render() } }, icon('trash')))));
+    });
+    card.appendChild(list);
+    return card;
+  }
+  function newCueId() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }
+  function addCues(list) {
+    var Sx = SD.cfg(P), n = 0;
+    list.forEach(function (c) { if (Sx.cues.some(function (x) { return Math.abs(x.t - c.t) < .3 && x.query === c.query })) return; c.id = newCueId(); Sx.cues.push(c); n++ });
+    save(true).then(render); return n;
+  }
+  function autoCues() {
+    master().then(function (M) { var n = addCues(SD.autoCues(P, M.info.built)); toast(n ? n + ' moments added from the built scenes.' : (M.info.built.length ? 'No new moments: whips and big hits already have cues.' : 'No scenes are built yet. Build scenes first, or paste cues from Sonnet.'), n ? 'ok' : 'info', 6000) });
+  }
+  function pasteCues() {
+    var ta = h('textarea', { class: 'area', style: { minHeight: '200px' }, placeholder: 'Paste the Sonnet reply with the cues JSON.' });
+    modal({ title: 'Paste sound cues', body: ta, actions: [{ label: 'Add cues', primary: true, do: function () { var l = SD.parseCues(ta.value); if (!l || !l.length) { ta.classList.add('field-bad'); toast('No cues were found. The reply must hold {"cues": [...]}.', 'warn'); return false } toast(addCues(l) + ' cues added.', 'ok') } }] });
+  }
+  function pickSfxFolder() {
+    window.showDirectoryPicker({ id: 'nyenz-sfx', mode: 'read' }).then(function (d) { return S.setting('sfxDir', d).then(function () { return SD.indexFolder(d) }) }).then(function (f) { SFXFILES = f; toast(f.length + ' sounds found in that folder.', f.length ? 'ok' : 'warn'); render() })
+      .catch(function (e) { if (e && e.name === 'AbortError') return; toast('Could not read that folder.', 'bad') });
+  }
+  function loadSfxFolder() {
+    if (SFXFILES || !S.folderSupported()) return Promise.resolve(SFXFILES);
+    return S.setting('sfxDir').then(function (d) { if (!d) return null; return d.queryPermission({ mode: 'read' }).then(function (p) { if (p !== 'granted') return null; return SD.indexFolder(d).then(function (f) { SFXFILES = f; return f }) }) }).catch(function () { return null });
+  }
+  function candidates(c) {
+    return loadSfxFolder().then(function (files) {
+      var local = files ? SD.matchFolder(files, c.query) : [];
+      return (SD.fsKey() ? SD.freesound(c.query).catch(function (e) { toast(e.message, 'warn'); return [] }) : Promise.resolve([])).then(function (fs) { return local.concat(fs) });
+    });
+  }
+  function redoCue(c) {
+    var key = c.query;
+    (CANDS[c.id] && CANDS[c.id].q === key ? Promise.resolve(CANDS[c.id].list) : candidates(c).then(function (l) { CANDS[c.id] = { q: key, list: l }; return l })).then(function (list) {
+      if (!list.length) { toast('No sound found for "' + c.query + '". Pick a sound folder or add a Freesound key in Settings.', 'warn', 7000); return }
+      var i = c.pickName ? (list.findIndex(function (x) { return x.name === c.pickName }) + 1) % list.length : 0, cand = list[i];
+      return SD.fetchBlob(cand).then(function (b) { return S.putBlob(P.id + ':sfx:' + c.id, b) }).then(function () {
+        c.pickName = cand.name; c.pickFrom = cand.kind; c.pickKey = cand.kind + ':' + (cand.id || cand.path); c.credit = cand.kind === 'freesound' ? cand.name + ' by ' + cand.by + ' (freesound.org, CC0)' : '';
+        return save(true);
+      }).then(function () { render(); toast('Sound for ' + fmtT(c.t) + ': ' + cand.name, 'ok') });
+    }).catch(function (e) { toast(e.message, 'bad') });
+  }
+  var CANDS = {};
+  function findAll() {
+    var Sx = SD.cfg(P), todo = Sx.cues.filter(function (c) { return !c.pickName && !c.off });
+    if (!todo.length) { toast('Every cue has a sound. Use Redo on a cue to change it.', 'info'); return }
+    toast('Finding ' + todo.length + ' sounds…', 'info');
+    todo.reduce(function (pr, c) { return pr.then(function () { return redoCue(c) }) }, Promise.resolve()).then(render);
+  }
+
+  /* ================= stage 6: thumbnails ================= */
+  function thumbPrompt() {
+    var plan = GK.plan(P), long = P.format === 'long';
+    return 'You are the thumbnail designer of a fast-growing YouTube channel. Design 3 different thumbnails for this video. They must make people click AND show honestly what the video delivers.\n\n' +
+      'VIDEO: "' + (P.name || plan.title) + '" · ' + (long ? 'long video, 16:9, thumbnail 1280 x 720 px' : 'Short / TikTok, 9:16 cover, 1080 x 1920 px (keep faces and text inside the middle 1080 x 1350, away from the top 250 px and the bottom 420 px where the app covers it)') + '\n' +
+      'STYLE OF THE VIDEO: Gilded Kasumi: Japanese woodblock print rebuilt as an Art Deco paper diorama: flat layered cut-paper shapes, thin gold edges, deep indigo and vermilion with cream, soft mist between layers, expressive paper people. The thumbnail must look like it belongs to the video.\n' +
+      'THE STORY:\n' + plan.parts.map(function (p) { return 'Part ' + p.id + (p.job ? ' (' + p.job + ')' : '') + ': ' + p.text }).join('\n') + '\n\n' +
+      'Rules for every thumbnail: one clear focal point readable at phone size; a human face with a strong emotion or a striking object/moment from the story; high contrast and a clear light source; rule of thirds; at most 3 to 5 words of text (or none), bold, never repeating the title; no clutter; no fake moments that are not in the video.\n' +
+      'Make the 3 really different: 1) the moment of greatest danger or tension, 2) the impossible fact or number of the story, 3) the human emotion (a face) with the key object.\n\n' +
+      'Reply with JSON only: {"thumbnails": [{"name": "short name", "idea": "one line: why people will click", "image_prompt": "a detailed prompt for an image AI: subject, pose and emotion, setting, composition and camera angle, lighting, colours, the Gilded Kasumi paper style, aspect ratio ' + (long ? '16:9' : '9:16') + '", "text": "the words on the thumbnail, or empty", "text_place": "where the words go and their colour"}]}';
+  }
+  function thumbsPage() {
+    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(6, 'Thumbnails', 'Three designs.'), nt);
+    P.thumbs = P.thumbs || {}; var T = P.thumbs, cs = T.concepts || [];
+    var pg = h('div', { class: 'page' }, pageHead(6, 'Thumbnails', 'Three different thumbnail designs that fit this video. Make each one in an image AI and add the picture here.',
+      h('button', { class: 'btn', onclick: function () { copyText(thumbPrompt(), 'The thumbnail prompt is copied') } }, icon('copy'), 'Copy prompt for Sonnet')));
+    pg.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)' } }, h('div', { class: 'row' },
+      h('div', { style: { flex: 1, minWidth: '240px' } }, h('b', null, 'How it works'), h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, '1. Copy the prompt into Sonnet. It knows your story and writes 3 detailed designs. 2. Paste its reply. 3. Copy each image prompt into an image AI (ChatGPT, Gemini, Ideogram). 4. Add the pictures here and pick your favourite.')),
+      h('button', { class: 'btn primary', onclick: function () {
+        var ta = h('textarea', { class: 'area', style: { minHeight: '220px' }, placeholder: 'Paste the Sonnet reply with the thumbnails JSON.' });
+        modal({ title: 'Paste the thumbnail designs', body: ta, actions: [{ label: 'Save', primary: true, do: function () {
+          var txt = ta.value, a = txt.indexOf('{'), b = txt.lastIndexOf('}'), j = null; try { j = JSON.parse(txt.slice(a, b + 1)) } catch (e) { }
+          var l = j && (j.thumbnails || j.designs); if (!Array.isArray(l) || !l.length) { ta.classList.add('field-bad'); toast('No thumbnails were found. The reply must hold {"thumbnails": [...]}.', 'warn'); return false }
+          T.concepts = l.slice(0, 3).map(function (x, i) { return { n: i + 1, name: x.name || 'Design ' + (i + 1), idea: x.idea || '', prompt: x.image_prompt || x.prompt || '', text: x.text || '', place: x.text_place || '' } });
+          save(true).then(render); toast('Three designs saved.', 'ok');
+        } }] });
+      } }, icon('paste'), cs.length ? 'Replace designs' : 'Paste designs'))));
+    if (!cs.length) { pg.appendChild(h('div', { class: 'card empty' }, 'No designs yet.')); pg.appendChild(nextBar({ label: 'Sound', go: 'sound' }, { label: 'Next: Watch & export', go: 'export' })); return pg }
+    var grid = h('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' } });
+    cs.forEach(function (c) {
+      var img = h('div', { style: { aspectRatio: P.format === 'long' ? '16 / 9' : '9 / 16', maxHeight: '360px', borderRadius: '10px', overflow: 'hidden', background: 'var(--third)', border: '1px solid var(--edge)', display: 'grid', placeItems: 'center', margin: '0 auto', width: P.format === 'long' ? '100%' : 'auto', height: P.format === 'long' ? 'auto' : '360px' } }, h('span', { class: 'muted', style: { fontSize: '12px' } }, 'No picture yet'));
+      if (c.has) S.getBlob(P.id + ':thumb:' + c.n).then(function (b) { if (b) { img.innerHTML = ''; img.appendChild(h('img', { src: URL.createObjectURL(b), alt: c.name, style: { width: '100%', height: '100%', objectFit: 'cover' } })) } });
+      var fin = h('input', { type: 'file', accept: 'image/*', class: 'hidden-file' });
+      fin.addEventListener('change', function () { var f = fin.files[0]; if (!f) return; S.putBlob(P.id + ':thumb:' + c.n, f).then(function () { c.has = true; save(true).then(render); toast('Picture added to ' + c.name + '.', 'ok') }) });
+      grid.appendChild(h('div', { class: 'panel' + (T.fav === c.n ? ' lit' : ''), style: T.fav === c.n ? { boxShadow: '0 0 0 2px var(--accent), var(--shadow-panel)' } : null },
+        h('div', { class: 'row' }, h('span', { class: 'mono', style: { color: 'var(--gold)' } }, String(c.n)), h('h2', { style: { margin: 0 } }, c.name), T.fav === c.n ? h('span', { class: 't-ok', style: { fontSize: '12px' } }, 'Favourite') : null),
+        h('p', { class: 'sub', style: { marginTop: '4px' } }, c.idea), img,
+        c.text ? h('div', { style: { margin: '10px 0 0', fontSize: '12.5px' } }, h('span', { class: 'muted' }, 'Text: '), h('b', null, c.text), c.place ? h('span', { class: 'muted' }, ' · ' + c.place) : null) : null,
+        h('div', { class: 'row', style: { marginTop: '12px' } },
+          h('button', { class: 'btn small', onclick: function () { copyText(c.prompt, 'The image prompt is copied') } }, icon('copy'), 'Image prompt'),
+          h('button', { class: 'btn small', onclick: function () { fin.click() } }, icon('image'), c.has ? 'Replace picture' : 'Add picture'), fin,
+          c.has ? h('button', { class: 'btn small', onclick: function () { S.getBlob(P.id + ':thumb:' + c.n).then(function (b) { if (b) download(safeName(P.name) + ' - thumbnail ' + c.n + '.' + ((b.type.split('/')[1] || 'png').replace('jpeg', 'jpg')), b) }) } }, icon('download'), 'Download') : null,
+          h('button', { class: 'btn small' + (T.fav === c.n ? ' primary' : ''), onclick: function () { T.fav = c.n; save(true).then(render) } }, T.fav === c.n ? 'Favourite' : 'Make favourite'))));
+    });
+    pg.appendChild(grid);
+    pg.appendChild(nextBar({ label: 'Sound', go: 'sound' }, { label: 'Next: Watch & export', go: 'export' }));
+    return pg;
+  }
+
+  /* ================= stage 7: watch & export ================= */
+  var WATCH = { on: false, t: 0, raf: 0, busy: false };
+  function uploadPrompt() {
+    var plan = GK.plan(P), long = P.format === 'long';
+    return 'Write the upload package for this ' + (long ? 'YouTube video' : 'YouTube Short and TikTok') + '. Aim for the most clicks and watch time without misleading anyone.\n\n' +
+      'TITLE IDEA: ' + (P.name || plan.title) + '\nLENGTH: ' + fmtLen(totalDur()) + '\nSCRIPT:\n' + (P.script || '').trim() + '\n\n' +
+      'Give: 1) 6 title options (under 60 characters, curiosity without lying, the best first), 2) a description (' + (long ? 'first 2 lines hook, then a short summary, then chapters with timestamps from the parts below' : '2 to 3 short lines') + '), 3) 15 tags, 4) 3 to 5 hashtags, 5) a pinned comment that starts a discussion' + (long ? ', 6) chapter timestamps' : '') + '.\n' +
+      (long ? 'PARTS (for chapters):\n' + plan.parts.map(function (p) { return fmtT(p.start).replace(/\.\d$/, '') + ' ' + (p.title || 'Part ' + p.id) }).join('\n') + '\n' : '') +
+      'Reply in plain text with those headings.';
+  }
+  function exportPage() {
+    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(7, 'Watch & export', 'The finished video.'), nt);
+    ensureJobs();
+    var plan = GK.plan(P), wide = P.format === 'long';
+    var pg = h('div', { class: 'page' }, pageHead(7, 'Watch & export', 'Watch the joined video with all the sound. Click a moment to improve it, then make the MP4.',
+      h('button', { class: 'btn', onclick: fileForModel }, icon('download'), 'Project file')));
+    var stage = h('canvas', { width: wide ? 960 : 540, height: wide ? 540 : 960, style: { width: wide ? '100%' : 'auto', height: wide ? 'auto' : 'min(64dvh, 640px)', maxWidth: '100%', display: 'block', margin: '0 auto', background: '#000', borderRadius: '12px' } });
+    var status = h('div', { class: 'muted', style: { fontSize: '12.5px', margin: '8px 0' } }, 'Loading the project file…');
+    var tm = h('span', { class: 'time' }), fill = h('i'), where = h('span', { class: 'where' });
+    var dur = totalDur();
+    var bar = h('div', { class: 'bar', onclick: function (e) { var r = bar.getBoundingClientRect(); WATCH.t = Math.max(0, Math.min(dur - .05, (e.clientX - r.left) / r.width * dur)); if (WATCH.on) { stopWatch(); startWatch() } else drawAt(WATCH.t) } }, fill);
+    var pbtn = h('button', { class: 'btn round primary', 'aria-label': 'Play', onclick: function () { if (WATCH.on) stopWatch(); else startWatch() } }, icon('play'));
+    var player = h('div', { class: 'player', style: { position: 'static', marginTop: '10px' } }, pbtn, h('button', { class: 'btn round', 'aria-label': 'Stop', title: 'Stop', onclick: function () { stopWatch(); WATCH.t = 0; drawAt(0) } }, icon('stop')), tm, bar, where,
+      h('button', { class: 'btn small', onclick: improveMoment }, icon('spark'), 'Improve this moment'));
+    function paint() { tm.textContent = fmtT(WATCH.t) + ' / ' + fmtT(dur); fill.style.width = (dur ? WATCH.t / dur * 100 : 0) + '%'; var p = plan.parts.filter(function (x) { return WATCH.t >= x.start && WATCH.t < x.end })[0]; where.textContent = p ? 'Part ' + p.id : '' }
+    function drawAt(t) {
+      paint();
+      if (!MASTER.host || WATCH.busy) return Promise.resolve();
+      WATCH.busy = true;
+      return MASTER.host.ask({ cmd: 'frame', t: t }).then(function (svg) { if (!svg || typeof svg !== 'string') return; return GK.raster(svg, stage.width, stage.height).then(function (c) { stage.getContext('2d').drawImage(c, 0, 0) }) }).catch(function () { }).then(function () { WATCH.busy = false });
+    }
+    function startWatch() {
+      stopAudio(); if (WATCH.t >= dur - .1) WATCH.t = 0;
+      soundBlobs().then(function (b) { return SD.play(P, WATCH.t, dur, b) }).then(function () { WATCH.on = true; pbtn.innerHTML = ''; pbtn.appendChild(icon('pause')); pbtn.setAttribute('aria-label', 'Pause'); loop() });
+    }
+    function stopWatch() { var n = SD.now(); if (n != null) WATCH.t = n; SD.stop(); WATCH.on = false; cancelAnimationFrame(WATCH.raf); pbtn.innerHTML = ''; pbtn.appendChild(icon('play')); pbtn.setAttribute('aria-label', 'Play') }
+    function loop() { if (!stage.isConnected) { SD.stop(); WATCH.on = false; return } var n = SD.now(); if (n != null) { WATCH.t = n; if (n >= dur) { stopWatch(); WATCH.t = 0; return } drawAt(n) } WATCH.raf = requestAnimationFrame(loop) }
+    function improveMoment() {
+      if (WATCH.on) stopWatch();
+      var p = plan.parts.filter(function (x) { return WATCH.t >= x.start && WATCH.t < x.end })[0]; if (!p) return;
+      var local = WATCH.t - p.start, note = h('textarea', { class: 'area', style: { minHeight: '110px' }, placeholder: 'What should be better here? For example: the boy is too small, the light is too dark, the camera moves too fast.' });
+      var reply = h('textarea', { class: 'area', style: { minHeight: '140px', marginTop: '10px' }, placeholder: 'Then paste the Sonnet reply with the improved part here.' });
+      modal({ title: 'Improve part ' + p.id + ' at ' + local.toFixed(1) + ' s', body: h('div', null, h('p', { class: 'muted', style: { margin: '0 0 8px', fontSize: '12.5px' } }, 'Video time ' + fmtT(WATCH.t) + '. Write what you want, copy the prompt into a new Sonnet chat with the project file, then paste the reply.'), note,
+        h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn small', onclick: function () { copyText(J.improvePrompt(P, p.id, local, note.value.trim()), 'The improve prompt is copied') } }, icon('copy'), 'Copy prompt'), h('button', { class: 'btn small', onclick: fileForModel }, icon('download'), 'Project file')), reply),
+        actions: [{ label: 'Check and use', primary: true, do: function () {
+          var r = GK.parse('scene', reply.value, { part: p.id }); if (r.error) { reply.classList.add('field-bad'); toast(r.error, 'warn', 7000); return false }
+          S.snapshot(P, 'Before improving part ' + p.id);
+          P.improved = (P.improved || []).filter(function (b) { return b.id !== p.id }).concat([{ id: p.id, code: r.code, at: Date.now(), note: note.value.trim() }]);
+          save(true).then(function () { closeMaster(); render(); toast('Part ' + p.id + ' is improved. Earlier versions are kept (Script & audio, More, Undo).', 'ok', 7000) });
+        } }] });
+    }
+    var info = h('div', { class: 'stack', style: { gap: '10px' } });
+    var left = h('div', { class: 'panel' }, stage, status, player);
+    var exp = h('div', { class: 'card' }, h('h2', null, 'Make the MP4'), h('p', { class: 'sub' }, (wide ? '1920 x 1080' : '1080 x 1920') + ', 30 frames a second, with the narration, music and effects. Keep this window open while it works.'));
+    var prog = h('div', { style: { display: 'none', marginTop: '10px' } }, h('div', { class: 'status-line' }), h('div', { class: 'progress' }, h('i', { style: { width: '0%' } })));
+    var ebtn = h('button', { class: 'btn primary', onclick: doExport }, icon('film'), 'Make the MP4'), cbtn = h('button', { class: 'btn', style: { display: 'none' }, onclick: function () { window.EXPORTER.cancel() } }, 'Stop');
+    exp.appendChild(h('div', { class: 'row' }, ebtn, cbtn)); exp.appendChild(prog);
+    if (LASTVIDEO && LASTVIDEO.pid === P.id) exp.appendChild(h('div', { class: 'row', style: { marginTop: '10px' } }, h('span', { class: 't-ok' }, 'Ready: ' + LASTVIDEO.name), h('button', { class: 'btn small', onclick: function () { download(LASTVIDEO.name, LASTVIDEO.blob) } }, icon('download'), 'Download again')));
+    function doExport() {
+      if (!window.EXPORTER.supported()) { toast('This browser cannot make video files. Use Chrome or Edge on a computer.', 'bad', 8000); return }
+      var missing = plan.parts.filter(function (p) { return !(MASTER.info && MASTER.info.built.some(function (b) { return b.id === p.id })) });
+      if (missing.length) { toast('Not every part is built yet (missing: ' + missing.map(function (p) { return p.id }).join(', ') + '). Build and pick them first.', 'warn', 8000); return }
+      if (WATCH.on) stopWatch();
+      BUSY = true; ebtn.setAttribute('disabled', ''); cbtn.style.display = ''; prog.style.display = '';
+      var line = prog.querySelector('.status-line'), bfill = prog.querySelector('.progress i');
+      line.textContent = 'Mixing the sound…';
+      soundBlobs().then(function (b) { return SD.mix(P, dur, b) }).then(function (mix) {
+        return window.EXPORTER.run(MASTER.host, mix, dur, wide, function (stage2, f, left) { bfill.style.width = (f * 100).toFixed(1) + '%'; line.textContent = stage2 === 'audio' ? 'Encoding the sound…' : stage2 === 'done' ? 'Finishing…' : 'Drawing frames: ' + Math.round(f * 100) + '% · about ' + fmtLen(left) + ' left' });
+      }).then(function (r) {
+        var name = safeName(P.name) + '.' + r.ext; LASTVIDEO = { pid: P.id, name: name, blob: r.blob };
+        download(name, r.blob); P.exported = Date.now(); save(true);
+        S.folder().state === 'ok' && S.saveFile && S.saveFile(P, name, r.blob);
+        toast('Your video is ready: ' + name + ' (' + (r.blob.size / 1048576).toFixed(1) + ' MB, made in ' + fmtLen(r.seconds) + ').', 'ok', 9000);
+      }).catch(function (e) { toast('The MP4 could not be made: ' + e.message, 'bad', 9000) })
+        .then(function () { BUSY = false; render() });
+    }
+    var up = h('textarea', { class: 'area', style: { minHeight: '150px' }, placeholder: 'Paste the upload package from Sonnet here to keep it with the video.' }, (P.upload || ''));
+    up.addEventListener('input', function () { P.upload = up.value; save() });
+    var pack = h('div', { class: 'card' }, h('h2', null, 'Upload package'), h('p', { class: 'sub' }, 'Titles, description, tags, hashtags and a pinned comment.'),
+      h('div', { class: 'row', style: { marginBottom: '10px' } }, h('button', { class: 'btn', onclick: function () { copyText(uploadPrompt(), 'The upload prompt is copied') } }, icon('copy'), 'Copy prompt for Sonnet'), P.upload ? h('button', { class: 'btn', onclick: function () { copyText(P.upload, 'The package is copied') } }, icon('copy'), 'Copy package') : null), up);
+    info.appendChild(exp); info.appendChild(pack);
+    pg.appendChild(h('div', { class: 'cols' }, left, info));
+    pg.appendChild(nextBar({ label: 'Thumbnails', go: 'thumbs' }, null));
+    master().then(function (M) {
+      var b = M.info.built.map(function (x) { return x.id }), miss = plan.parts.filter(function (p) { return b.indexOf(p.id) < 0 }).map(function (p) { return p.id });
+      var bad = Object.keys(M.info.lint || {}).filter(function (k) { return (M.info.lint[k] || []).some(function (r) { return !r.ok }) });
+      status.innerHTML = '';
+      status.appendChild(h('span', { class: miss.length ? 't-warn' : 't-ok' }, miss.length ? (b.length ? 'Built parts: ' + b.join(', ') + '. Not built yet: ' + miss.join(', ') + '.' : 'No parts are built yet. Build them in Prompts and pick them in Pick the best.') : 'All ' + b.length + ' parts are built.'));
+      if (bad.length) status.appendChild(h('span', { class: 't-warn' }, '  Checks with problems: ' + bad.join(', ') + '.'));
+      if ((M.info.errors || []).length) status.appendChild(h('div', { class: 't-bad' }, 'Script errors: ' + M.info.errors.slice(0, 2).join('; ')));
+      if (b.length) drawAt(WATCH.t);
+      else { var g = stage.getContext('2d'); g.fillStyle = '#141416'; g.fillRect(0, 0, stage.width, stage.height); g.fillStyle = 'rgba(236,230,216,.7)'; g.font = '600 22px Inter, Arial, sans-serif'; g.textAlign = 'center'; g.fillText('No parts are built yet', stage.width / 2, stage.height / 2 - 10); g.font = '15px Inter, Arial, sans-serif'; g.fillText('Build and pick them in stages 3 and 4', stage.width / 2, stage.height / 2 + 20) }
+    });
+    paint();
+    return pg;
+  }
+  var LASTVIDEO = null;
+
+  /* ================= settings ================= */
+  function settings() {
+    var gk = h('input', { class: 'input', type: 'password', placeholder: 'Paste your free Gemini key', value: CR.key(), autocomplete: 'off' });
+    var fk = h('input', { class: 'input', type: 'password', placeholder: 'Paste your free Freesound key', value: SD.fsKey(), autocomplete: 'off' });
+    var calm = h('div', null, seg([{ id: 'on', label: 'Animations on' }, { id: 'off', label: 'Calm (no animations)' }], document.body.classList.contains('calm') ? 'off' : 'on', function (v) { try { localStorage.setItem('studio.calm', v === 'off' ? '1' : '') } catch (e) { } document.body.classList.toggle('calm', v === 'off'); document.querySelector('.veil').remove(); settings() }));
+    modal({ title: 'Settings', body: h('div', null,
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Gemini key (the automatic critic)'), gk, h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, 'Free at aistudio.google.com, Get API key. It stays only in this browser.')),
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Freesound key (sound effects)'), fk, h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, 'Free at freesound.org/apiv2/apply after making an account. Only free-to-use (CC0) sounds are taken.')),
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Motion'), calm)),
+      actions: [{ label: 'Save', primary: true, do: function () { CR.setKey(gk.value); SD.setFsKey(fk.value); toast('Settings saved.', 'ok'); render() } }] });
+  }
+
   /* ================= plan, versions ================= */
   function planJSON() { return JSON.stringify(AU.plan(P), null, 1) }
   function copyPlan() { navigator.clipboard.writeText(planJSON()).then(function () { toast('The plan is copied.', 'ok') }, function () { toast('Could not copy. Use "Download the plan" instead.', 'bad') }) }
@@ -575,7 +1082,9 @@
   /* ================= start ================= */
   function start() {
     frame();
-    if (/[?&]calm/.test(location.search)) document.body.classList.add('calm');
+    var calmOn = false; try { calmOn = !!localStorage.getItem('studio.calm') } catch (e) { }
+    if (calmOn || /[?&]calm/.test(location.search)) document.body.classList.add('calm');
+    GK.template().catch(function () { });
     S.persist();
     Promise.all([S.list(), S.loadFolder()]).then(function (r) { ALL = r[0]; paintFolder(); route() })
       .catch(function (e) { mainEl.appendChild(h('div', { class: 'card' }, 'The app could not open its storage: ' + (e && e.message || e) + '. Close other tabs of this app and reload.')) });

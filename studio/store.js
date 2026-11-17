@@ -106,5 +106,10 @@
       return Promise.all(jobs);
     }).then(function () { return true });
   };
+  /* a finished file (the MP4) also goes into the video's backup folder */
+  S.saveFile = function (p, name, blob) {
+    if (DIRSTATE !== 'ok' || !DIR) return Promise.resolve(false);
+    return DIR.getDirectoryHandle(safe(p.name) + ' (' + p.id.slice(-4) + ')', { create: true }).then(function (d) { return writeFile(d, name, blob) }).then(function () { return true }).catch(function () { return false });
+  };
   S.backupAll = function () { return S.list().then(function (all) { return Promise.all(all.map(function (p) { return S.backup(p) })) }) };
 })();

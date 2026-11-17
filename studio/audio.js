@@ -143,13 +143,28 @@
     });
   };
   /* a script word counts as "heard" when Whisper said (nearly) the same word at about that time */
+  /* number words and digits count as the same word ("twenty-eight" = "28") */
+  var NUM = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+  function numWord(w) {
+    var parts = String(w).toLowerCase().replace(/[^a-z\-]/g, '').split('-').filter(Boolean), v = 0;
+    if (!parts.length) return null;
+    for (var i = 0; i < parts.length; i++) { if (!(parts[i] in NUM)) return null; v += NUM[parts[i]] }
+    return String(v);
+  }
+  A.numWord = numWord;
   function markGuessed(text, heard, words) {
-    function n(w) { return String(w).toLowerCase().replace(/[^a-z0-9]/g, '') }
+    function n(w) { var d = numWord(w); return d != null ? d : String(w).toLowerCase().replace(/[^a-z0-9]/g, '') }
+    var NUMPART = /^(hundred|thousand|and|point|degrees?)$/i;
     var j = 0;
     return words.map(function (w) {
       var a = n(w[0]);
       while (j < heard.length && heard[j][2] < w[1] - .05) j++;
-      for (var k = j; k < Math.min(heard.length, j + 3); k++) { var b = n(heard[k][0]); if (b && a && (a === b || a.indexOf(b) === 0 || b.indexOf(a) === 0) && Math.abs(heard[k][1] - w[1]) < .06) return false }
+      for (var k = j; k < Math.min(heard.length, j + 3); k++) {
+        var b = n(heard[k][0]), near = heard[k][1] <= w[2] + .08 && heard[k][2] >= w[1] - .08;
+        if (b && a && (a === b || a.indexOf(b) === 0 || b.indexOf(a) === 0) && Math.abs(heard[k][1] - w[1]) < .06) return false;
+        // a number said in words ("one hundred and twenty") heard as digits ("120"): every word of it counts as heard
+        if (near && /^\d/.test(b) && (numWord(w[0]) != null || NUMPART.test(String(w[0]).replace(/[^a-z]/gi, '')))) return false;
+      }
       return true;
     });
   }
