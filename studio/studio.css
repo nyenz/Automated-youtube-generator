@@ -20,14 +20,18 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body { background: var(--bg-base); background-image: var(--bg-pattern); color: var(--ink); font: 400 clamp(13px, .9vw, 14.5px)/1.5 var(--f-sans); -webkit-font-smoothing: antialiased; overflow: hidden; }
+body { font-variant-numeric: lining-nums; background: var(--bg-base); background-image: var(--bg-pattern); color: var(--ink); font: 400 clamp(13px, .9vw, 14.5px)/1.5 var(--f-sans); -webkit-font-smoothing: antialiased; overflow: hidden; }
 a { color: inherit; text-decoration: none; }
 button, input, textarea { font: inherit; color: inherit; }
 ::selection { background: var(--accent-soft); }
 /* custom scrollbars everywhere */
-* { scrollbar-width: thin; scrollbar-color: rgba(200,32,43,.35) transparent; }
+/* Chrome, Edge, Brave: the thin custom bar with no arrow buttons (the standard scrollbar-color rule is left out for them,
+   because on Windows it brings back the default bar with arrows) */
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-corner { background: transparent; }
+@supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: rgba(200,32,43,.35) transparent; } }
 ::-webkit-scrollbar { width: 4px; height: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(200,32,43,.35); border-radius: 4px; }
-.noscroll { scrollbar-width: none; } .noscroll::-webkit-scrollbar { display: none; }
+.noscroll { scrollbar-width: none; } .noscroll::-webkit-scrollbar { width: 0; height: 0; } .noscroll::-webkit-scrollbar { display: none; }
 
 /* ---------- frame ---------- */
 .app { display: grid; grid-template-columns: var(--side-w) 1fr; grid-template-rows: var(--top-h) 1fr; height: 100dvh; }
@@ -295,3 +299,24 @@ button, input, textarea { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001s !important; transition-duration: .001s !important; } }
 body.calm *, body.calm *::before, body.calm *::after { animation-duration: .001s !important; transition-duration: .001s !important; }
 .btn.danger { color: var(--bad); border-color: rgba(209,69,59,.4); } .btn.danger:hover { border-color: var(--bad); box-shadow: 0 4px 14px rgba(209,69,59,.18); }
+
+/* back button in title bars, next-stage bar, player bar */
+.back { width: 38px; height: 38px; flex: none; border-radius: var(--r-s); display: grid; place-items: center; border: 1px solid var(--edge-2); background: var(--glass); color: var(--ink); cursor: pointer; transition: border-color var(--t), box-shadow var(--t), background var(--t); }
+.back:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(200,32,43,.22); background: var(--glass-2); }
+.back .ic { transform: rotate(180deg); }
+.crumb a { color: var(--ink-3); cursor: pointer; transition: color var(--t); } .crumb a:hover { color: var(--ink); }
+.crumb b { cursor: pointer; } .crumb b:hover { color: var(--accent-2); }
+.nextbar { display: flex; align-items: center; gap: 10px; margin-top: var(--gap); padding-top: var(--gap); border-top: 1px solid var(--line); flex-wrap: wrap; }
+.nextbar .grow { flex: 1; }
+.player { position: sticky; bottom: 0; z-index: 15; display: flex; align-items: center; gap: 8px; margin-top: var(--gap); padding: 10px 12px; border-radius: 14px; background: rgba(30,30,33,.88); backdrop-filter: blur(14px); border: 1px solid var(--edge-2); box-shadow: 0 -8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06); flex-wrap: wrap; }
+.player .time { font: 600 13px/1 var(--f-mono); min-width: 128px; }
+.player .where { font-size: 12px; color: var(--ink-3); }
+.player .grow { flex: 1; }
+.player .bar { flex: 1 1 160px; height: 6px; border-radius: 6px; background: rgba(236,230,216,.10); position: relative; cursor: pointer; }
+.player .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: linear-gradient(90deg, var(--accent), #ff6b73); box-shadow: 0 0 10px rgba(200,32,43,.55); }
+.player .keys { font-size: 11px; color: var(--ink-3); }
+.btn.playing { border-color: var(--accent); color: #fff; background: rgba(200,32,43,.35); box-shadow: 0 0 0 2px rgba(200,32,43,.25); }
+.btn.round { width: 38px; padding: 0; }
+.toast .act { border: 1px solid var(--edge-2); background: var(--glass); color: var(--ink); border-radius: 8px; padding: 4px 10px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: border-color var(--t); }
+.toast .act:hover { border-color: var(--accent); }
+@media (max-width: 860px) { .player .keys { display: none; } .player .time { min-width: 0; } }
