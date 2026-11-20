@@ -107,7 +107,7 @@
     window.addEventListener('appinstalled', function () { INSTALL = null; installBtn.style.display = 'none'; toast('Installed. Nyenz Auto-Edit now has its own window and icon.', 'ok') });
     topEl = h('header', { class: 'top' },
       h('div', { class: 'brand', onclick: function () { go('') }, title: 'Home' }, logo(), h('span', null, 'Nyenz Auto-Edit')),
-      h('div', { class: 'crumb', id: 'crumb' }), h('div', { class: 'grow' }), saveEl, installBtn, h('button', { class: 'chip', title: 'Settings: keys, folders and A/B', onclick: settings }, icon('gear'), h('span', { class: 'lbl' }, 'Settings')), folderChip);
+      h('div', { class: 'crumb', id: 'crumb' }), h('div', { class: 'grow' }), saveEl, installBtn, h('button', { class: 'chip', title: 'Settings: keys, folders and motion', onclick: settings }, icon('gear'), h('span', { class: 'lbl' }, 'Settings')), folderChip);
     sideEl = h('nav', { class: 'side' });
     mainEl = h('main', { class: 'main' });
     root = h('div', { class: 'app' }, topEl, sideEl, mainEl);
@@ -138,9 +138,9 @@
     }
     sideEl.appendChild(h('div', { class: 'cap' }, 'Stages'));
     STAGES.forEach(function (s, i) {
-      var done = stageDone(s.id);
+      var done = stageDone(s.id), nm = s.id === 'pick' ? stageNames() : s;
       sideEl.appendChild(h('div', { class: 'stage' + (s.id === STAGE ? ' on' : '') + (s.locked ? ' locked' : '') + (done ? ' done' : ''), title: s.locked ? 'Coming next' : '', onclick: function () { if (!s.locked) go(P.id + '/' + s.id) } },
-        h('span', { class: 'n' }, s.locked ? icon('lock') : done && s.id !== STAGE ? icon('check') : String(i + 1)), h('span', { class: 'l' }, h('span', { class: 't' }, s.t), h('span', { class: 's' }, s.locked ? 'Coming next' : s.s))));
+        h('span', { class: 'n' }, s.locked ? icon('lock') : done && s.id !== STAGE ? icon('check') : String(i + 1)), h('span', { class: 'l' }, h('span', { class: 't' }, nm.t), h('span', { class: 's' }, s.locked ? 'Coming next' : nm.s))));
     });
     sideEl.appendChild(h('div', { class: 'foot' }, h('div', null, 'Style: ', h('b', null, window.styleById(P.style).name)), h('div', null, P.format === 'long' ? 'Long video, 16:9' : 'Short, 9:16')));
   }
@@ -167,12 +167,14 @@
     var parts = location.hash.replace(/^#\/?/, '').split('/');
     if (!parts[0]) { closeMaster(); SD.stop(); P = null; render(); return }
     var id = parts[0], stage = parts[1] || 'style';
+    PICKVIEW = stage === 'pick' && parts[2] ? decodeURIComponent(parts[2]) : null;
     var have = ALL.filter(function (x) { return x.id === id })[0];
     var load = have ? Promise.resolve(have) : S.get(id);
     load.then(function (p) {
       if (!p) { toast('That video was not found. It may have been deleted.', 'warn'); go(''); return }
       if (!P || P.id !== p.id) { closeMaster(); SD.stop(); UNDO = []; CURKEY = ''; P = p; SELPART = 0; SELWORD = -1; AUDIOTAB = p.timing ? 'parts' : 'inputs'; PREVIEW = p.style; loadAudio() }
       STAGE = STAGES.some(function (s) { return s.id === stage && !s.locked }) ? stage : 'style';
+      if (PICKVIEW && !(p.jobs && p.jobs[PICKVIEW])) PICKVIEW = null;
       render();
     });
   }
@@ -566,7 +568,7 @@
   }
 
   /* ================= the project file in the locked frame (one at a time, rebuilt when the picks change) ================= */
-  var J = window.JOBS, GK = window.GK, CR = window.CRITIC, SD = window.SOUND;
+  var J = window.JOBS, GK = window.GK, CR = window.CRITIC, SD = window.SOUND, REPLY = window.REPLY;
   var MASTER = { key: '', host: null, info: null, job: null };
   function masterKey() { return JSON.stringify([GK.plan(P), J.blocks(P)]) }
   function master() {
@@ -583,142 +585,330 @@
   function download(name, blob) { var a = h('a', { href: URL.createObjectURL(blob), download: name }); document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove() }, 4000) }
   function safeName(n) { return String(n || 'video').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'video' }
   function fileForModel() {
-    return GK.compose(P, J.blocks(P)).then(function (t) { download(safeName(P.name) + ' - project.html', new Blob([t], { type: 'text/html' })); toast('The project file is downloaded. Attach it in the Sonnet chat together with the prompt.', 'ok', 6000) })
+    return GK.compose(P, J.blocks(P)).then(function (t) { download(J.fileName(P), new Blob([t], { type: 'text/html' })); toast('Project file ' + J.stamp(P) + ' is downloaded. Attach it in the Sonnet chat together with the prompt (the number must match).', 'ok', 7000) })
       .catch(function (e) { toast('Could not make the file: ' + e.message, 'bad') });
   }
-  function copyText(t, what) { return navigator.clipboard.writeText(t).then(function () { toast((what || 'Copied') + '. Paste it into the Sonnet chat.', 'ok') }, function () { modal({ title: 'Copy this', body: h('textarea', { class: 'area', style: { minHeight: '260px' } }, t), actions: [] }) }) }
+  function copyText(t, what, hint) { return navigator.clipboard.writeText(t).then(function () { toast((what || 'Copied') + '. ' + (hint || 'Paste it into the Sonnet chat.'), 'ok', hint ? 6500 : 4200) }, function () { modal({ title: 'Copy this', body: h('textarea', { class: 'area', style: { minHeight: '260px' } }, t), actions: [] }) }) }
   function needTiming() {
     if (P.timing && P.timing.words && P.timing.words.length) return null;
     return h('div', { class: 'card locked-page' }, h('h2', null, 'Finish Script & audio first'), h('p', { class: 'muted' }, 'This stage uses the parts and word times from stage 2.'), h('button', { class: 'btn primary', onclick: function () { go(P.id + '/audio') } }, 'Go to Script & audio'));
   }
   function pageHead(n, title, sub, extra) { return h('div', { class: 'titlebar' }, backBtn(), h('div', null, h('h1', null, n + '. ' + title), h('p', null, sub)), h('div', { class: 'grow' }), extra || null) }
 
-  /* check one pasted version in the frame: does it draw, does it pass LINT */
-  function checkVersion(job, ver) {
-    if (job.kind === 'plan') {
-      var pl = ver.plan, want = GK.plan(P).parts, ids = (pl.parts || []).map(function (p) { return p.id }), issues = [];
-      want.forEach(function (w) { if (ids.indexOf(w.id) < 0) issues.push('Part ' + w.id + ' is missing') });
-      (pl.parts || []).forEach(function (p) { var w = want.filter(function (x) { return x.id === p.id })[0]; if (!w) { issues.push('Part ' + p.id + ' is not in the timing (it will be ignored)'); return } if (p.start != null && Math.abs(p.start - w.start) > .05 || p.end != null && Math.abs(p.end - w.end) > .05) issues.push('Part ' + p.id + ' times were changed (the app keeps its own)'); if (!(p.cast || []).length && !(p.assets || []).length) issues.push('Part ' + p.id + ' has no cast or assets') });
-      ver.check = { ok: !issues.some(function (i) { return /missing|no cast/.test(i) }), issues: issues };
-      return Promise.resolve(ver);
-    }
+  /* ================= checking and saving replies ================= */
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's') }
+  function fmtN(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }
+  function finishCheck(statics, run, r) {
+    var problems = statics.concat(run), c = REPLY.counts(problems);
+    return { ok: !c.errors, notes: c.notes, problems: problems, issues: problems.filter(function (p) { return p.level === 'error' }).map(function (p) { return p.title }),
+      lintPass: r && r.lint ? r.lint.filter(function (x) { return x.ok }).length : null, lintAll: r && r.lint ? r.lint.length : null, at: Date.now() };
+  }
+  /* run one saved version in the locked frame: does it draw, does it pass LINT */
+  function checkVersion(job, ver, statics) {
+    if (job.kind === 'plan') { ver.check = finishCheck(statics, [], null); return Promise.resolve(ver) }
     return CR.inspect(P, job, ver === job.A ? 'A' : 'B').then(function (r) {
-      var issues = (r.errors || []).slice(0, 3);
-      if (r.broken) issues.unshift(r.broken);
-      if (r.cards) r.cards.forEach(function (c) { if (c.missing) issues.push(c.name + ' was not made'); else if (c.error) issues.push(c.name + ' does not draw: ' + c.error) });
-      if (r.lint) r.lint.filter(function (x) { return !x.ok }).forEach(function (x) { issues.push(x.msg) });
-      ver.check = { ok: !issues.length, issues: issues, lintPass: r.lint ? r.lint.filter(function (x) { return x.ok }).length : null, lintAll: r.lint ? r.lint.length : null };
-      return ver;
-    }).catch(function (e) { ver.check = { ok: false, issues: ['Could not be checked: ' + e.message] }; return ver });
+      ver.check = finishCheck(statics, REPLY.runProblems(P, job, ver, r), r); return ver;
+    }).catch(function (e) {
+      ver.check = finishCheck(statics, [{ id: 'check-failed', level: 'error', title: 'The check could not run', detail: e.message, fix: 'Paste the reply again. If it keeps failing, the code may hang the page.' }], null); return ver;
+    });
   }
-  function storeVersion(job, v, text) {
-    var r = GK.parse(job.kind, text, job);
-    if (r.error) return Promise.reject(new Error(r.error));
-    var ver = { at: Date.now(), raw: String(text).slice(0, 200000) };
-    if (job.kind === 'plan') ver.plan = r.plan; else { ver.code = r.code; ver.full = !!r.full; ver.note = r.note || '' }
-    job[v] = ver; if (job.pick === v) job.pick = null; job.critic = null;
-    return checkVersion(job, ver).then(function () { return save(true) }).then(function () { return ver });
+  /* read, save and check one reply. Rejects with { res } when there is nothing to save (the report says why). */
+  function storeVersion(job, v, text, o) {
+    var res = REPLY.read(P, job, text, { version: J.mode(P) === 'single' ? null : v, allowMany: o && o.allowMany });
+    if (!res.usable) return Promise.reject({ res: res });
+    if (job[v]) S.snapshot(P, 'Before replacing ' + J.tag(P, job) + (J.mode(P) === 'single' ? '' : ' ' + v));
+    var ver = { at: Date.now(), raw: String(text).slice(0, 200000), found: res.found };
+    if (job.kind === 'plan') ver.plan = res.plan; else { ver.code = res.code; ver.full = !!res.full; ver.note = res.note || '' }
+    job[v] = ver; if (job.pick === v) job.pick = null; job.critic = null; job.fail = null;
+    return checkVersion(job, ver, res.problems).then(function () {
+      if (J.mode(P) === 'single' && v === 'A' && ver.check.ok) usePick(job, 'A', true);   // one prompt: a reply that passes is used straight away
+      return save(true);
+    }).then(function () { return { ver: ver, res: res } });
   }
+  function noteFail(job, res, v, text) {
+    job.fail = { at: Date.now(), v: v, found: res.found, problems: res.problems, redirect: res.redirect ? res.redirect.id : null, raw: String(text).slice(0, 60000) };
+    return save(true);
+  }
+
+  /* the problem report: what the app found, each problem with its fix, what to do next, and the buttons to do it */
+  function problemPanel(job, d, o) {
+    o = o || {};
+    var probs = d.problems || [], c = REPLY.counts(probs), tag = J.tag(P, job), redirect = d.redirect ? P.jobs[d.redirect] : null, res = { found: d.found || [], redirect: redirect };
+    var box = h('div', { class: 'rep' });
+    var headTxt = !o.saved ? 'Reply for ' + tag + ' was NOT saved' : c.errors ? tag + ' saved, but it needs a fix' : tag + ' saved' + (o.inUse ? ' and in use' : '') + (c.notes ? ', with ' + plural(c.notes, 'note') : '');
+    box.appendChild(h('div', { class: 'rep-head ' + (c.errors || !o.saved ? 'bad' : 'warn') }, h('b', null, headTxt), h('span', { class: 'mono' }, plural(c.errors, 'problem') + (c.notes ? ' · ' + plural(c.notes, 'note') : ''))));
+    box.appendChild(h('div', { class: 'rep-sec' }, h('div', { class: 'rep-k' }, 'What the app found'), h('ul', { class: 'rep-list' }, res.found.map(function (f) { return h('li', null, f) }))));
+    if (probs.length) box.appendChild(h('div', { class: 'rep-sec' }, h('div', { class: 'rep-k' }, 'Problems'),
+      probs.map(function (p, i) { return h('div', { class: 'prob ' + p.level }, h('div', { class: 't' }, h('span', { class: 'n mono' }, String(i + 1)), h('span', null, p.title), h('span', { class: 'lv' }, p.level === 'error' ? 'problem' : 'note')), h('div', { class: 'd' }, p.detail), h('div', { class: 'f' }, h('b', null, 'Fix: '), p.fix)) })));
+    box.appendChild(h('div', { class: 'rep-sec' }, h('div', { class: 'rep-k' }, 'What to do next'), h('ol', { class: 'rep-list' }, REPLY.steps(P, job, probs, res).map(function (s) { return h('li', null, s) }))));
+    var acts = h('div', { class: 'row' });
+    if (redirect && o.onMove) acts.appendChild(h('button', { class: 'btn small primary', onclick: function () { o.onMove(redirect) } }, icon('paste'), 'Save it in ' + J.tag(P, redirect)));
+    if (probs.length && !redirect) acts.appendChild(h('button', { class: 'btn small primary', onclick: function () { copyText(REPLY.fixMessage(P, job, probs, o.fixVer || null), 'The fix message for ' + tag + ' is copied', 'Send it in the same Sonnet chat.') } }, icon('copy'), 'Copy fix message'));
+    acts.appendChild(h('button', { class: 'btn small', onclick: function () { copyText(o.promptFn ? o.promptFn() : J.prompt(P, job, J.mode(P)), 'Prompt ' + tag + ' is copied', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt again'));
+    acts.appendChild(h('button', { class: 'btn small', onclick: function () { copyText(REPLY.report(P, job, res, probs), 'The details are copied', 'Paste them wherever you need them.') } }, icon('copy'), 'Copy all details'));
+    if (o.saved && c.errors && o.onUse) acts.appendChild(h('button', { class: 'btn small', onclick: o.onUse }, icon('check'), 'Use it anyway'));
+    box.appendChild(acts);
+    return box;
+  }
+  /* the saved problems of a job (and the last paste that was refused), opened from a card */
+  function detailsModal(job) {
+    var body = h('div', { class: 'rep-stack' }), single = J.mode(P) === 'single', close;
+    ['A', 'B'].forEach(function (v) {
+      var x = job[v]; if (!x || !x.check || !(x.check.problems || []).length) return;
+      body.appendChild(h('div', null, single ? null : h('div', { class: 'rep-k', style: { margin: '0 0 6px' } }, 'Version ' + v),
+        problemPanel(job, { found: x.found || [], problems: x.check.problems }, { saved: true, v: v, fixVer: single ? null : v, inUse: job.pick === v, onUse: function () { usePick(job, v); close(); render() } })));
+    });
+    if (job.fail && (!job.A || job.fail.at > job.A.at)) body.appendChild(problemPanel(job, job.fail, { saved: false, v: job.fail.v, onMove: function (o2) { moveReply(job, o2, job.fail.raw, job.fail.v, close) } }));
+    if (!body.children.length) body.appendChild(h('div', { class: 'muted' }, 'No problems were found.'));
+    close = modal({ title: 'Details · ' + J.label(P, job), body: body, actions: [] });
+  }
+  /* a reply pasted into the wrong prompt: save it where it belongs */
+  function moveReply(from, to, text, v, close) {
+    var m = J.mode(P), v2 = m === 'single' ? 'A' : (v || 'A');
+    storeVersion(to, v2, text).then(function (r) { if (close) close(); render(); toast('Saved in ' + J.label(P, to) + (r.ver.check.ok ? '. It draws and passes the checks.' : '. It needs a fix: open its card.'), r.ver.check.ok ? 'ok' : 'warn', 7000) },
+      function (e) { toast(e && e.res ? 'It could not be saved in ' + J.tag(P, to) + ' either: ' + ((e.res.problems[0] || {}).title || 'see its card') + '.' : 'Could not save: ' + (e && e.message), 'bad', 8000) });
+  }
+
   function pasteBox(job, v) {
-    var ta = h('textarea', { class: 'area', placeholder: 'Paste the whole Sonnet reply here.' }), err = h('div', { class: 't-bad', style: { fontSize: '12.5px', marginTop: '8px' } });
-    var one = P.abMode === 'one' && !v;
-    modal({ title: (one ? 'Paste the reply with both versions' : 'Paste version ' + v) + ' · ' + job.title, body: h('div', null, h('p', { class: 'muted', style: { margin: '0 0 10px', fontSize: '12.5px' } }, 'Paste everything Sonnet wrote. The app finds the code and checks it.'), ta, err),
-      actions: [{ label: 'Check and save', primary: true, do: function () {
-        var txt = ta.value; if (!txt.trim()) { ta.classList.add('field-bad'); return false }
-        var pairs = one ? GK.splitVersions(txt) : null;
-        if (one && !pairs) { err.textContent = 'The two versions were not found. The reply must have "=== VERSION A ===" and "=== VERSION B ===" lines. You can also paste each version on its own.'; return false }
-        var jobsTo = one ? [['A', pairs.A], ['B', pairs.B]] : [[v, txt]];
-        var btn = document.querySelector('.modal .btn.primary'); btn.setAttribute('disabled', ''); btn.textContent = 'Checking…';
-        jobsTo.reduce(function (pr, x) { return pr.then(function () { return storeVersion(job, x[0], x[1]) }) }, Promise.resolve())
-          .then(function () { var cv = document.querySelector('.veil'); if (cv) cv.remove(); var vv = job[jobsTo[jobsTo.length - 1][0]]; toast(vv.check && vv.check.ok ? 'Saved and checked: it draws and passes.' : 'Saved. The check found problems; see the card.', vv.check && vv.check.ok ? 'ok' : 'warn', 6000); render() })
-          .catch(function (e) { btn.removeAttribute('disabled'); btn.textContent = 'Check and save'; err.textContent = e.message });
-        return false;
-      } }] });
+    var mode = J.mode(P), one = mode === 'one' && !v, tag = J.tag(P, job), close;
+    if (mode === 'single') v = 'A';
+    var ta = h('textarea', { class: 'area', style: { minHeight: '170px' }, placeholder: 'Paste the whole Sonnet reply here.' }), out = h('div', { class: 'rep-stack' });
+    var first = J.replyLine(P, job, one ? 'A' : (mode === 'single' ? null : v));
+    var title = (one ? 'Paste the reply with both versions' : mode === 'single' ? 'Paste the reply' : 'Paste version ' + v) + ' · ' + J.label(P, job);
+    var body = h('div', null,
+      h('p', { class: 'muted', style: { margin: '0 0 8px', fontSize: '12.5px' } }, 'Paste everything Sonnet wrote. The app checks the format, the numbers and that the code draws.'),
+      h('div', { class: 'expect' }, h('span', { class: 'k' }, 'First line expected'), h('code', null, first)), ta, out);
+    var label = 'Check and save';
+    function run() {
+      var txt = ta.value, btn = document.querySelector('.modal .btn.primary');
+      btn.setAttribute('disabled', ''); btn.textContent = 'Checking…'; out.innerHTML = '';
+      function restore() { btn.removeAttribute('disabled'); btn.textContent = label }
+      var items;
+      if (one) {
+        var pairs = txt.trim() ? GK.splitVersions(txt) : null;
+        if (!pairs) {
+          var d0 = txt.trim() ? { found: ['Characters pasted: ' + fmtN(txt.length) + '.', 'Lines "=== VERSION A ===" and "=== VERSION B ===": not both found.'], problems: [{ id: 'no-versions', level: 'error', title: 'The two versions were not found', detail: 'The reply must hold the line "=== VERSION A ===" before the first code block and "=== VERSION B ===" before the second.', fix: 'Ask for exactly two code blocks, each after its VERSION line. Or switch to "Compare: two chats" and paste each version on its own.' }] } : REPLY.read(P, job, '', {});
+          restore(); out.appendChild(problemPanel(job, d0, { saved: false })); noteFail(job, d0, null, txt); render(); return false;
+        }
+        items = [['A', pairs.A], ['B', pairs.B]];
+      } else items = [[v, txt]];
+      var shown = [], chain = Promise.resolve();
+      items.forEach(function (x) {
+        chain = chain.then(function () {
+          return storeVersion(job, x[0], x[1]).then(function (r) { shown.push({ v: x[0], saved: true, d: { found: r.res.found, problems: job[x[0]].check.problems } }) },
+            function (e) { if (!e || !e.res) throw e; noteFail(job, e.res, x[0], x[1]); shown.push({ v: x[0], saved: false, text: x[1], d: { found: e.res.found, problems: e.res.problems, redirect: e.res.redirect && e.res.redirect.id } }) });
+        });
+      });
+      chain.then(function () {
+        restore(); render();
+        var bad = shown.some(function (s) { return !s.saved || !job[s.v].check.ok }), notes = shown.reduce(function (n, s) { return n + (s.saved ? job[s.v].check.notes || 0 : 0) }, 0);
+        if (!bad) { close(); toast(tag + ' saved and checked: it draws and passes.' + (mode === 'single' ? ' It is in use.' : '') + (notes ? ' ' + plural(notes, 'note') + ' about the format.' : ''), notes ? 'warn' : 'ok', notes ? 8000 : 6000, notes ? { label: 'See notes', do: function () { detailsModal(job) } } : null); return }
+        shown.forEach(function (s) {
+          out.appendChild(h('div', null, shown.length > 1 ? h('div', { class: 'rep-k', style: { margin: '0 0 6px' } }, 'Version ' + s.v) : null,
+            problemPanel(job, s.d, { saved: s.saved, v: s.v, fixVer: mode === 'single' ? null : s.v, inUse: s.saved && job.pick === s.v, onMove: function (o2) { moveReply(job, o2, s.text, s.v, close) }, onUse: function () { usePick(job, s.v); close(); render() } })));
+        });
+        out.scrollIntoView && out.firstChild && out.firstChild.scrollIntoView({ block: 'nearest' });
+      }).catch(function (e) { restore(); out.appendChild(h('div', { class: 't-bad', style: { fontSize: '12.5px' } }, 'Something went wrong while checking: ' + (e && e.message || e) + '. Your pasted text is still here; try again.')) });
+      return false;
+    }
+    close = modal({ title: title, body: body, actions: [{ label: label, primary: true, do: run }] });
   }
 
   /* ================= stage 3: prompts ================= */
+  var GROUPS = [['plan', 'The plan', 'Sonnet plans places, people, assets and beats for every part. The times and words are already fixed by the app.'],
+    ['make', 'Assets and people', 'Hard things get a prompt of their own; simple ones are bunched. They can run in many chats at the same time.'],
+    ['scene', 'Scenes', 'One part per prompt, in any order, each in its own chat with the same project file.']];
   function promptsPage() {
-    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(3, 'Prompts', 'One Sonnet chat per job.'), nt);
+    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(3, 'Prompts', 'Numbered prompts for Sonnet.'), nt);
     ensureJobs();
-    var L = J.list(P), done = L.filter(function (j) { return J.picked(j) }).length, ready = L.filter(function (j) { return J.state(j).key === 'pick' }).length;
-    var two = P.abMode !== 'one';
-    var pg = h('div', { class: 'page' }, pageHead(3, 'Prompts', 'Copy a prompt, attach the project file, paste the reply. The app checks every reply.',
-      h('button', { class: 'btn', onclick: fileForModel }, icon('download'), 'Project file for Sonnet')));
-    pg.appendChild(h('div', { class: 'stats' }, stat(String(L.length), 'Jobs'), stat(String(done), 'Picked', done === L.length ? 'ok' : ''), stat(String(ready), 'Ready to pick', ready ? 'warn' : ''), stat(two ? '2 chats' : '1 chat', 'Per job')));
+    var mode = J.mode(P), single = mode === 'single', L = J.list(P), done = L.filter(function (j) { return J.picked(j) }).length;
+    var pg = h('div', { class: 'page' }, pageHead(3, 'Prompts', 'Copy a numbered prompt, paste it in a new Sonnet chat with the project file, paste the reply back. The app checks every reply.',
+      h('button', { class: 'btn', onclick: fileForModel, title: 'Attach this file in every Sonnet chat. Its number changes when a plan, asset or person is picked.' }, icon('download'), 'Project file ' + J.stamp(P))));
+    pg.appendChild(h('div', { class: 'stats' }, stat(String(L.length), 'Prompts'), stat(String(done), 'Done', done === L.length ? 'ok' : ''), stat(String(L.length - done), 'To do or fix', L.length - done ? 'warn' : ''), stat(single ? '1 prompt' : '2 versions', 'Per job')));
+    var how = single ? '1. Press Copy prompt on a card. 2. Open a NEW Sonnet chat, attach the project file (the F-number must match) and paste. 3. Copy Sonnet’s reply (it is only code) and press Paste reply. The app checks it and uses it. If something is wrong you get a report with a message to send back.'
+      : mode === 'two' ? '1. Copy the prompt. 2. Do it in two new Sonnet chats with the project file. 3. Paste each reply as A and B. Then compare them in stage 4.'
+      : '1. Copy the prompt (it asks for two versions). 2. Open a new Sonnet chat with the project file and paste. 3. Paste the whole reply. The app splits it into A and B. Then compare them in stage 4.';
     pg.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)' } },
-      h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('b', null, 'How each job works'),
-        h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, two ? '1. Copy the prompt. 2. Open a new Sonnet chat, attach the project file, paste the prompt. 3. Do the same in a second new chat. 4. Paste each reply as A and B. Then pick the best in stage 4.' : '1. Copy the prompt (it asks for two versions). 2. Open a new Sonnet chat, attach the project file, paste. 3. Paste the whole reply. The app splits it into A and B.')),
-        seg([{ id: 'two', label: 'Two chats per job' }, { id: 'one', label: 'One chat, two versions' }], two ? 'two' : 'one', function (m) { P.abMode = m; save(); render() }))));
-    var groups = [['plan', '1 · The plan', 'Sonnet plans places, people, assets and beats for every part. The times and words are already fixed by the app.'],
-      ['make', '2 · Assets and people', 'Hard things get a chat of their own; simple ones are bunched. Can run in many chats at the same time.'],
-      ['scene', '3 · Scenes', 'One part per chat, in any order. Each chat gets the same project file.']];
-    groups.forEach(function (g) {
-      var list = L.filter(function (j) { return g[0] === 'make' ? (j.kind === 'assets' || j.kind === 'cast') : j.kind === g[0] });
-      pg.appendChild(h('div', { style: { margin: 'var(--gap) 0 8px' } }, h('h2', { style: { font: '600 20px/1.2 var(--f-display)', margin: '0 0 2px' } }, g[1]), h('div', { class: 'muted', style: { fontSize: '12.5px' } }, g[2])));
-      if (!list.length) { pg.appendChild(h('div', { class: 'card muted', style: { fontSize: '13px' } }, g[0] === 'make' && J.picked(P.jobs.plan) ? 'Nothing new to make: every planned person and asset is already in the library.' : 'These jobs appear when the plan is picked.')); return }
+      h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('b', null, 'How each prompt works'), h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, how)),
+        seg([{ id: 'single', label: 'One prompt' }, { id: 'two', label: 'Compare: two chats' }, { id: 'one', label: 'Compare: one chat' }], mode, function (m) { P.abMode = m; save(); render() })),
+      h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '8px' } }, single ? 'Best quality for the least work: every prompt is built to be right the first time, and a reply that passes its checks is used straight away. Compare modes make each job twice and let a critic pick (about double the work).' : 'Compare modes cost about double. Switch back to One prompt any time; nothing you made is lost.')));
+    GROUPS.forEach(function (g, gi) {
+      var list = L.filter(function (j) { return J.group(j) === g[0] }), n = list.filter(function (j) { return J.picked(j) }).length;
+      pg.appendChild(h('div', { style: { margin: 'var(--gap) 0 8px' } }, h('h2', { style: { font: '600 20px/1.2 var(--f-display)', margin: '0 0 2px' } }, '3.' + (gi + 1) + ' · ' + g[1], list.length ? h('span', { class: 'muted mono', style: { font: '500 12px var(--f-mono)', marginLeft: '10px' } }, n + ' of ' + list.length + ' done') : null), h('div', { class: 'muted', style: { fontSize: '12.5px' } }, g[2])));
+      if (!list.length) { pg.appendChild(h('div', { class: 'card muted', style: { fontSize: '13px' } }, g[0] === 'make' && J.picked(P.jobs.plan) ? 'Nothing new to make: every planned person and asset is already in the library.' : 'These prompts appear when the plan is done.')); return }
       pg.appendChild(h('div', { class: 'plist' }, list.map(jobCard)));
     });
-    pg.appendChild(nextBar({ label: 'Script & audio', go: 'audio' }, { label: 'Next: Pick the best', go: 'pick' }));
+    pg.appendChild(nextBar({ label: 'Script & audio', go: 'audio' }, { label: 'Next: ' + stageNames().t, go: 'pick' }));
     return pg;
   }
-  function verLine(job, v) {
-    var x = job[v];
-    if (!x) return h('span', { class: 'muted' }, v + ': not pasted');
-    var c = x.check || {}, txt = v + ': ' + (c.ok ? (c.lintAll ? 'checks pass (' + c.lintPass + '/' + c.lintAll + ')' : 'checks pass') : (c.issues && c.issues.length ? c.issues.length + ' problem' + (c.issues.length > 1 ? 's' : '') : 'saved'));
-    return h('span', { class: c.ok ? 't-ok' : 't-warn', title: (c.issues || []).join('\n') }, txt);
+  var BORDER = { done: 'var(--ok)', pick: 'var(--info)', fix: 'var(--bad)', fail: 'var(--bad)', one: 'var(--warn)', todo: 'var(--line-2)' };
+  function verInfo(job, v) {
+    var single = J.mode(P) === 'single', x = job[v];
+    if (!x) return h('span', { class: 'muted' }, single ? 'No reply yet' : v + ': not pasted');
+    var c = x.check || {}, n = REPLY.counts(c.problems || []), pre = single ? 'Reply' : v;
+    if (c.ok) return h('span', { class: 't-ok' }, pre + ': ' + (c.lintAll ? 'checks pass (' + c.lintPass + '/' + c.lintAll + ')' : 'checks pass') + (n.notes ? ' · ' + plural(n.notes, 'note') : ''));
+    return h('span', { class: 't-bad' }, pre + ': ' + plural(n.errors || (c.issues || []).length || 1, 'problem') + ' to fix');
   }
   function jobCard(job) {
-    var st = J.state(job), block = J.blockedBy(P, job), two = P.abMode !== 'one';
+    var mode = J.mode(P), single = mode === 'single', st = J.state(job, P), block = J.blockedBy(P, job), tag = J.tag(P, job);
     var items = job.kind === 'scene' ? (function () { var p = GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0] || {}; return fmtT(p.start) + ' – ' + fmtT(p.end) + ' · ' + (p.text || '').split(' ').slice(0, 14).join(' ') + '…' })()
       : job.items ? job.items.map(function (x) { return x.name + (x.level ? ' (' + ['', 'simple', 'medium', 'hard'][x.level] + ')' : '') }).join(', ') : 'Places, people, assets and beats for all parts';
+    var fail = job.fail && (!job.A || job.fail.at > job.A.at) ? job.fail : null;
+    var hasProblems = ['A', 'B'].some(function (v) { return job[v] && job[v].check && (job[v].check.problems || []).length }) || !!fail;
     var acts = h('div', { class: 'row', style: { justifyContent: 'flex-end' } });
     if (block) acts.appendChild(h('span', { class: 'muted', style: { fontSize: '12px' } }, block));
     else {
-      acts.appendChild(h('button', { class: 'btn small', onclick: function () { copyText(J.prompt(P, job, !two), 'The prompt is copied') } }, icon('copy'), 'Copy prompt'));
-      if (two) { acts.appendChild(h('button', { class: 'btn small' + (job.A ? '' : ' primary'), onclick: function () { pasteBox(job, 'A') } }, icon('paste'), job.A ? 'Replace A' : 'Paste A')); acts.appendChild(h('button', { class: 'btn small' + (job.A && !job.B ? ' primary' : ''), onclick: function () { pasteBox(job, 'B') } }, icon('paste'), job.B ? 'Replace B' : 'Paste B')) }
+      acts.appendChild(h('button', { class: 'btn small', onclick: function () { var t = J.prompt(P, job, mode); copyText(t, 'Prompt ' + tag + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'));
+      if (single) acts.appendChild(h('button', { class: 'btn small' + (job.A && job.A.check && job.A.check.ok ? '' : ' primary'), onclick: function () { pasteBox(job, 'A') } }, icon('paste'), job.A ? 'Replace reply' : 'Paste reply'));
+      else if (mode === 'two') { acts.appendChild(h('button', { class: 'btn small' + (job.A ? '' : ' primary'), onclick: function () { pasteBox(job, 'A') } }, icon('paste'), job.A ? 'Replace A' : 'Paste A')); acts.appendChild(h('button', { class: 'btn small' + (job.A && !job.B ? ' primary' : ''), onclick: function () { pasteBox(job, 'B') } }, icon('paste'), job.B ? 'Replace B' : 'Paste B')) }
       else acts.appendChild(h('button', { class: 'btn small primary', onclick: function () { pasteBox(job, null) } }, icon('paste'), job.A ? 'Replace reply' : 'Paste reply'));
-      if (job.A || job.B) acts.appendChild(h('button', { class: 'btn small', onclick: function () { PICKJOB = job.id; go(P.id + '/pick') } }, J.picked(job) ? 'See the pick' : 'Pick the best'));
+      if (hasProblems) acts.appendChild(h('button', { class: 'btn small', onclick: function () { detailsModal(job) } }, icon('spark'), 'See problems'));
+      if (job.A || job.B) acts.appendChild(h('button', { class: 'btn small', onclick: function () { PICKBACK = 'prompts'; go(P.id + '/pick/' + encodeURIComponent(job.id)) } }, icon('play'), 'Preview'));
     }
-    return h('div', { class: 'pitem ' + (st.key === 'done' ? '' : st.key === 'pick' ? '' : 'warn'), style: { gridTemplateColumns: '1fr auto', cursor: 'default', borderLeftColor: st.key === 'done' ? 'var(--ok)' : st.key === 'pick' ? 'var(--info)' : st.key === 'one' ? 'var(--warn)' : 'var(--line-2)' } },
-      h('div', { style: { minWidth: 0 } }, h('div', { class: 'hd' }, h('b', { style: { fontSize: '13.5px' } }, job.title), h('span', { class: st.cls }, st.text)),
-        h('div', { class: 'txt' }, items),
-        h('div', { class: 'hd', style: { marginTop: '6px', marginBottom: 0 } }, verLine(job, 'A'), verLine(job, 'B'))),
+    var line = h('div', { class: 'hd', style: { marginTop: '6px', marginBottom: 0 } }, single ? verInfo(job, 'A') : [verInfo(job, 'A'), verInfo(job, 'B')],
+      fail ? h('span', { class: 't-bad' }, 'Last paste NOT saved · ' + plural(REPLY.counts(fail.problems || []).errors || 1, 'problem')) : null);
+    return h('div', { class: 'pitem job ' + st.key, style: { gridTemplateColumns: '48px 1fr auto', cursor: 'default', borderLeftColor: BORDER[st.key] || 'var(--line-2)' } },
+      h('div', { class: 'num' }, tag),
+      h('div', { style: { minWidth: 0 } }, h('div', { class: 'hd' }, h('b', { style: { fontSize: '13.5px' } }, job.title), h('span', { class: st.cls }, st.text)), h('div', { class: 'txt' }, items), line),
       acts);
   }
 
-  /* ================= stage 4: pick the best ================= */
-  var PICKJOB = null, SHEETS = {};
+  /* ================= stage 4: results (one prompt) or pick the best (compare) ================= */
+  var PICKVIEW = null, PICKBACK = 'list', SHEETS = {}, PIECES = {};
+  function skey(job) { return job.id + ':' + (job.A && job.A.at) + ':' + (job.B && job.B.at) }
+  function stageNames() { return J.mode(P) === 'single' ? { t: 'Results', s: 'Preview each reply' } : { t: 'Pick the best', s: 'A/B and the critic' } }
   function pickPage() {
-    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(4, 'Pick the best', 'The critic compares A and B.'), nt);
+    var single = J.mode(P) === 'single', nm = stageNames().t;
+    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(4, nm, single ? 'Preview each reply.' : 'The critic compares A and B.'), nt);
     ensureJobs();
-    var L = J.list(P).filter(function (j) { return j.A || j.B });
-    var pg = h('div', { class: 'page' }, pageHead(4, 'Pick the best', 'The app runs both versions, then the critic compares them. You can always overrule it.',
-      h('button', { class: 'btn', onclick: judgeAll, disabled: CR.mode() === 'gemini' && CR.ready() ? null : true, title: 'Gemini judges every job that has both versions' }, icon('spark'), 'Judge all with Gemini')));
-    pg.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)' } }, h('div', { class: 'row' },
+    if (PICKVIEW && P.jobs[PICKVIEW]) return resultPage(P.jobs[PICKVIEW]);
+    return resultsList();
+  }
+  function openResult(j, from) { PICKBACK = from || 'list'; go(P.id + '/pick/' + encodeURIComponent(j.id)) }
+  function resultsList() {
+    var single = J.mode(P) === 'single', nm = stageNames().t, L = J.list(P), any = L.some(function (j) { return j.A || j.B });
+    var pg = h('div', { class: 'page' }, pageHead(4, nm, single ? 'Every reply, numbered like its prompt. Open one to see its pictures, its checks and what to fix.' : 'The app runs both versions, then the critic compares them. You can always overrule it.',
+      single ? null : h('button', { class: 'btn', onclick: judgeAll, disabled: CR.mode() === 'gemini' && CR.ready() ? null : true, title: 'Gemini judges every job that has both versions' }, icon('spark'), 'Judge all with Gemini')));
+    if (!single) pg.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)' } }, h('div', { class: 'row' },
       h('div', { style: { flex: 1, minWidth: '240px' } }, h('b', null, 'Critic'), h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, CR.mode() === 'gemini' ? (CR.ready() ? 'Gemini judges by itself with your free key.' : 'Add your free Gemini key in Settings, or use Sonnet copy-paste.') : 'You copy the critic prompt and the comparison picture into Sonnet and paste back its answer.')),
       seg([{ id: 'gemini', label: 'Gemini (automatic)' }, { id: 'sonnet', label: 'Sonnet (copy-paste)' }], CR.mode(), function (m) { CR.setMode(m); render() }),
       CR.mode() === 'gemini' && !CR.ready() ? h('button', { class: 'btn small primary', onclick: settings }, 'Add key') : null)));
-    if (!L.length) { pg.appendChild(h('div', { class: 'card empty' }, 'No versions yet. Paste replies in stage 3 first.', h('div', { style: { marginTop: '12px' } }, h('button', { class: 'btn primary', onclick: function () { go(P.id + '/prompts') } }, 'Go to Prompts')))); return pg }
-    if (!PICKJOB || !P.jobs[PICKJOB] || !(P.jobs[PICKJOB].A || P.jobs[PICKJOB].B)) PICKJOB = (L.filter(function (j) { return !J.picked(j) })[0] || L[0]).id;
-    var list = h('div', { class: 'plist' }, L.map(function (j) {
-      var st = J.state(j);
-      return h('div', { class: 'pitem' + (j.id === PICKJOB ? ' on' : ''), style: { gridTemplateColumns: '1fr', borderLeftColor: st.key === 'done' ? 'var(--ok)' : st.key === 'pick' ? 'var(--info)' : 'var(--warn)' }, onclick: function () { PICKJOB = j.id; render() } },
-        h('div', null, h('div', { class: 'hd' }, h('b', null, j.title)), h('div', { class: st.cls, style: { fontSize: '12px' } }, st.text + (j.critic ? ' · critic: ' + j.critic.winner : ''))));
-    }));
-    pg.appendChild(h('div', { class: 'cols pickcols' }, list, pickDetail(P.jobs[PICKJOB])));
+    if (!any) { pg.appendChild(h('div', { class: 'card empty' }, 'No replies yet. Paste replies in Prompts first.', h('div', { style: { marginTop: '12px' } }, h('button', { class: 'btn primary', onclick: function () { go(P.id + '/prompts') } }, 'Go to Prompts')))); return pg }
+    GROUPS.forEach(function (g, gi) {
+      var list = L.filter(function (j) { return J.group(j) === g[0] }); if (!list.length) return;
+      var n = list.filter(function (j) { return J.picked(j) }).length;
+      pg.appendChild(h('div', { style: { margin: 'var(--gap) 0 8px' } }, h('h2', { style: { font: '600 20px/1.2 var(--f-display)', margin: 0 } }, '4.' + (gi + 1) + ' · ' + g[1], h('span', { class: 'muted mono', style: { font: '500 12px var(--f-mono)', marginLeft: '10px' } }, n + ' of ' + list.length + ' done'))));
+      pg.appendChild(h('div', { class: 'plist' }, list.map(function (j) {
+        var st = J.state(j, P), has = j.A || j.B;
+        return h('div', { class: 'pitem job ' + st.key + (has ? '' : ' idle'), style: { gridTemplateColumns: '48px 1fr auto', borderLeftColor: BORDER[st.key] || 'var(--line-2)', cursor: has ? 'pointer' : 'default' }, onclick: function () { if (has) openResult(j, 'list') } },
+          h('div', { class: 'num' }, J.tag(P, j)),
+          h('div', { style: { minWidth: 0 } }, h('div', { class: 'hd' }, h('b', { style: { fontSize: '13.5px' } }, j.title), h('span', { class: st.cls }, st.text + (j.critic ? ' · critic: ' + j.critic.winner : ''))), has ? h('div', { class: 'hd', style: { marginBottom: 0 } }, single ? verInfo(j, 'A') : [verInfo(j, 'A'), verInfo(j, 'B')]) : h('div', { class: 'muted', style: { fontSize: '12px' } }, 'No reply yet')),
+          has ? h('button', { class: 'btn small', onclick: function (e) { e.stopPropagation(); openResult(j, 'list') } }, icon('play'), 'Preview') : null);
+      })));
+    });
     pg.appendChild(nextBar({ label: 'Prompts', go: 'prompts' }, { label: 'Next: Sound', go: 'sound' }));
     return pg;
   }
+  /* one result on its own page: only this prompt, with back and previous / next */
+  function resultPage(job) {
+    var single = J.mode(P) === 'single', L = J.list(P), i = L.indexOf(job), prev = L[i - 1], next = L[i + 1], tag = J.tag(P, job), st = J.state(job, P);
+    var back = PICKBACK === 'prompts' ? { label: 'Prompts', go: 'prompts' } : { label: 'All ' + stageNames().t.toLowerCase(), go: 'pick' };
+    var rot = function (n) { return h('span', { style: { display: 'inline-flex', transform: 'rotate(180deg)' } }, n) };
+    function navBtn(j, dir, long) {
+      var lab = j ? J.tag(P, j) : (dir < 0 ? 'Previous' : 'Next');
+      return h('button', { class: 'btn' + (long ? '' : ' small'), disabled: j ? null : true, title: j ? J.label(P, j) : '', onclick: function () { if (j) openResult(j, PICKBACK) } }, dir < 0 ? rot(icon('chev')) : null, (long ? (dir < 0 ? 'Previous: ' : 'Next: ') : '') + lab, dir > 0 ? icon('chev') : null);
+    }
+    var pg = h('div', { class: 'page' }, h('div', { class: 'titlebar' },
+      h('button', { class: 'back', title: 'Back to ' + back.label, 'aria-label': 'Back to ' + back.label, onclick: function () { go(P.id + '/' + back.go) } }, icon('chev')),
+      h('div', null, h('h1', null, tag + ' · ' + job.title), h('p', null, J.kindName(job) + ' · result ' + (i + 1) + ' of ' + L.length + ' · ', h('span', { class: st.cls }, st.text))),
+      h('div', { class: 'grow' }), navBtn(prev, -1), navBtn(next, 1)));
+    if (!(job.A || job.B)) pg.appendChild(h('div', { class: 'card empty' }, 'No reply yet for ' + tag + '.', h('div', { class: 'row', style: { marginTop: '12px', justifyContent: 'center' } },
+      h('button', { class: 'btn', onclick: function () { var t = J.prompt(P, job, J.mode(P)); copyText(t, 'Prompt ' + tag + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'),
+      h('button', { class: 'btn primary', onclick: function () { pasteBox(job, 'A') } }, icon('paste'), 'Paste reply'))));
+    else pg.appendChild(single ? singleResult(job) : pickDetail(job));
+    pg.appendChild(h('div', { class: 'nextbar' },
+      h('button', { class: 'btn quiet', onclick: function () { go(P.id + '/' + back.go) } }, rot(icon('chev')), 'Back to ' + back.label), h('div', { class: 'grow' }), navBtn(prev, -1, true), navBtn(next, 1, true)));
+    return pg;
+  }
+  function singleResult(job) {
+    var v = job.pick || (job.A ? 'A' : 'B'), ver = job[v], c = ver.check || { problems: [] }, probs = c.problems || [], n = REPLY.counts(probs), wrap = h('div', { class: 'stack' });
+    var panel = h('div', { class: 'panel' });
+    panel.appendChild(h('div', { class: 'row' }, h('b', { class: c.ok ? 't-ok' : 't-bad' }, c.ok ? 'Draws and passes the checks' + (c.lintAll ? ' (' + c.lintPass + '/' + c.lintAll + ')' : '') : plural(n.errors || 1, 'problem') + ' to fix'),
+      n.notes ? h('span', { class: 't-warn', style: { fontSize: '12.5px' } }, plural(n.notes, 'note')) : null, h('div', { class: 'grow', style: { flex: 1 } }), h('span', { class: 'muted mono', style: { fontSize: '11.5px' } }, 'Reply saved ' + ago(ver.at))));
+    if (job.kind === 'scene') { var p = GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0]; if (p) panel.appendChild(h('div', { class: 'muted', style: { fontSize: '12.5px', margin: '8px 0 0' } }, h('b', { style: { color: 'var(--on-dark)' } }, 'Script for this part: '), '“' + p.text + '”')) }
+    var view = h('div', { class: 'viewbox' }); panel.appendChild(view); fillView(view, job, v);
+    var acts = h('div', { class: 'row', style: { marginTop: '12px' } },
+      h('button', { class: 'btn', onclick: function () { pasteBox(job, 'A') } }, icon('paste'), 'Paste a new reply'),
+      h('button', { class: 'btn', onclick: function () { var t = J.prompt(P, job, 'single'); copyText(t, 'Prompt ' + J.tag(P, job) + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'),
+      probs.length ? h('button', { class: 'btn', onclick: function () { copyText(REPLY.fixMessage(P, job, probs, null), 'The fix message for ' + J.tag(P, job) + ' is copied', 'Send it in the same Sonnet chat.') } }, icon('copy'), 'Copy fix message') : null,
+      h('div', { class: 'grow', style: { flex: 1 } }),
+      J.picked(job) ? h('span', { class: 't-ok', style: { fontWeight: 600 } }, 'In use') : h('button', { class: 'btn primary', onclick: function () { usePick(job, v) } }, icon('check'), 'Use this reply'));
+    panel.appendChild(acts); wrap.appendChild(panel);
+    if (probs.length) wrap.appendChild(h('div', { class: 'card' }, problemPanel(job, { found: ver.found || [], problems: probs }, { saved: true, v: v, inUse: !!J.picked(job), onUse: J.picked(job) ? null : function () { usePick(job, v) } })));
+    return wrap;
+  }
+  function planTable(pl) {
+    var ps = pl.parts || [], ppl = {}, as = {}; ps.forEach(function (p) { (p.cast || []).forEach(function (n) { ppl[n] = 1 }); (p.assets || []).forEach(function (n) { as[n] = 1 }) });
+    var box = h('div', { class: 'plan-view' }, h('div', { class: 'muted', style: { fontSize: '12.5px', marginBottom: '8px' } }, ps.length + ' parts · ' + Object.keys(ppl).length + ' people · ' + Object.keys(as).length + ' assets'));
+    if (pl.continuity && Object.keys(pl.continuity).length) box.appendChild(h('div', { class: 'glass', style: { marginBottom: '10px' } }, h('div', { class: 'k', style: { font: '700 9.5px/1 var(--f-sans)', letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--on-dark-2)', marginBottom: '6px' } }, 'Continuity'), Object.keys(pl.continuity).map(function (k) { return h('div', { style: { fontSize: '12.5px', marginTop: '3px' } }, h('b', null, k + ': '), String(pl.continuity[k])) })));
+    box.appendChild(h('div', { class: 'ptable' }, ps.map(function (p) {
+      return h('div', { class: 'prow' }, h('div', { class: 'pn mono' }, String(p.id)),
+        h('div', { style: { minWidth: 0 } }, h('b', null, p.title || ''), h('div', { class: 'muted', style: { fontSize: '12px' } }, [p.place, p.time, p.job].filter(Boolean).join(' · ')),
+          (p.beats || []).length ? h('ul', { class: 'beats' }, p.beats.map(function (b) { return h('li', null, b) })) : null,
+          h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '4px' } }, [(p.cast || []).length ? 'People: ' + p.cast.join(', ') : '', (p.assets || []).length ? 'Assets: ' + p.assets.join(', ') : ''].filter(Boolean).join('  ·  '))));
+    })));
+    return box;
+  }
+  function drawPieces(job, v) {
+    var k = pkey(job, v);
+    if (PIECES[k] && PIECES[k].promise) return PIECES[k].promise;
+    var W = (P.timing && P.timing.words) || [];
+    function words(t) { var p = GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0], at = (p ? p.start : 0) + t; return W.filter(function (w) { return w[1] <= at + .4 && w[2] >= at - .6 }).map(function (w) { return w[0] }).slice(0, 5).join(' ') }
+    var pr = CR.inspect(P, job, v).then(function (r) {
+      var st = (r.info && r.info.stage) || { W: 540, H: 960 }, list = CR.pieces(job, r, job.kind === 'scene' ? words : null);
+      return Promise.all(list.map(function (it) {
+        var w, h2, bg = null;
+        if (job.kind === 'scene') { var k2 = 360 / Math.max(st.W, st.H); w = Math.round(st.W * k2); h2 = Math.round(st.H * k2) } else if (it.kind === 'cast') { w = 660; h2 = 300; bg = '#EDE6D6' } else { w = 400; h2 = 400 }
+        if (it.contain) bg = it.light ? '#EDE6D6' : '#1d1d20';
+        if (!it.svg) return { cap: it.cap, sub: it.sub, bad: true };
+        var svg = it.contain ? it.svg.replace('<svg ', '<svg preserveAspectRatio="xMidYMid meet" ') : it.svg;
+        return GK.raster(svg, w, h2, null, bg).then(function (c) { return { canvas: c, cap: it.cap, sub: it.sub, dim: it.dim, bad: it.bad } }, function () { return { cap: it.cap, sub: it.sub, bad: true } });
+      })).then(function (items) { return { items: items, broken: r.broken || '' } });
+    }).then(function (res) { PIECES[k] = res; return res }, function (e) { delete PIECES[k]; throw e });
+    PIECES[k] = { promise: pr };
+    return pr;
+  }
+  function pkey(job, v) { return job.id + ':' + v + ':' + (job[v] && job[v].at) }
+  function enlarge(it) {
+    var c = document.createElement('canvas'); c.width = it.canvas.width; c.height = it.canvas.height; c.getContext('2d').drawImage(it.canvas, 0, 0); c.style.cssText = 'max-width:100%;max-height:74vh;border-radius:10px;display:block;margin:0 auto';
+    modal({ title: it.cap + (it.sub ? ' · ' + it.sub : ''), body: c, actions: [] });
+  }
+  function piecesGrid(job, r) {
+    var wide = P.format === 'long';
+    if (!r.items.length) return h('div', { class: 'glass', style: { textAlign: 'center', padding: '24px 12px' } }, h('div', { class: 't-bad' }, 'Nothing could be drawn.'), h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, (r.broken || 'The code did not register.') + ' See the problems below.'));
+    return h('div', { class: 'pgrid ' + (job.kind === 'scene' ? (wide ? 'frames wide' : 'frames') : job.kind === 'cast' ? 'cards cast' : 'cards') }, r.items.map(function (it) {
+      return h('figure', { class: 'pc' + (it.dim ? ' dim' : '') + (it.bad ? ' bad' : ''), title: it.canvas ? 'Click to enlarge' : '', onclick: function () { if (it.canvas) enlarge(it) } },
+        it.canvas ? it.canvas : h('div', { class: 'nopic' }, 'not drawn'), h('figcaption', null, h('b', null, it.cap), it.sub ? h('span', null, it.sub) : null));
+    }));
+  }
+  function fillView(view, job, v) {
+    if (job.kind === 'plan') { view.appendChild(planTable(job[v].plan)); return }
+    var hit = PIECES[pkey(job, v)];
+    if (hit && hit.items) { view.appendChild(piecesGrid(job, hit)); return }
+    view.appendChild(h('div', { class: 'drawing' }, h('div', { class: 'progress indeterminate' }, h('i')), h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '8px' } }, job.kind === 'scene' ? 'Drawing frames of this part…' : 'Drawing…')));
+    drawPieces(job, v).then(function (r) { if (!view.isConnected) return; view.innerHTML = ''; view.appendChild(piecesGrid(job, r)) },
+      function (e) { if (!view.isConnected) return; view.innerHTML = ''; view.appendChild(h('div', { class: 't-bad', style: { fontSize: '12.5px' } }, 'The pictures could not be drawn: ' + (e && e.message || e))) });
+  }
   function pickDetail(job) {
     var box = h('div', { class: 'panel' }), both = job.A && job.B && !job.A.error && !job.B.error;
-    box.appendChild(h('div', { class: 'row' }, h('h2', { style: { margin: 0 } }, job.title), h('span', { class: J.state(job).cls }, J.state(job).text)));
+    box.appendChild(h('div', { class: 'row' }, h('span', { class: J.state(job, P).cls }, J.state(job, P).text)));
     var verdict = h('div', { style: { margin: '10px 0' } });
     if (job.critic) verdict.appendChild(h('div', { class: 'glass' }, h('div', { class: 'row' }, h('b', null, (job.critic.by || 'Critic') + ' picks ' + job.critic.winner), job.critic.score_a != null ? h('span', { class: 'mono muted' }, 'A ' + job.critic.score_a + ' · B ' + job.critic.score_b) : null),
       h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, job.critic.why || ''), job.critic.fix_for_winner ? h('div', { class: 't-info', style: { fontSize: '12.5px', marginTop: '4px' } }, 'Next fix: ' + job.critic.fix_for_winner) : null));
     box.appendChild(verdict);
     var view = h('div', { style: { marginTop: '6px' } });
     if (job.kind === 'plan') view.appendChild(planCompare(job));
-    else if (SHEETS[job.id]) view.appendChild(h('img', { src: SHEETS[job.id].url, alt: 'A and B side by side', style: { width: '100%', borderRadius: '10px', border: '1px solid var(--edge)', display: 'block' } }));
+    else if (SHEETS[skey(job)]) view.appendChild(h('img', { src: SHEETS[skey(job)].url, alt: 'A and B side by side', style: { width: '100%', borderRadius: '10px', border: '1px solid var(--edge)', display: 'block' } }));
     else view.appendChild(h('div', { class: 'glass', style: { textAlign: 'center', padding: '30px 12px' } }, h('div', { class: 'muted', style: { marginBottom: '10px' } }, 'Draw both versions side by side to compare them.'), h('button', { class: 'btn primary', onclick: function (e) { e.currentTarget.setAttribute('disabled', ''); e.currentTarget.textContent = 'Drawing…'; makeSheet(job).then(render, function (er) { toast(er.message, 'bad'); render() }) } }, icon('image'), 'Draw A and B')));
     box.appendChild(view);
     var facts = ['A', 'B'].map(function (v) { var x = job[v]; return h('div', { class: 'glass' }, h('div', { class: 'k', style: { font: '700 9.5px/1 var(--f-sans)', letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--on-dark-2)', marginBottom: '6px' } }, 'Version ' + v),
@@ -730,14 +920,14 @@
       if (CR.mode() === 'gemini') acts.appendChild(h('button', { class: 'btn primary', disabled: CR.ready() ? null : true, onclick: function (e) { var b = e.currentTarget; b.setAttribute('disabled', ''); b.textContent = 'Gemini is judging…'; judge(job).then(function () { toast('Gemini picked ' + job.critic.winner + '.', 'ok'); render() }, function (er) { toast(er.message, 'bad', 8000); render() }) } }, icon('spark'), 'Ask Gemini'));
       else {
         acts.appendChild(h('button', { class: 'btn', onclick: function () { sonnetCritic(job) } }, icon('copy'), 'Copy critic prompt'));
-        acts.appendChild(h('button', { class: 'btn', onclick: function () { (SHEETS[job.id] ? Promise.resolve() : makeSheet(job)).then(function () { if (SHEETS[job.id]) download(safeName(P.name) + ' - ' + job.id + ' A vs B.png', SHEETS[job.id].blob); else toast('Plans are compared as text; no picture is needed.', 'info') }) } }, icon('image'), 'Comparison picture'));
+        acts.appendChild(h('button', { class: 'btn', onclick: function () { (SHEETS[skey(job)] ? Promise.resolve() : makeSheet(job)).then(function () { if (SHEETS[skey(job)]) download(safeName(P.name) + ' - ' + job.id + ' A vs B.png', SHEETS[skey(job)].blob); else toast('Plans are compared as text; no picture is needed.', 'info') }) } }, icon('image'), 'Comparison picture'));
         acts.appendChild(h('button', { class: 'btn', onclick: function () { pasteCritic(job) } }, icon('paste'), 'Paste critic answer'));
       }
     }
     acts.appendChild(h('div', { class: 'grow', style: { flex: 1 } }));
     ['A', 'B'].forEach(function (v) { if (job[v] && !job[v].error) acts.appendChild(h('button', { class: 'btn' + (job.pick === v ? ' primary' : ''), onclick: function () { usePick(job, v) } }, job.pick === v ? 'Using ' + v : 'Use ' + v)) });
     box.appendChild(acts);
-    if (!both) box.appendChild(h('div', { class: 'muted', style: { fontSize: '12px', marginTop: '8px' } }, 'Only one version so far. Paste the second one in stage 3 to let the critic compare, or use this one now.'));
+    if (!both) box.appendChild(h('div', { class: 'muted', style: { fontSize: '12px', marginTop: '8px' } }, 'Only one version so far. Paste the second one in Prompts to let the critic compare, or use this one now.'));
     return box;
   }
   function planCompare(job) {
@@ -753,15 +943,15 @@
       function words(t) { var p = GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0], at = (p ? p.start : 0) + t; return W.filter(function (w) { return w[1] <= at + .4 && w[2] >= at - .6 }).map(function (w) { return w[0] }).slice(0, 3).join(' ') }
       job._facts = CR.facts(job, r[0], r[1]); job._auto = [CR.score(r[0]), CR.score(r[1])];
       return CR.sheet(job, r[0], r[1], job.kind === 'scene' ? words : null);
-    }).then(function (c) { return new Promise(function (res) { c.toBlob(function (b) { if (SHEETS[job.id]) URL.revokeObjectURL(SHEETS[job.id].url); SHEETS[job.id] = { blob: b, url: URL.createObjectURL(b), data: c.toDataURL('image/png') }; res() }, 'image/png') }) });
+    }).then(function (c) { return new Promise(function (res) { c.toBlob(function (b) { if (SHEETS[skey(job)]) URL.revokeObjectURL(SHEETS[skey(job)].url); SHEETS[skey(job)] = { blob: b, url: URL.createObjectURL(b), data: c.toDataURL('image/png') }; res() }, 'image/png') }) });
   }
   function judge(job) {
     if (job.kind === 'plan') return CR.gemini(J.criticAsk(P, job, ''), null, 'PLAN A:\n' + JSON.stringify(job.A.plan) + '\n\nPLAN B:\n' + JSON.stringify(job.B.plan)).then(function (v) { job.critic = v; return save(true) });
-    return (SHEETS[job.id] ? Promise.resolve() : makeSheet(job)).then(function () {
+    return (SHEETS[skey(job)] ? Promise.resolve() : makeSheet(job)).then(function () {
       var a = job._auto || [0, 0];
       if (a[0] <= -100 && a[1] > -100) { job.critic = { winner: 'B', by: 'The checks', why: 'Version A does not draw.' }; return }
       if (a[1] <= -100 && a[0] > -100) { job.critic = { winner: 'A', by: 'The checks', why: 'Version B does not draw.' }; return }
-      return CR.gemini(J.criticAsk(P, job, job._facts), SHEETS[job.id].data).then(function (v) { job.critic = v });
+      return CR.gemini(J.criticAsk(P, job, job._facts), SHEETS[skey(job)].data).then(function (v) { job.critic = v });
     }).then(function () { return save(true) });
   }
   function judgeAll() {
@@ -774,7 +964,7 @@
   }
   function sonnetCritic(job) {
     var extra = job.kind === 'plan' ? '\n\nPLAN A:\n```json\n' + JSON.stringify(job.A.plan, null, 1) + '\n```\n\nPLAN B:\n```json\n' + JSON.stringify(job.B.plan, null, 1) + '\n```' : '\n\nThe attached picture shows both versions.';
-    var go2 = job.kind === 'plan' || SHEETS[job.id] ? Promise.resolve() : makeSheet(job);
+    var go2 = job.kind === 'plan' || SHEETS[skey(job)] ? Promise.resolve() : makeSheet(job);
     go2.then(function () { copyText(J.criticAsk(P, job, job._facts || '') + extra, job.kind === 'plan' ? 'The critic prompt is copied' : 'The critic prompt is copied. Also attach the comparison picture') });
   }
   function pasteCritic(job) {
@@ -783,10 +973,10 @@
   }
   function usePick(job, v, quiet) {
     if (!job[v] || job[v].error) return;
-    S.snapshot(P, 'Before picking ' + v + ' for ' + job.title);
+    var single = J.mode(P) === 'single'; S.snapshot(P, 'Before ' + (single ? 'using the reply' : 'picking ' + v) + ' for ' + J.label(P, job));
     job.pick = v;
     if (job.kind === 'plan') { P.plan = job[v].plan; rebuildJobs() }
-    save(true).then(function () { if (!quiet) { toast('Using version ' + v + ' for ' + job.title + '.', 'ok'); render() } });
+    save(true).then(function () { if (!quiet) { toast((single ? 'Now using the reply for ' : 'Now using version ' + v + ' for ') + J.label(P, job) + '.', 'ok'); render() } });
   }
 
   /* ================= stage 5: sound ================= */
@@ -831,7 +1021,7 @@
       h('div', { class: 'row' }, pbtn, h('button', { class: 'btn', onclick: function () { SPLAY.t = 0; stopMix(); tm.textContent = '0:00.0' } }, icon('stop'), 'From the start'), tm));
     pg.appendChild(h('div', { class: 'cols' }, music, preview));
     pg.appendChild(cuesCard(Sx));
-    pg.appendChild(nextBar({ label: 'Pick the best', go: 'pick' }, { label: 'Next: Thumbnails', go: 'thumbs' }));
+    pg.appendChild(nextBar({ label: stageNames().t, go: 'pick' }, { label: 'Next: Thumbnails', go: 'thumbs' }));
     return pg;
   }
   function cuesCard(Sx) {
@@ -909,13 +1099,13 @@
   /* ================= stage 6: thumbnails ================= */
   function thumbPrompt() {
     var plan = GK.plan(P), long = P.format === 'long';
-    return 'You are the thumbnail designer of a fast-growing YouTube channel. Design 3 different thumbnails for this video. They must make people click AND show honestly what the video delivers.\n\n' +
+    return 'PROMPT S6 \u00B7 THUMBNAILS (3 designs)\nYou are the thumbnail designer of a fast-growing YouTube channel. Design 3 different thumbnails for this video. They must make people click AND show honestly what the video delivers.\n\n' +
       'VIDEO: "' + (P.name || plan.title) + '" · ' + (long ? 'long video, 16:9, thumbnail 1280 x 720 px' : 'Short / TikTok, 9:16 cover, 1080 x 1920 px (keep faces and text inside the middle 1080 x 1350, away from the top 250 px and the bottom 420 px where the app covers it)') + '\n' +
       'STYLE OF THE VIDEO: Gilded Kasumi: Japanese woodblock print rebuilt as an Art Deco paper diorama: flat layered cut-paper shapes, thin gold edges, deep indigo and vermilion with cream, soft mist between layers, expressive paper people. The thumbnail must look like it belongs to the video.\n' +
       'THE STORY:\n' + plan.parts.map(function (p) { return 'Part ' + p.id + (p.job ? ' (' + p.job + ')' : '') + ': ' + p.text }).join('\n') + '\n\n' +
       'Rules for every thumbnail: one clear focal point readable at phone size; a human face with a strong emotion or a striking object/moment from the story; high contrast and a clear light source; rule of thirds; at most 3 to 5 words of text (or none), bold, never repeating the title; no clutter; no fake moments that are not in the video.\n' +
       'Make the 3 really different: 1) the moment of greatest danger or tension, 2) the impossible fact or number of the story, 3) the human emotion (a face) with the key object.\n\n' +
-      'Reply with JSON only: {"thumbnails": [{"name": "short name", "idea": "one line: why people will click", "image_prompt": "a detailed prompt for an image AI: subject, pose and emotion, setting, composition and camera angle, lighting, colours, the Gilded Kasumi paper style, aspect ratio ' + (long ? '16:9' : '9:16') + '", "text": "the words on the thumbnail, or empty", "text_place": "where the words go and their colour"}]}';
+      J.jsonRules() + '{"thumbnails": [{"name": "short name", "idea": "one line: why people will click", "image_prompt": "a detailed prompt for an image AI: subject, pose and emotion, setting, composition and camera angle, lighting, colours, the Gilded Kasumi paper style, aspect ratio ' + (long ? '16:9' : '9:16') + '", "text": "the words on the thumbnail, or empty", "text_place": "where the words go and their colour"}]}';
   }
   function thumbsPage() {
     var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(6, 'Thumbnails', 'Three designs.'), nt);
@@ -959,11 +1149,11 @@
   var WATCH = { on: false, t: 0, raf: 0, busy: false };
   function uploadPrompt() {
     var plan = GK.plan(P), long = P.format === 'long';
-    return 'Write the upload package for this ' + (long ? 'YouTube video' : 'YouTube Short and TikTok') + '. Aim for the most clicks and watch time without misleading anyone.\n\n' +
+    return 'PROMPT S7 \u00B7 UPLOAD PACKAGE\nWrite the upload package for this ' + (long ? 'YouTube video' : 'YouTube Short and TikTok') + '. Aim for the most clicks and watch time without misleading anyone.\n\n' +
       'TITLE IDEA: ' + (P.name || plan.title) + '\nLENGTH: ' + fmtLen(totalDur()) + '\nSCRIPT:\n' + (P.script || '').trim() + '\n\n' +
       'Give: 1) 6 title options (under 60 characters, curiosity without lying, the best first), 2) a description (' + (long ? 'first 2 lines hook, then a short summary, then chapters with timestamps from the parts below' : '2 to 3 short lines') + '), 3) 15 tags, 4) 3 to 5 hashtags, 5) a pinned comment that starts a discussion' + (long ? ', 6) chapter timestamps' : '') + '.\n' +
       (long ? 'PARTS (for chapters):\n' + plan.parts.map(function (p) { return fmtT(p.start).replace(/\.\d$/, '') + ' ' + (p.title || 'Part ' + p.id) }).join('\n') + '\n' : '') +
-      'Reply in plain text with those headings.';
+      'OUTPUT CONTRACT: reply in plain text with exactly these headings, in this order, and nothing else: TITLES, DESCRIPTION, TAGS, HASHTAGS, PINNED COMMENT' + (long ? ', CHAPTERS' : '') + '. No greeting, no closing remarks, no questions. Answer in the chat only: no artifact, no file.';
   }
   function exportPage() {
     var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(7, 'Watch & export', 'The finished video.'), nt);
@@ -996,14 +1186,24 @@
       if (WATCH.on) stopWatch();
       var p = plan.parts.filter(function (x) { return WATCH.t >= x.start && WATCH.t < x.end })[0]; if (!p) return;
       var local = WATCH.t - p.start, note = h('textarea', { class: 'area', style: { minHeight: '110px' }, placeholder: 'What should be better here? For example: the boy is too small, the light is too dark, the camera moves too fast.' });
-      var reply = h('textarea', { class: 'area', style: { minHeight: '140px', marginTop: '10px' }, placeholder: 'Then paste the Sonnet reply with the improved part here.' });
-      modal({ title: 'Improve part ' + p.id + ' at ' + local.toFixed(1) + ' s', body: h('div', null, h('p', { class: 'muted', style: { margin: '0 0 8px', fontSize: '12.5px' } }, 'Video time ' + fmtT(WATCH.t) + '. Write what you want, copy the prompt into a new Sonnet chat with the project file, then paste the reply.'), note,
-        h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn small', onclick: function () { copyText(J.improvePrompt(P, p.id, local, note.value.trim()), 'The improve prompt is copied') } }, icon('copy'), 'Copy prompt'), h('button', { class: 'btn small', onclick: fileForModel }, icon('download'), 'Project file')), reply),
+      var reply = h('textarea', { class: 'area', style: { minHeight: '140px', marginTop: '10px' }, placeholder: 'Then paste the Sonnet reply with the improved part here.' }), repOut = h('div', { class: 'rep-stack', style: { marginTop: '10px' } });
+      var fake = { id: 'improve-' + p.id, kind: 'scene', part: p.id, title: 'Improve part ' + p.id, tagName: 'IMPROVE part ' + p.id, replyOverride: '<!-- REPLY IMPROVE part-' + p.id + ' -->' }, closeImp;
+      function applyImprove(code) {
+        S.snapshot(P, 'Before improving part ' + p.id);
+        P.improved = (P.improved || []).filter(function (b) { return b.id !== p.id }).concat([{ id: p.id, code: code, at: Date.now(), note: note.value.trim() }]);
+        save(true).then(function () { closeMaster(); render(); toast('Part ' + p.id + ' is improved. Earlier versions are kept (Script & audio, More, Undo).', 'ok', 7000) });
+      }
+      closeImp = modal({ title: 'Improve part ' + p.id + ' at ' + local.toFixed(1) + ' s', body: h('div', null, h('p', { class: 'muted', style: { margin: '0 0 8px', fontSize: '12.5px' } }, 'Video time ' + fmtT(WATCH.t) + '. Write what you want, copy the prompt into a new Sonnet chat with the project file, then paste the reply.'), note,
+        h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn small', onclick: function () { copyText(J.improvePrompt(P, p.id, local, note.value.trim()), 'The improve prompt is copied') } }, icon('copy'), 'Copy prompt'), h('button', { class: 'btn small', onclick: fileForModel }, icon('download'), 'Project file ' + J.stamp(P))), reply, repOut),
         actions: [{ label: 'Check and use', primary: true, do: function () {
-          var r = GK.parse('scene', reply.value, { part: p.id }); if (r.error) { reply.classList.add('field-bad'); toast(r.error, 'warn', 7000); return false }
-          S.snapshot(P, 'Before improving part ' + p.id);
-          P.improved = (P.improved || []).filter(function (b) { return b.id !== p.id }).concat([{ id: p.id, code: r.code, at: Date.now(), note: note.value.trim() }]);
-          save(true).then(function () { closeMaster(); render(); toast('Part ' + p.id + ' is improved. Earlier versions are kept (Script & audio, More, Undo).', 'ok', 7000) });
+          repOut.innerHTML = '';
+          var r = REPLY.read(P, fake, reply.value, {});
+          if (!r.usable || !r.ok) {
+            reply.classList.add('field-bad');
+            repOut.appendChild(problemPanel(fake, { found: r.found, problems: r.problems, redirect: null }, { saved: r.usable, promptFn: function () { return J.improvePrompt(P, p.id, local, note.value.trim()) }, onUse: r.usable ? function () { closeImp(); applyImprove(r.code) } : null }));
+            return false;
+          }
+          applyImprove(r.code);
         } }] });
     }
     var info = h('div', { class: 'stack', style: { gap: '10px' } });

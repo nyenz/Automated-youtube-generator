@@ -25,7 +25,7 @@ await clearToasts();await p.click('text=Listen and split into parts');ok(await t
 await clearToasts();await p.setInputFiles('input[type=file]',SP+'/notes.txt');ok(await toastHas('not audio'),'rejects a non-audio file');
 await p.click('.seg >> text=Long video');await p.waitForTimeout(500);ok(await p.locator('.seg button.on').innerText()==='Long video','format switch');
 await p.setInputFiles('input[type=file]',SP+'/long.wav');await p.waitForTimeout(1500);
-ok((await p.locator('.audio-line').innerText()).includes('1 min 57 s'),'audio length shown');
+{const wb=fs.readFileSync(SP+'/long.wav'),dur=Math.round((wb.length-44)/wb.readUInt32LE(28)),want=Math.floor(dur/60)+' min '+(dur%60)+' s',got=await p.locator('.audio-line').innerText();ok(got.includes(want),'audio length shown ('+want+')');}
 // persistence after reload
 await p.reload();await p.waitForTimeout(1200);
 ok((await p.locator('textarea').inputValue()).length>1000,'script kept after reload');ok(await p.locator('.seg button.on').innerText()==='Long video','format kept after reload');

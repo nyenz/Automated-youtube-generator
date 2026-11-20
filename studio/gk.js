@@ -145,15 +145,17 @@
   }
   G.open = function (P, blocks) { return G.compose(P, blocks, { bridge: true }).then(function (t) { var H = new Host(t), L = lineMap(t);
     H.where = function (msg) { var m = /\(line (\d+)\)/.exec(msg || ''), n = m ? +m[1] : -1; for (var i = 0; i < L.length; i++) if (n >= L[i][0] && n <= L[i][1]) return L[i][2]; return 'unknown' };
+    /* the block an error is in, and its line counted from the first line of that block's code (line 1 = the first line the model wrote) */
+    H.locate = function (msg) { var m = /\(line (\d+)\)/.exec(msg || ''), n = m ? +m[1] : -1; for (var i = 0; i < L.length; i++) if (n >= L[i][0] && n <= L[i][1]) return { label: L[i][2], line: Math.max(1, n - L[i][0]) }; return { label: 'unknown', line: null } };
     return H }) };
 
   /* SVG text -> canvas (for previews, the critic and the MP4) */
-  G.raster = function (svg, W, H, canvas) {
+  G.raster = function (svg, W, H, canvas, bg) {
     return new Promise(function (res, rej) {
       var s = String(svg), head = s.slice(0, s.indexOf('>'));
       s = s.replace('<svg ', '<svg width="' + W + '" height="' + H + '" ' + (/preserveAspectRatio=/.test(head) ? '' : 'preserveAspectRatio="xMidYMid slice" '));
       var img = new Image(), u = URL.createObjectURL(new Blob([s], { type: 'image/svg+xml' }));
-      img.onload = function () { var c = canvas || document.createElement('canvas'); c.width = W; c.height = H; var x = c.getContext('2d'); x.fillStyle = '#000'; x.fillRect(0, 0, W, H); x.drawImage(img, 0, 0, W, H); URL.revokeObjectURL(u); res(c) };
+      img.onload = function () { var c = canvas || document.createElement('canvas'); c.width = W; c.height = H; var x = c.getContext('2d'); x.fillStyle = bg || '#000'; x.fillRect(0, 0, W, H); x.drawImage(img, 0, 0, W, H); URL.revokeObjectURL(u); res(c) };
       img.onerror = function () { URL.revokeObjectURL(u); rej(new Error('A frame could not be drawn.')) };
       img.src = u;
     });

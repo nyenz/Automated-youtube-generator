@@ -29,7 +29,7 @@
         // only errors from this reply's own block count (the player complains when no part is built yet; that is not the reply's fault)
         var mine = job.kind === 'scene' ? ['part ' + job.part, 'player'] : ['job:' + job.id, ver.full ? (job.kind === 'cast' ? 'cast block' : 'asset block') : '-'];
         var errs = (info.errors || []).filter(function (e) { var w = H.where(e); return mine.indexOf(w) >= 0 && !(w === 'player' && !(info.built || []).length) || w === 'unknown' && !/reading 'P'/.test(e) });
-        var out = { v: v, info: info, errors: errs };
+        var out = { v: v, info: info, errors: errs, errorLines: errs.map(function (e) { var loc = H.locate(e); return { msg: String(e).replace(/\s*\(line \d+\)\s*$/, ''), line: mine.indexOf(loc.label) >= 0 ? loc.line : null } }) };
         var job2 = Promise.resolve();
         if (job.kind === 'assets') job2 = H.ask({ cmd: 'assets', names: job.items.map(function (x) { return x.name }) }).then(function (r) { out.cards = r || [] });
         if (job.kind === 'cast') job2 = H.ask({ cmd: 'cast', names: job.items.map(function (x) { return x.name }) }).then(function (r) { out.cards = r || [] });
@@ -48,6 +48,20 @@
         return job2.then(function () { return out });
       }).then(function (o) { H.close(); return o }, function (e) { H.close(); throw e });
     });
+  };
+
+  /* the pictures of ONE version, for the preview page (frames over time, assets, people from three sides) */
+  C.pieces = function (job, x, words) {
+    var out = [];
+    if (!x) return out;
+    if (job.kind === 'scene') {
+      if (x.prevFrame) out.push({ svg: x.prevFrame, cap: 'Part before', sub: 'its last second', dim: true });
+      (x.frames || []).forEach(function (f, i) { out.push({ svg: f, cap: x.times[i].toFixed(1) + ' s', sub: words ? words(x.times[i]) : '' }) });
+      if (x.nextFrame) out.push({ svg: x.nextFrame, cap: 'Part after', sub: 'its first second', dim: true });
+    } else if (x.cards) {
+      x.cards.forEach(function (c) { out.push({ svg: c.svg, cap: c.name, sub: c.error ? 'does not draw: ' + c.error : c.missing ? 'was not made' : (c.band ? c.band + (c.note ? ' \u00B7 ' + c.note : '') : c.note || ''), contain: true, light: !c.dark, kind: job.kind, bad: !!(c.error || c.missing) }) });
+    }
+    return out;
   };
 
   /* facts both versions are judged on */
@@ -108,7 +122,7 @@
         lab(g, String(cell.cap || '').slice(0, 34), cell.x + 2, cell.y + cell.h + 16, 12, cell.dim ? 'rgba(236,230,216,.55)' : '#ECE6D8');
         if (!cell.svg) return;
         var s = cell.svg; if (cell.contain) s = s.replace('<svg ', '<svg preserveAspectRatio="xMidYMid meet" ');
-        return GK.raster(s, cell.w * 2, cell.h * 2).then(function (cv) { g.globalAlpha = cell.dim ? .7 : 1; g.drawImage(cv, cell.x, cell.y, cell.w, cell.h); g.globalAlpha = 1 }).catch(function () { lab(g, 'could not draw', cell.x + 8, cell.y + 20, 12, '#ff7b7b') });
+        return GK.raster(s, cell.w * 2, cell.h * 2, null, cell.contain ? (cell.light ? '#EDE6D6' : '#1d1d20') : null).then(function (cv) { g.globalAlpha = cell.dim ? .7 : 1; g.drawImage(cv, cell.x, cell.y, cell.w, cell.h); g.globalAlpha = 1 }).catch(function () { lab(g, 'could not draw', cell.x + 8, cell.y + 20, 12, '#ff7b7b') });
       });
     }, Promise.resolve()).then(function () { return c });
   };
