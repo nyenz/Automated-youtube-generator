@@ -59,6 +59,7 @@ await p.click('.side .stage:has-text("Results")');await p.click('.tabs button:ha
 await p.click('.tabs button:has-text("Problems")').catch(()=>{});await M('result-probs');
 await p.click('.side .stage:has-text("Results")');await p.locator('.jt-body .jt-row',{hasText:'Assets'}).first().click();await M('result-asset');
 await p.click('.side .stage:has-text("Results")');await p.locator('.jt-body .jt-row',{hasText:'The plan'}).first().click();await M('result-plan');
+await p.click('.side .stage:has-text("Thumbnails")');await p.waitForTimeout(500);await p.click('button:has-text("Paste designs")');await p.fill('.modal textarea','{"thumbnails":[{"name":"A","idea":"one line idea here","subject":"x","text":"2 HOURS","text_place":"top"},{"name":"B","idea":"one line","subject":"y","text":"7°C"},{"name":"C","idea":"one line","subject":"z","text":""}]}');await p.click('.modal .btn.primary');await M('thumbs-3');
 await p.goto('http://localhost:8125/');await M('home');
 // phone: nothing may spill sideways
 const pid=await p.evaluate(()=>STORE.list().then(a=>a[0].id));await p.setViewportSize({width:390,height:844});
