@@ -67,6 +67,7 @@
   }
   function tabs(list, cur, onPick) { return h('div', { class: 'tabs noscroll', role: 'tablist' }, list.map(function (t) { return h('button', { class: t.id === cur ? 'on' : '', role: 'tab', onclick: function () { onPick(t.id) } }, t.label, t.count != null ? h('span', { class: 'count' }, t.count) : null) })) }
   function seg(list, cur, onPick) { return h('div', { class: 'seg' }, list.map(function (t) { return h('button', { class: t.id === cur ? 'on' : '', onclick: function () { onPick(t.id) } }, t.icon || null, t.label) })) }
+  function chip(v, k, kind, title) { return h('span', { class: 'chip ' + (kind || ''), title: title || '' }, h('b', null, v), h('span', null, k)) }
   function stat(v, k, kind) { return h('div', { class: 'stat ' + (kind || '') }, h('div', { class: 'v' }, v), h('div', { class: 'k' }, k)) }
   function art(id) { return h('div', { class: 'art ' + id }) }
 
@@ -270,9 +271,9 @@
         h('button', { class: 'btn small', onclick: function (e) { e.stopPropagation(); useStyle(s) } }, 'Use'));
     }));
     head.addEventListener('click', function () { var open = body.style.display === 'none'; body.style.display = open ? '' : 'none'; head.classList.toggle('open', open) });
-    return h('div', { class: 'page' },
+    return h('div', { class: 'page fit' },
       h('div', { class: 'titlebar' }, backBtn(), h('div', null, h('h1', null, '1. Pick a style'), h('p', null, 'Every video in a style looks the same, and each style keeps its own assets.'))),
-      h('div', { class: 'cols' }, h('div', { class: 'stack' }, mainCard, h('div', { class: 'card' }, head, body)), demo),
+      h('div', { class: 'cols fitcols fill' }, h('div', { class: 'stack scrollbox' }, mainCard, h('div', { class: 'card' }, head, body)), demo),
       nextBar(null, P.styleChosen ? { label: 'Next: Script & audio', go: 'audio' } : { label: 'Pick a style to go on', off: true }));
   }
 
@@ -364,14 +365,13 @@
 
   function audioPage() {
     var T = P.timing, parts = T ? AU.parts(T.words, P.cuts || [], T.duration) : [];
-    var pg = h('div', { class: 'page' },
+    var pg = h('div', { class: 'page fit' },
       h('div', { class: 'titlebar' }, backBtn(), h('div', null, h('h1', null, '2. Script & audio'), h('p', null, 'The app listens to your narration, matches every word to the script and splits it into parts.')), h('div', { class: 'grow' }),
         T ? h('button', { class: 'btn', onclick: function (e) { e.stopPropagation(); menu(e.currentTarget, [
           { label: 'Copy the plan (JSON)', icon: 'copy', do: copyPlan }, { label: 'Download the plan', icon: 'download', do: downloadPlan }, '-', { label: 'Undo: earlier versions', icon: 'undo', do: versions }]) } }, icon('more'), 'More') : null),
-      tabs([{ id: 'inputs', label: 'Script & audio' }, { id: 'parts', label: 'Timing & parts', count: T ? parts.length : null }], AUDIOTAB, function (t) { if (t === 'parts' && !T) { toast('Press "Listen and split" first.', 'warn'); return } AUDIOTAB = t; render() }));
-    pg.appendChild(AUDIOTAB === 'parts' && T ? partsPane(T, parts) : inputsPane());
+      h('div', { class: 'toolbar' }, tabs([{ id: 'inputs', label: 'Script & audio' }, { id: 'parts', label: 'Timing & parts', count: T ? parts.length : null }], AUDIOTAB, function (t) { if (t === 'parts' && !T) { toast('Press "Listen and split" first.', 'warn'); return } AUDIOTAB = t; render() }), h('div', { class: 'grow' }), P.audio ? playerBar(parts) : null));
+    var pane = AUDIOTAB === 'parts' && T ? partsPane(T, parts) : inputsPane(); pane.classList.add('fill'); pg.appendChild(pane);
     pg.appendChild(nextBar({ label: 'Style', go: 'style' }, T ? { label: 'Next: Prompts', go: 'prompts' } : { label: 'Listen and split first', off: true }));
-    if (P.audio) pg.appendChild(playerBar(parts));
     return pg;
   }
 
@@ -413,7 +413,8 @@
       if (!P.audio) { drop.scrollIntoView({ block: 'center', behavior: 'smooth' }); drop.classList.add('field-bad'); setTimeout(function () { drop.classList.remove('field-bad') }, 1200); toast('Add the narration audio first.', 'warn'); return }
       analyse();
     }
-    return h('div', { class: 'cols tabpane' }, left, right);
+    left.classList.add('scrollbox'); right.classList.add('scrollbox');
+    return h('div', { class: 'cols fitcols tabpane' }, left, right);
   }
 
   function takeAudio(f) {
@@ -459,17 +460,18 @@
     var warn = parts.filter(function (p, i) { return AU.check(p, i === parts.length - 1).length }).length;
     var wps = T.words.length / Math.max(1, T.duration), guessed = (T.guessed || []).filter(Boolean).length;
     var heard = T.method === 'whisper' ? Math.round((1 - guessed / Math.max(1, T.words.length)) * 100) : null;
-    var box = h('div', { class: 'tabpane' },
-      h('div', { class: 'stats' },
-        stat(fmtT(T.duration), 'Length'), stat(String(T.words.length), 'Words'), stat(String(parts.length), 'Parts', bad ? 'bad' : warn ? 'warn' : 'ok'),
-        stat(wps.toFixed(1), 'Words a second', wps < AU.RULES.wpsLow || wps > AU.RULES.wpsHigh ? 'warn' : 'ok'),
-        stat(heard == null ? 'Pauses' : heard + '%', heard == null ? 'Timing method' : 'Heard clearly', heard == null ? 'warn' : heard >= 90 ? 'ok' : 'warn')));
-    if (T.script != null && T.script !== P.script) box.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)', borderLeft: '4px solid var(--warn)' } },
+    var box = h('div', { class: 'tabpane fitpane' },
+      h('div', { class: 'chips' },
+        chip(fmtT(T.duration), 'long'), chip(String(T.words.length), 'words'), chip(String(parts.length), parts.length === 1 ? 'part' : 'parts', bad ? 'bad' : warn ? 'warn' : 'ok', bad || warn ? plural(warn, 'part') + ' to look at' : 'Every part follows the rules'),
+        chip(wps.toFixed(1), 'words a second', wps < AU.RULES.wpsLow || wps > AU.RULES.wpsHigh ? 'warn' : 'ok'),
+        heard == null ? h('button', { class: 'chip warn click', title: 'Why are the times estimated?', onclick: function () { modal({ title: 'The times are estimated', body: h('p', { class: 'muted', style: { fontSize: '13px', lineHeight: 1.6, margin: 0 } }, 'Whisper could not run in this browser, so words were placed from the pauses (rulebook timing level B). Use Chrome or Edge and press "Listen and split again" for exact times.'), actions: [{ label: 'Listen and split again', primary: true, do: function () { analyse() } }] }) } }, h('b', null, 'Times estimated'), h('span', null, 'from pauses · why?'))
+          : chip(heard + '%', 'heard clearly', heard >= 90 ? 'ok' : 'warn')));
+    if (T.script != null && T.script !== P.script) box.appendChild(h('div', { class: 'warnline' },
       h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '220px' } }, h('b', null, 'The script changed after the timing was made. '), h('span', { class: 'muted' }, 'The parts below still use the old words. Listen again so the words, times and parts match.')),
         h('button', { class: 'btn primary', onclick: function () { analyse() } }, icon('split'), 'Listen and split again'))));
-    if (T.method !== 'whisper') box.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)', borderLeft: '4px solid var(--warn)' } }, h('b', null, 'The times are estimated. '), h('span', { class: 'muted' }, 'Whisper could not run in this browser, so words were placed from the pauses (rulebook timing level B). Use Chrome or Edge and press "Listen and split again" for exact times.')));
+    // the 'times are estimated' note is the orange chip above (click it for why)
     box.appendChild(timeline(T, parts));
-    var listBox = h('div', { class: 'plist' }, parts.map(function (p, i) {
+    var listBox = h('div', { class: 'plist scrollbox' }, parts.map(function (p, i) {
       var checks = AU.check(p, i === parts.length - 1), lvl = checks.some(function (c) { return c.level === 'bad' }) ? 'bad' : checks.length ? 'warn' : '';
       return h('div', { class: 'pitem ' + lvl + (i === SELPART ? ' on' : ''), onclick: function () { if (SELPART !== i) { SELPART = i; SELWORD = -1; render() } } },
         h('div', { class: 'num' }, String(p.id)),
@@ -480,7 +482,8 @@
         playBtn('part' + i, function () { return p.start }, function () { return p.end }));
     }));
     function markSel() { Array.prototype.forEach.call(listBox.children, function (c, k) { c.classList.toggle('on', k === SELPART) }) }
-    box.appendChild(h('div', { class: 'cols', style: { marginTop: 'var(--gap)' } }, listBox, partDetail(T, parts[SELPART], SELPART === parts.length - 1)));
+    var det = partDetail(T, parts[SELPART], SELPART === parts.length - 1); det.classList.add('scrollbox');
+    box.appendChild(h('div', { class: 'cols fitcols grow-row', style: { marginTop: '12px' } }, listBox, det));
     return box;
   }
 
@@ -557,7 +560,7 @@
           h('span', { class: 'muted', style: { marginLeft: '8px' } }, 'Ends'), h('button', { class: 'btn small', onclick: function () { shift('end', -.05) } }, 'Earlier'), h('button', { class: 'btn small', onclick: function () { shift('end', .05) } }, 'Later')),
         h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, 'Each press moves it 0.05 s. Only fix a word if its caption is clearly early or late.'));
     }
-    return h('div', { class: 'panel', style: { position: 'sticky', top: '0' } },
+    return h('div', { class: 'panel' },
       h('div', { class: 'row' }, h('h2', { style: { margin: 0 } }, 'Part ' + p.id), h('span', { class: 'mono muted' }, fmtT(p.start) + ' – ' + fmtT(p.end)), h('div', { style: { flex: 1 } }),
         playBtn('part' + SELPART, function () { return p.start }, function () { return p.end }, 'Play part', 'small primary')),
       h('div', { class: 'facts' }, [['Length', p.len.toFixed(1) + ' s'], ['Words', String(p.words)], ['Words a second', p.wps.toFixed(1)]].map(function (f) { return h('div', { class: 'glass' }, h('div', { class: 'k' }, f[0]), h('div', { class: 'v mono' }, f[1])) })),
@@ -718,26 +721,51 @@
   var GROUPS = [['plan', 'The plan', 'Sonnet plans places, people, assets and beats for every part. The times and words are already fixed by the app.'],
     ['make', 'Assets and people', 'Hard things get a prompt of their own; simple ones are bunched. They can run in many chats at the same time.'],
     ['scene', 'Scenes', 'One part per prompt, in any order, each in its own chat with the same project file.']];
+  /* job tabs and job tables, shared by Prompts and Results: little scrolling, the list scrolls inside its own box */
+  var JTAB = { prompts: null, pick: null }, HOWOPEN = false;
+  try { HOWOPEN = localStorage.getItem('studio.howOpen') === '1' } catch (e) {}
+  function groupShort(g) { return g[0] === 'make' ? 'Assets & people' : g[1] }
+  function jobTabs(page, L, todoLabel) {
+    var todo = L.filter(function (j) { return !J.picked(j) });
+    var list = [{ id: 'all', label: 'All', count: String(L.length) }];
+    GROUPS.forEach(function (g) { var gl = L.filter(function (j) { return J.group(j) === g[0] }); list.push({ id: g[0], label: groupShort(g), count: gl.filter(function (j) { return J.picked(j) }).length + '/' + gl.length }) });
+    list.push({ id: 'todo', label: todoLabel, count: String(todo.length) });
+    var cur = JTAB[page];
+    if (!cur || !list.some(function (t) { return t.id === cur })) { cur = todo.length ? (J.group(todo[0]) || 'todo') : 'all'; JTAB[page] = cur }
+    var shown = cur === 'all' ? L : cur === 'todo' ? todo : L.filter(function (j) { return J.group(j) === cur });
+    return { el: tabs(list, cur, function (t) { JTAB[page] = t; render() }), list: shown, cur: cur };
+  }
+  function groupNote(cur, P0) {
+    var g = GROUPS.filter(function (x) { return x[0] === cur })[0];
+    return g ? g[2] : cur === 'todo' ? 'Prompts that still need a reply, or a reply that needs a fix.' : 'Every prompt, in order. Do them top to bottom: the plan first, then assets and people, then scenes.';
+  }
+  function jobTable(cls, head, rows, empty) {
+    return h('div', { class: 'jtable fill ' + cls },
+      h('div', { class: 'jt-row jt-head' }, head.map(function (x) { return h('div', null, x) })),
+      h('div', { class: 'jt-body scrollbox' }, rows.length ? rows : h('div', { class: 'jt-empty muted' }, empty)));
+  }
   function promptsPage() {
     var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(3, 'Prompts', 'Numbered prompts for Sonnet.'), nt);
     ensureJobs();
     var mode = J.mode(P), single = mode === 'single', L = J.list(P), done = L.filter(function (j) { return J.picked(j) }).length;
-    var pg = h('div', { class: 'page' }, pageHead(3, 'Prompts', 'Copy a numbered prompt, paste it in a new Sonnet chat with the project file, paste the reply back. The app checks every reply.',
+    var MODES = [{ id: 'single', label: 'One prompt' }, { id: 'two', label: 'Compare: two chats' }, { id: 'one', label: 'Compare: one chat' }];
+    var pg = h('div', { class: 'page fit' }, pageHead(3, 'Prompts', 'Copy a numbered prompt, paste it in a new Sonnet chat with the project file, paste the reply back.',
       h('button', { class: 'btn', onclick: fileForModel, title: 'Attach this file in every Sonnet chat. Its number changes when a plan, asset or person is picked.' }, icon('download'), 'Project file ' + J.stamp(P))));
-    pg.appendChild(h('div', { class: 'stats' }, stat(String(L.length), 'Prompts'), stat(String(done), 'Done', done === L.length ? 'ok' : ''), stat(String(L.length - done), 'To do or fix', L.length - done ? 'warn' : ''), stat(single ? '1 prompt' : '2 versions', 'Per job')));
-    var how = single ? '1. Press Copy prompt on a card. 2. Open a NEW Sonnet chat, attach the project file (the F-number must match) and paste. 3. Copy Sonnet’s reply (it is only code) and press Paste reply. The app checks it and uses it. If something is wrong you get a report with a message to send back.'
+    pg.appendChild(h('div', { class: 'stats compact' }, stat(String(L.length), 'Prompts'), stat(String(done), 'Done', done === L.length ? 'ok' : ''), stat(String(L.length - done), 'To do or fix', L.length - done ? 'warn' : ''), stat(single ? '1 prompt' : '2 versions', 'Per job')));
+    var how = single ? '1. Press Copy prompt on a row. 2. Open a NEW Sonnet chat, attach the project file (the F-number must match) and paste. 3. Copy Sonnet’s reply (it is only code) and press Paste reply. The app checks it and uses it. If something is wrong you get a report with a message to send back.'
       : mode === 'two' ? '1. Copy the prompt. 2. Do it in two new Sonnet chats with the project file. 3. Paste each reply as A and B. Then compare them in stage 4.'
       : '1. Copy the prompt (it asks for two versions). 2. Open a new Sonnet chat with the project file and paste. 3. Paste the whole reply. The app splits it into A and B. Then compare them in stage 4.';
-    pg.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)' } },
-      h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('b', null, 'How each prompt works'), h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, how)),
-        seg([{ id: 'single', label: 'One prompt' }, { id: 'two', label: 'Compare: two chats' }, { id: 'one', label: 'Compare: one chat' }], mode, function (m) { P.abMode = m; save(); render() })),
-      h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '8px' } }, single ? 'Best quality for the least work: every prompt is built to be right the first time, and a reply that passes its checks is used straight away. Compare modes make each job twice and let a critic pick (about double the work).' : 'Compare modes cost about double. Switch back to One prompt any time; nothing you made is lost.')));
-    GROUPS.forEach(function (g, gi) {
-      var list = L.filter(function (j) { return J.group(j) === g[0] }), n = list.filter(function (j) { return J.picked(j) }).length;
-      pg.appendChild(h('div', { style: { margin: 'var(--gap) 0 8px' } }, h('h2', { style: { font: '600 20px/1.2 var(--f-display)', margin: '0 0 2px' } }, '3.' + (gi + 1) + ' · ' + g[1], list.length ? h('span', { class: 'muted mono', style: { font: '500 12px var(--f-mono)', marginLeft: '10px' } }, n + ' of ' + list.length + ' done') : null), h('div', { class: 'muted', style: { fontSize: '12.5px' } }, g[2])));
-      if (!list.length) { pg.appendChild(h('div', { class: 'card muted', style: { fontSize: '13px' } }, g[0] === 'make' && J.picked(P.jobs.plan) ? 'Nothing new to make: every planned person and asset is already in the library.' : 'These prompts appear when the plan is done.')); return }
-      pg.appendChild(h('div', { class: 'plist' }, list.map(jobCard)));
-    });
+    var T = jobTabs('prompts', L, 'To do');
+    var howBox = h('div', { class: 'howbox', style: { display: HOWOPEN ? '' : 'none' } }, h('div', null, how), h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, single ? 'Best quality for the least work: every prompt is built to be right the first time, and a reply that passes its checks is used straight away. Compare modes make each job twice and let a critic pick (about double the work).' : 'Compare modes cost about double. Switch back to One prompt any time; nothing you made is lost.'));
+    var howBtn = h('button', { class: 'btn small' + (HOWOPEN ? ' on' : ''), onclick: function () { HOWOPEN = !HOWOPEN; try { localStorage.setItem('studio.howOpen', HOWOPEN ? '1' : '0') } catch (e) {} howBox.style.display = HOWOPEN ? '' : 'none'; howBtn.classList.toggle('on', HOWOPEN) } }, icon('spark'), 'How it works');
+    var modeBtn = h('button', { class: 'btn small', title: 'How many versions Sonnet makes of each job', onclick: function (e) { e.stopPropagation(); menu(e.currentTarget, MODES.map(function (m) { return { label: m.label, icon: m.id === mode ? 'check' : null, do: function () { if (m.id !== mode) { P.abMode = m.id; save(); render() } } } })) } },
+      h('span', { class: 'muted' }, 'Mode:'), MODES.filter(function (m) { return m.id === mode })[0].label, h('span', { style: { display: 'inline-flex', transform: 'rotate(90deg)' } }, icon('chev')));
+    pg.appendChild(h('div', { class: 'toolbar' }, T.el, h('div', { class: 'grow' }), howBtn, modeBtn));
+    pg.appendChild(howBox);
+    pg.appendChild(h('div', { class: 'muted note-line' }, groupNote(T.cur)));
+    var rows = T.list.map(jobRow);
+    var empty = T.cur === 'make' && J.picked(P.jobs.plan) ? 'Nothing new to make: every planned person and asset is already in the library.' : T.cur === 'todo' ? 'Nothing to do here: every prompt has a reply in use.' : 'These prompts appear when the plan is done.';
+    pg.appendChild(jobTable('prompts', ['No.', 'Prompt', 'Status', 'Reply', ''], rows, empty));
     pg.appendChild(nextBar({ label: 'Script & audio', go: 'audio' }, { label: 'Next: ' + stageNames().t, go: 'pick' }));
     return pg;
   }
@@ -749,27 +777,30 @@
     if (c.ok) return h('span', { class: 't-ok' }, pre + ': ' + (c.lintAll ? 'checks pass (' + c.lintPass + '/' + c.lintAll + ')' : 'checks pass') + (n.notes ? ' · ' + plural(n.notes, 'note') : ''));
     return h('span', { class: 't-bad' }, pre + ': ' + plural(n.errors || (c.issues || []).length || 1, 'problem') + ' to fix');
   }
-  function jobCard(job) {
+  function jobDetail(job) {
+    if (job.kind === 'scene') { var p = GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0] || {}; return fmtT(p.start) + ' – ' + fmtT(p.end) + ' · ' + (p.len ? p.len.toFixed(1) + ' s' : ((p.end - p.start) || 0).toFixed(1) + ' s') }
+    return job.items ? job.items.map(function (x) { return x.name + (x.level ? ' (' + ['', 'simple', 'medium', 'hard'][x.level] + ')' : '') }).join(', ') : 'Places, people, assets and beats for all parts';
+  }
+  function jobRow(job) {
     var mode = J.mode(P), single = mode === 'single', st = J.state(job, P), block = J.blockedBy(P, job), tag = J.tag(P, job);
-    var items = job.kind === 'scene' ? (function () { var p = GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0] || {}; return fmtT(p.start) + ' – ' + fmtT(p.end) + ' · ' + (p.text || '').split(' ').slice(0, 14).join(' ') + '…' })()
-      : job.items ? job.items.map(function (x) { return x.name + (x.level ? ' (' + ['', 'simple', 'medium', 'hard'][x.level] + ')' : '') }).join(', ') : 'Places, people, assets and beats for all parts';
     var fail = job.fail && (!job.A || job.fail.at > job.A.at) ? job.fail : null;
     var hasProblems = ['A', 'B'].some(function (v) { return job[v] && job[v].check && (job[v].check.problems || []).length }) || !!fail;
-    var acts = h('div', { class: 'row', style: { justifyContent: 'flex-end' } });
+    var hasErrors = !!fail || ['A', 'B'].some(function (v) { return job[v] && job[v].check && REPLY.counts(job[v].check.problems || []).errors });
+    var acts = h('div', { class: 'jt-acts' });
     if (block) acts.appendChild(h('span', { class: 'muted', style: { fontSize: '12px' } }, block));
     else {
-      acts.appendChild(h('button', { class: 'btn small', onclick: function () { var t = J.prompt(P, job, mode); copyText(t, 'Prompt ' + tag + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'));
+      acts.appendChild(h('button', { class: 'btn small', title: 'Copy prompt ' + tag, onclick: function () { var t = J.prompt(P, job, mode); copyText(t, 'Prompt ' + tag + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'));
       if (single) acts.appendChild(h('button', { class: 'btn small' + (job.A && job.A.check && job.A.check.ok ? '' : ' primary'), onclick: function () { pasteBox(job, 'A') } }, icon('paste'), job.A ? 'Replace reply' : 'Paste reply'));
       else if (mode === 'two') { acts.appendChild(h('button', { class: 'btn small' + (job.A ? '' : ' primary'), onclick: function () { pasteBox(job, 'A') } }, icon('paste'), job.A ? 'Replace A' : 'Paste A')); acts.appendChild(h('button', { class: 'btn small' + (job.A && !job.B ? ' primary' : ''), onclick: function () { pasteBox(job, 'B') } }, icon('paste'), job.B ? 'Replace B' : 'Paste B')) }
       else acts.appendChild(h('button', { class: 'btn small primary', onclick: function () { pasteBox(job, null) } }, icon('paste'), job.A ? 'Replace reply' : 'Paste reply'));
-      if (hasProblems) acts.appendChild(h('button', { class: 'btn small', onclick: function () { detailsModal(job) } }, icon('spark'), 'See problems'));
-      if (job.A || job.B) acts.appendChild(h('button', { class: 'btn small', onclick: function () { PICKBACK = 'prompts'; go(P.id + '/pick/' + encodeURIComponent(job.id)) } }, icon('play'), 'Preview'));
+      if (job.A || job.B) acts.appendChild(h('button', { class: 'btn small', title: 'Open ' + tag + ' on its own page', onclick: function () { PICKBACK = 'prompts'; go(P.id + '/pick/' + encodeURIComponent(job.id)) } }, icon('play'), 'Preview'));
     }
-    var line = h('div', { class: 'hd', style: { marginTop: '6px', marginBottom: 0 } }, single ? verInfo(job, 'A') : [verInfo(job, 'A'), verInfo(job, 'B')],
-      fail ? h('span', { class: 't-bad' }, 'Last paste NOT saved · ' + plural(REPLY.counts(fail.problems || []).errors || 1, 'problem')) : null);
-    return h('div', { class: 'pitem job ' + st.key, style: { gridTemplateColumns: '48px 1fr auto', cursor: 'default', borderLeftColor: BORDER[st.key] || 'var(--line-2)' } },
-      h('div', { class: 'num' }, tag),
-      h('div', { style: { minWidth: 0 } }, h('div', { class: 'hd' }, h('b', { style: { fontSize: '13.5px' } }, job.title), h('span', { class: st.cls }, st.text)), h('div', { class: 'txt' }, items), line),
+    return h('div', { class: 'jt-row job ' + st.key, style: { borderLeftColor: BORDER[st.key] || 'var(--line-2)' } },
+      h('div', null, h('span', { class: 'num' }, tag)),
+      h('div', { class: 'jt-name' }, h('b', null, job.title), h('span', { class: 'muted' }, jobDetail(job))),
+      h('div', null, h('span', { class: st.cls }, st.text)),
+      h('div', { class: 'jt-reply' }, single ? verInfo(job, 'A') : [verInfo(job, 'A'), verInfo(job, 'B')], fail ? h('span', { class: 't-bad' }, 'Last paste NOT saved · ' + plural(REPLY.counts(fail.problems || []).errors || 1, 'problem')) : null,
+        hasProblems ? h('button', { class: 'linkbtn' + (hasErrors ? '' : ' soft'), onclick: function () { detailsModal(job) } }, hasErrors ? 'See problems' : 'See notes') : null),
       acts);
   }
 
@@ -787,25 +818,28 @@
   function openResult(j, from) { PICKBACK = from || 'list'; go(P.id + '/pick/' + encodeURIComponent(j.id)) }
   function resultsList() {
     var single = J.mode(P) === 'single', nm = stageNames().t, L = J.list(P), any = L.some(function (j) { return j.A || j.B });
-    var pg = h('div', { class: 'page' }, pageHead(4, nm, single ? 'Every reply, numbered like its prompt. Open one to see its pictures, its checks and what to fix.' : 'The app runs both versions, then the critic compares them. You can always overrule it.',
+    var pg = h('div', { class: 'page fit' }, pageHead(4, nm, single ? 'Every reply, numbered like its prompt. Open one to see its pictures, its checks and what to fix.' : 'The app runs both versions, then the critic compares them. You can always overrule it.',
       single ? null : h('button', { class: 'btn', onclick: judgeAll, disabled: CR.mode() === 'gemini' && CR.ready() ? null : true, title: 'Gemini judges every job that has both versions' }, icon('spark'), 'Judge all with Gemini')));
-    if (!single) pg.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)' } }, h('div', { class: 'row' },
-      h('div', { style: { flex: 1, minWidth: '240px' } }, h('b', null, 'Critic'), h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, CR.mode() === 'gemini' ? (CR.ready() ? 'Gemini judges by itself with your free key.' : 'Add your free Gemini key in Settings, or use Sonnet copy-paste.') : 'You copy the critic prompt and the comparison picture into Sonnet and paste back its answer.')),
-      seg([{ id: 'gemini', label: 'Gemini (automatic)' }, { id: 'sonnet', label: 'Sonnet (copy-paste)' }], CR.mode(), function (m) { CR.setMode(m); render() }),
-      CR.mode() === 'gemini' && !CR.ready() ? h('button', { class: 'btn small primary', onclick: settings }, 'Add key') : null)));
-    if (!any) { pg.appendChild(h('div', { class: 'card empty' }, 'No replies yet. Paste replies in Prompts first.', h('div', { style: { marginTop: '12px' } }, h('button', { class: 'btn primary', onclick: function () { go(P.id + '/prompts') } }, 'Go to Prompts')))); return pg }
-    GROUPS.forEach(function (g, gi) {
-      var list = L.filter(function (j) { return J.group(j) === g[0] }); if (!list.length) return;
-      var n = list.filter(function (j) { return J.picked(j) }).length;
-      pg.appendChild(h('div', { style: { margin: 'var(--gap) 0 8px' } }, h('h2', { style: { font: '600 20px/1.2 var(--f-display)', margin: 0 } }, '4.' + (gi + 1) + ' · ' + g[1], h('span', { class: 'muted mono', style: { font: '500 12px var(--f-mono)', marginLeft: '10px' } }, n + ' of ' + list.length + ' done'))));
-      pg.appendChild(h('div', { class: 'plist' }, list.map(function (j) {
-        var st = J.state(j, P), has = j.A || j.B;
-        return h('div', { class: 'pitem job ' + st.key + (has ? '' : ' idle'), style: { gridTemplateColumns: '48px 1fr auto', borderLeftColor: BORDER[st.key] || 'var(--line-2)', cursor: has ? 'pointer' : 'default' }, onclick: function () { if (has) openResult(j, 'list') } },
-          h('div', { class: 'num' }, J.tag(P, j)),
-          h('div', { style: { minWidth: 0 } }, h('div', { class: 'hd' }, h('b', { style: { fontSize: '13.5px' } }, j.title), h('span', { class: st.cls }, st.text + (j.critic ? ' · critic: ' + j.critic.winner : ''))), has ? h('div', { class: 'hd', style: { marginBottom: 0 } }, single ? verInfo(j, 'A') : [verInfo(j, 'A'), verInfo(j, 'B')]) : h('div', { class: 'muted', style: { fontSize: '12px' } }, 'No reply yet')),
-          has ? h('button', { class: 'btn small', onclick: function (e) { e.stopPropagation(); openResult(j, 'list') } }, icon('play'), 'Preview') : null);
-      })));
+    if (!any) { pg.appendChild(h('div', { class: 'card empty' }, 'No replies yet. Paste replies in Prompts first.', h('div', { style: { marginTop: '12px' } }, h('button', { class: 'btn primary', onclick: function () { go(P.id + '/prompts') } }, 'Go to Prompts')))); pg.appendChild(nextBar({ label: 'Prompts', go: 'prompts' }, { label: 'Next: Sound', go: 'sound' })); return pg }
+    var T = jobTabs('pick', L, single ? 'Not in use' : 'Not picked');
+    var bar = h('div', { class: 'toolbar' }, T.el, h('div', { class: 'grow' }));
+    if (!single) {
+      bar.appendChild(h('span', { class: 'muted', style: { fontSize: '12px' }, title: CR.mode() === 'gemini' ? (CR.ready() ? 'Gemini judges by itself with your free key.' : 'Add your free Gemini key in Settings, or use Sonnet copy-paste.') : 'You copy the critic prompt and the comparison picture into Sonnet and paste back its answer.' }, 'Critic'));
+      bar.appendChild(seg([{ id: 'gemini', label: 'Gemini (automatic)' }, { id: 'sonnet', label: 'Sonnet (copy-paste)' }], CR.mode(), function (m) { CR.setMode(m); render() }));
+      if (CR.mode() === 'gemini' && !CR.ready()) bar.appendChild(h('button', { class: 'btn small primary', onclick: settings }, 'Add key'));
+    }
+    pg.appendChild(bar);
+    pg.appendChild(h('div', { class: 'muted note-line' }, 'Click a row to open that result on its own page.'));
+    var rows = T.list.map(function (j) {
+      var st = J.state(j, P), has = j.A || j.B;
+      return h('div', { class: 'jt-row job ' + st.key + (has ? ' click' : ' idle'), style: { borderLeftColor: BORDER[st.key] || 'var(--line-2)' }, onclick: function () { if (has) openResult(j, 'list') } },
+        h('div', null, h('span', { class: 'num' }, J.tag(P, j))),
+        h('div', { class: 'jt-name' }, h('b', null, j.title), h('span', { class: 'muted' }, jobDetail(j))),
+        h('div', null, h('span', { class: st.cls }, st.text + (j.critic ? ' · critic: ' + j.critic.winner : ''))),
+        h('div', { class: 'jt-reply' }, has ? (single ? verInfo(j, 'A') : [verInfo(j, 'A'), verInfo(j, 'B')]) : h('span', { class: 'muted' }, 'No reply yet')),
+        h('div', { class: 'jt-acts' }, has ? h('button', { class: 'btn small', onclick: function (e) { e.stopPropagation(); openResult(j, 'list') } }, icon('play'), 'Preview') : h('button', { class: 'btn small', onclick: function (e) { e.stopPropagation(); go(P.id + '/prompts') } }, 'Go to prompt')));
     });
+    pg.appendChild(jobTable('results', ['No.', 'Result', 'Status', 'Reply', ''], rows, 'Nothing here: every result in this list is in use.'));
     pg.appendChild(nextBar({ label: 'Prompts', go: 'prompts' }, { label: 'Next: Sound', go: 'sound' }));
     return pg;
   }
@@ -818,34 +852,46 @@
       var lab = j ? J.tag(P, j) : (dir < 0 ? 'Previous' : 'Next');
       return h('button', { class: 'btn' + (long ? '' : ' small'), disabled: j ? null : true, title: j ? J.label(P, j) : '', onclick: function () { if (j) openResult(j, PICKBACK) } }, dir < 0 ? rot(icon('chev')) : null, (long ? (dir < 0 ? 'Previous: ' : 'Next: ') : '') + lab, dir > 0 ? icon('chev') : null);
     }
-    var pg = h('div', { class: 'page' }, h('div', { class: 'titlebar' },
+    var pg = h('div', { class: 'page fit' }, h('div', { class: 'titlebar' },
       h('button', { class: 'back', title: 'Back to ' + back.label, 'aria-label': 'Back to ' + back.label, onclick: function () { go(P.id + '/' + back.go) } }, icon('chev')),
       h('div', null, h('h1', null, tag + ' · ' + job.title), h('p', null, J.kindName(job) + ' · result ' + (i + 1) + ' of ' + L.length + ' · ', h('span', { class: st.cls }, st.text))),
       h('div', { class: 'grow' }), navBtn(prev, -1), navBtn(next, 1)));
     if (!(job.A || job.B)) pg.appendChild(h('div', { class: 'card empty' }, 'No reply yet for ' + tag + '.', h('div', { class: 'row', style: { marginTop: '12px', justifyContent: 'center' } },
       h('button', { class: 'btn', onclick: function () { var t = J.prompt(P, job, J.mode(P)); copyText(t, 'Prompt ' + tag + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'),
       h('button', { class: 'btn primary', onclick: function () { pasteBox(job, 'A') } }, icon('paste'), 'Paste reply'))));
-    else pg.appendChild(single ? singleResult(job) : pickDetail(job));
+    else if (single) pg.appendChild(singleResult(job));
+    else { var pd = pickDetail(job); pd.classList.add('fill', 'scrollbox'); pg.appendChild(pd) }
     pg.appendChild(h('div', { class: 'nextbar' },
       h('button', { class: 'btn quiet', onclick: function () { go(P.id + '/' + back.go) } }, rot(icon('chev')), 'Back to ' + back.label), h('div', { class: 'grow' }), navBtn(prev, -1, true), navBtn(next, 1, true)));
     return pg;
   }
+  var RTAB = 'pics';
   function singleResult(job) {
-    var v = job.pick || (job.A ? 'A' : 'B'), ver = job[v], c = ver.check || { problems: [] }, probs = c.problems || [], n = REPLY.counts(probs), wrap = h('div', { class: 'stack' });
-    var panel = h('div', { class: 'panel' });
+    var v = job.pick || (job.A ? 'A' : 'B'), ver = job[v], c = ver.check || { problems: [] }, probs = c.problems || [], n = REPLY.counts(probs);
+    var part = job.kind === 'scene' ? GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0] : null;
+    var panel = h('div', { class: 'panel fill result-box' });
     panel.appendChild(h('div', { class: 'row' }, h('b', { class: c.ok ? 't-ok' : 't-bad' }, c.ok ? 'Draws and passes the checks' + (c.lintAll ? ' (' + c.lintPass + '/' + c.lintAll + ')' : '') : plural(n.errors || 1, 'problem') + ' to fix'),
       n.notes ? h('span', { class: 't-warn', style: { fontSize: '12.5px' } }, plural(n.notes, 'note')) : null, h('div', { class: 'grow', style: { flex: 1 } }), h('span', { class: 'muted mono', style: { fontSize: '11.5px' } }, 'Reply saved ' + ago(ver.at))));
-    if (job.kind === 'scene') { var p = GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0]; if (p) panel.appendChild(h('div', { class: 'muted', style: { fontSize: '12.5px', margin: '8px 0 0' } }, h('b', { style: { color: 'var(--on-dark)' } }, 'Script for this part: '), '“' + p.text + '”')) }
-    var view = h('div', { class: 'viewbox' }); panel.appendChild(view); fillView(view, job, v);
-    var acts = h('div', { class: 'row', style: { marginTop: '12px' } },
+    var list = [{ id: 'pics', label: job.kind === 'plan' ? 'The plan' : job.kind === 'scene' ? 'Frames' : 'Pictures' }];
+    if (probs.length) list.push({ id: 'probs', label: 'Problems', count: String(probs.length) });
+    if (part) list.push({ id: 'script', label: 'Script' });
+    if (!list.some(function (t) { return t.id === RTAB })) RTAB = 'pics';
+    var body = h('div', { class: 'scrollbox rbody' });
+    function paint() {
+      body.innerHTML = '';
+      if (RTAB === 'probs') body.appendChild(problemPanel(job, { found: ver.found || [], problems: probs }, { saved: true, v: v, inUse: !!J.picked(job), onUse: J.picked(job) ? null : function () { usePick(job, v) } }));
+      else if (RTAB === 'script') body.appendChild(h('div', { class: 'glass' }, h('div', { class: 'mono muted', style: { fontSize: '11.5px', marginBottom: '6px' } }, 'Part ' + part.id + ' · ' + fmtT(part.start) + ' – ' + fmtT(part.end)), h('div', { style: { fontSize: '14px', lineHeight: 1.6 } }, '“' + part.text + '”')));
+      else { var view = h('div', { class: 'viewbox' }); body.appendChild(view); fillView(view, job, v) }
+    }
+    var tb = tabs(list, RTAB, function (t) { RTAB = t; Array.prototype.forEach.call(tb.children, function (b, i) { b.classList.toggle('on', list[i].id === t) }); paint() });
+    panel.appendChild(tb); panel.appendChild(body); paint();
+    panel.appendChild(h('div', { class: 'row result-acts' },
       h('button', { class: 'btn', onclick: function () { pasteBox(job, 'A') } }, icon('paste'), 'Paste a new reply'),
       h('button', { class: 'btn', onclick: function () { var t = J.prompt(P, job, 'single'); copyText(t, 'Prompt ' + J.tag(P, job) + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'),
       probs.length ? h('button', { class: 'btn', onclick: function () { copyText(REPLY.fixMessage(P, job, probs, null), 'The fix message for ' + J.tag(P, job) + ' is copied', 'Send it in the same Sonnet chat.') } }, icon('copy'), 'Copy fix message') : null,
       h('div', { class: 'grow', style: { flex: 1 } }),
-      J.picked(job) ? h('span', { class: 't-ok', style: { fontWeight: 600 } }, 'In use') : h('button', { class: 'btn primary', onclick: function () { usePick(job, v) } }, icon('check'), 'Use this reply'));
-    panel.appendChild(acts); wrap.appendChild(panel);
-    if (probs.length) wrap.appendChild(h('div', { class: 'card' }, problemPanel(job, { found: ver.found || [], problems: probs }, { saved: true, v: v, inUse: !!J.picked(job), onUse: J.picked(job) ? null : function () { usePick(job, v) } })));
-    return wrap;
+      J.picked(job) ? h('span', { class: 't-ok', style: { fontWeight: 600 } }, 'In use') : h('button', { class: 'btn primary', onclick: function () { usePick(job, v) } }, icon('check'), 'Use this reply')));
+    return panel;
   }
   function planTable(pl) {
     var ps = pl.parts || [], ppl = {}, as = {}; ps.forEach(function (p) { (p.cast || []).forEach(function (n) { ppl[n] = 1 }); (p.assets || []).forEach(function (n) { as[n] = 1 }) });
@@ -991,7 +1037,7 @@
   function soundPage() {
     var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(5, 'Sound', 'Music and sound effects.'), nt);
     var Sx = SD.cfg(P);
-    var pg = h('div', { class: 'page' }, pageHead(5, 'Sound', 'Optional. Background music that drops while the narrator speaks, and sound effects on the right moments.'));
+    var pg = h('div', { class: 'page fit' }, pageHead(5, 'Sound', 'Optional. Background music that drops while the narrator speaks, and sound effects on the right moments.'));
     var mfile = h('input', { type: 'file', accept: 'audio/*', class: 'hidden-file' });
     mfile.addEventListener('change', function () { var f = mfile.files[0]; if (!f) return; S.putBlob(P.id + ':music', f).then(function () { SD.forget(P.id + ':music'); Sx.music = { name: f.name, size: f.size }; save(true).then(render); toast('Music added: ' + f.name + '.', 'ok') }) });
     function slider(label, key, min, max, step, fmt) {
@@ -1017,15 +1063,18 @@
     function startMix() { stopAudio(); soundBlobs().then(function (b) { return SD.play(P, SPLAY.t || 0, totalDur(), b) }).then(function () { SPLAY.on = true; pbtn.innerHTML = ''; pbtn.appendChild(icon('pause')); pbtn.appendChild(document.createTextNode('Pause')); loop() }) }
     function stopMix() { SPLAY.t = SD.now() || 0; SD.stop(); SPLAY.on = false; cancelAnimationFrame(SPLAY.raf); pbtn.innerHTML = ''; pbtn.appendChild(icon('play')); pbtn.appendChild(document.createTextNode('Play the mix')) }
     function loop() { var t = SD.now(); if (t != null) { tm.textContent = fmtT(t) + ' / ' + fmtT(totalDur()); if (t >= totalDur()) { SPLAY.t = 0; stopMix(); return } } if (tm.isConnected) SPLAY.raf = requestAnimationFrame(loop); else { SD.stop(); SPLAY.on = false } }
-    var preview = h('div', { class: 'panel' }, h('h2', null, 'Listen'), h('p', { class: 'sub' }, 'Narration, music and effects together, as they will be in the MP4.'),
+    var preview = h('div', { class: 'panel short' }, h('h2', null, 'Listen'), h('p', { class: 'sub' }, 'Narration, music and effects together, as they will be in the MP4.'),
       h('div', { class: 'row' }, pbtn, h('button', { class: 'btn', onclick: function () { SPLAY.t = 0; stopMix(); tm.textContent = '0:00.0' } }, icon('stop'), 'From the start'), tm));
-    pg.appendChild(h('div', { class: 'cols' }, music, preview));
-    pg.appendChild(cuesCard(Sx));
+    var nOn = Sx.cues.filter(function (c) { return !c.off }).length;
+    pg.appendChild(h('div', { class: 'toolbar' }, tabs([{ id: 'music', label: 'Background music', count: Sx.music ? '1' : '0' }, { id: 'sfx', label: 'Sound effects', count: String(nOn) }], SNDTAB, function (t) { SNDTAB = t; render() })));
+    var leftCard = SNDTAB === 'sfx' ? cuesCard(Sx) : music; leftCard.classList.add('scrollbox', 'tabpane');
+    pg.appendChild(h('div', { class: 'cols fill fitcols' }, leftCard, preview));
     pg.appendChild(nextBar({ label: stageNames().t, go: 'pick' }, { label: 'Next: Thumbnails', go: 'thumbs' }));
     return pg;
   }
+  var SNDTAB = 'music';
   function cuesCard(Sx) {
-    var card = h('div', { class: 'card', style: { marginTop: 'var(--gap)' } }, h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('h2', null, 'Sound effects'), h('p', { class: 'sub', style: { margin: 0 } }, 'Placed on whips and big hits from the built scenes, plus any Sonnet suggests. Sounds come from your folder first, then Freesound.')),
+    var card = h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('h2', null, 'Sound effects'), h('p', { class: 'sub', style: { margin: 0 } }, 'Placed on whips and big hits from the built scenes, plus any Sonnet suggests. Sounds come from your folder first, then Freesound.')),
       h('button', { class: 'btn', onclick: autoCues }, icon('spark'), 'Find moments'),
       h('button', { class: 'btn', onclick: function () { copyText(SD.cuePrompt(P), 'The sound prompt is copied') } }, icon('copy'), 'Sonnet prompt'),
       h('button', { class: 'btn', onclick: pasteCues }, icon('paste'), 'Paste cues'),
@@ -1161,7 +1210,7 @@
     var plan = GK.plan(P), wide = P.format === 'long';
     var pg = h('div', { class: 'page' }, pageHead(7, 'Watch & export', 'Watch the joined video with all the sound. Click a moment to improve it, then make the MP4.',
       h('button', { class: 'btn', onclick: fileForModel }, icon('download'), 'Project file')));
-    var stage = h('canvas', { width: wide ? 960 : 540, height: wide ? 540 : 960, style: { width: wide ? '100%' : 'auto', height: wide ? 'auto' : 'min(64dvh, 640px)', maxWidth: '100%', display: 'block', margin: '0 auto', background: '#000', borderRadius: '12px' } });
+    var stage = h('canvas', { width: wide ? 960 : 540, height: wide ? 540 : 960, style: { width: 'auto', height: wide ? 'auto' : 'clamp(240px, calc(100dvh - 445px), 640px)', maxWidth: '100%', maxHeight: wide ? 'max(220px, calc(100dvh - 445px))' : null, display: 'block', margin: '0 auto', background: '#000', borderRadius: '12px' } });
     var status = h('div', { class: 'muted', style: { fontSize: '12.5px', margin: '8px 0' } }, 'Loading the project file…');
     var tm = h('span', { class: 'time' }), fill = h('i'), where = h('span', { class: 'where' });
     var dur = totalDur();
@@ -1231,7 +1280,7 @@
       }).catch(function (e) { toast('The MP4 could not be made: ' + e.message, 'bad', 9000) })
         .then(function () { BUSY = false; render() });
     }
-    var up = h('textarea', { class: 'area', style: { minHeight: '150px' }, placeholder: 'Paste the upload package from Sonnet here to keep it with the video.' }, (P.upload || ''));
+    var up = h('textarea', { class: 'area', style: { minHeight: '64px', height: '64px' }, placeholder: 'Paste the upload package from Sonnet here to keep it with the video.' }, (P.upload || ''));
     up.addEventListener('input', function () { P.upload = up.value; save() });
     var pack = h('div', { class: 'card' }, h('h2', null, 'Upload package'), h('p', { class: 'sub' }, 'Titles, description, tags, hashtags and a pinned comment.'),
       h('div', { class: 'row', style: { marginBottom: '10px' } }, h('button', { class: 'btn', onclick: function () { copyText(uploadPrompt(), 'The upload prompt is copied') } }, icon('copy'), 'Copy prompt for Sonnet'), P.upload ? h('button', { class: 'btn', onclick: function () { copyText(P.upload, 'The package is copied') } }, icon('copy'), 'Copy package') : null), up);
