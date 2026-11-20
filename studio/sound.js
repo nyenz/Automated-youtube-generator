@@ -50,13 +50,13 @@
   };
   SD.cuePrompt = function (P) {
     var plan = window.GK.plan(P), W = (P.timing && P.timing.words) || [];
-    return 'You are the sound designer of a narrated YouTube video. Pick sound effects that make the story feel real. Sounds only where something physical happens or for a strong emotional beat. Never on every sentence, never under every word. Usually 1 to 3 per 20 seconds.\n\n' +
+    return 'PROMPT S5 \u00B7 SOUND MOMENTS\nYou are the sound designer of a narrated YouTube video. Pick sound effects that make the story feel real. Sounds only where something physical happens or for a strong emotional beat. Never on every sentence, never under every word. Usually 1 to 3 per 20 seconds.\n\n' +
       'Here are the parts, with what is seen and the word times (seconds of the narration):\n' +
       plan.parts.map(function (p) {
         var ws = W.filter(function (w) { return w[1] >= p.start && w[1] < p.end }).map(function (w) { return w[0] + '@' + w[1].toFixed(2) }).join(' ');
         return 'PART ' + p.id + ' (' + p.start + ' to ' + p.end + ' s) ' + (p.place ? 'place: ' + p.place + '. ' : '') + (p.beats ? 'seen: ' + [].concat(p.beats).join(' / ') + '. ' : '') + '\nwords: ' + ws;
       }).join('\n\n') +
-      '\n\nReply with JSON only: {"cues": [{"time": seconds, "label": "what happens", "search": "2 to 4 words to search a sound library, e.g. ice crack", "volume": 0.2 to 1}]}';
+      '\n\n' + window.JOBS.jsonRules() + '{"cues": [{"time": seconds, "label": "what happens", "search": "2 to 4 words to search a sound library, e.g. ice crack", "volume": 0.2 to 1}]}';
   };
   SD.parseCues = function (text) {
     text = String(text || ''); var a = text.indexOf('{'), b = text.lastIndexOf('}'), j = null;

@@ -47,11 +47,38 @@
   };
   J.list = function (P) { return (P.jobOrder || []).map(function (id) { return P.jobs[id] }).filter(Boolean) };
   J.picked = function (job) { return job && job.pick && job[job.pick] && !job[job.pick].error ? job[job.pick] : null };
-  J.state = function (job) {
-    var a = job.A && !job.A.error, b = job.B && !job.B.error;
-    if (J.picked(job)) return { key: 'done', text: 'Picked ' + job.pick, cls: 't-ok' };
+
+  /* ---------- modes, numbers and names ----------
+     single = one prompt, one reply (the default).  two = two chats per job, compared.  one = one chat that returns two versions, compared. */
+  J.mode = function (P) { return P && (P.abMode === 'two' || P.abMode === 'one') ? P.abMode : 'single' };
+  function pad(n) { return (n < 10 ? '0' : '') + n }
+  J.no = function (P, job) { return (P.jobOrder || []).indexOf(job.id) + 1 };
+  J.total = function (P) { return (P.jobOrder || []).length };
+  J.tag = function (P, job) { return job.tagName || 'P' + pad(J.no(P, job)) };                       // P05
+  var KIND = { plan: 'Plan', assets: 'Assets', cast: 'People', scene: 'Scene' };
+  J.kindName = function (job) { return KIND[job.kind] || job.kind };
+  J.label = function (P, job) { return J.tag(P, job) + ' \u00B7 ' + job.title };    // P05 · Part 2: Black ice
+  J.group = function (job) { return job.kind === 'plan' ? 'plan' : job.kind === 'scene' ? 'scene' : 'make' };
+  /* the project file changes only when the plan, assets or people are picked: F00, F01, F02 ... The number is in the file name and in every prompt. */
+  J.stamp = function (P) { var n = J.list(P).filter(function (j) { return j.kind !== 'scene' && J.picked(j) }).length; return 'F' + pad(n) };
+  J.fileName = function (P) { var n = String(P.name || 'video').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'video'; return n + ' - project ' + J.stamp(P) + '.html' };
+  /* the line the model must write first, so the app knows which prompt the reply belongs to */
+  J.replyLine = function (P, job, ver) {
+    if (job.replyOverride) return job.replyOverride;
+    var id = J.tag(P, job) + ' ' + job.id + (ver ? ' ' + ver : '');
+    if (job.kind === 'plan') return '"REPLY": "' + id + '"';
+    if (job.kind === 'scene') return '<!-- REPLY ' + id + ' -->';
+    return '// REPLY ' + id;
+  };
+
+  /* one word for where a job stands. In single mode a reply that passes its checks is used straight away. */
+  J.state = function (job, P) {
+    var single = P ? J.mode(P) === 'single' : false, a = job.A && !job.A.error, b = job.B && !job.B.error;
+    if (J.picked(job)) { var pc = job[job.pick].check; if (pc && !pc.ok) return { key: 'done', text: 'In use, ' + (single ? 'has problems' : 'version ' + job.pick + ' has problems'), cls: 't-warn' }; return { key: 'done', text: single ? 'Done' : 'Picked ' + job.pick, cls: 't-ok' } }
     if (a && b) return { key: 'pick', text: 'Ready to pick', cls: 't-info' };
+    if (single && (a || b)) return { key: 'fix', text: 'Needs a fix', cls: 't-bad' };
     if (a || b) return { key: 'one', text: 'Waiting for the second version', cls: 't-warn' };
+    if (job.fail) return { key: 'fail', text: 'Last reply not saved', cls: 't-bad' };
     return { key: 'todo', text: 'Not started', cls: 'muted' };
   };
   /* what must be finished before a job can start (rulebook: plan, then assets and people, then scenes) */
@@ -76,51 +103,90 @@
     return out;
   };
 
-  /* ---------- prompts ---------- */
-  var REPLY_TWO = '\n\nMAKE TWO VERSIONS. Give two different, complete answers: write a line "=== VERSION A ===" before the first and "=== VERSION B ===" before the second. Make them really different in the creative choices (framing, staging, shapes), both following every rule.';
-  function head(mode) { return 'MODE: ' + mode + '\nThe attached file is my Gilded Kasumi project file (rulebook, plan, engine, library, parts and player in one file). Read the rulebook inside it first and obey it.\n' }
-  var EXAMPLE = 'The block marked data-example-part="1" is the worked example (Under the Ice), switched off. It is NOT part of this video; copy its shape only. Its people and assets are in the library and may be reused when they fit.\n';
-  J.prompt = function (P, job, two) {
-    var plan = window.GK.plan(P), txt = '';
+  /* ---------- prompts ----------
+     Every prompt has the same four parts, always in this order, so a model (and you) can find things:
+       1. a title line with its number         PROMPT P05 of 16 · SCENE · PART 2
+       2. the task                              what to make, from the plan
+       3. the output contract                   the exact shape of the reply (code only, first line = REPLY tag)
+       4. the quality bar                       what to check silently before answering
+     The rulebook inside the attached file does the teaching; the prompt only points at it, to save tokens. */
+  var LANG = { plan: 'json', assets: 'js', cast: 'js', scene: 'html' };
+  var EXAMPLE = 'The block marked data-example-part="1" is the worked example (Under the Ice), switched off. It is NOT part of this video: copy its shape only. Its people and assets are in the library and may be reused when they fit.';
+  function titleLine(P, job, mode) {
+    var t = 'PROMPT ' + J.tag(P, job) + ' of ' + pad(J.total(P)) + ' · ' + J.kindName(job).toUpperCase();
+    if (job.kind === 'scene') t += ' · PART ' + job.part + ' of ' + window.GK.plan(P).parts.length;
+    if (job.kind === 'assets' || job.kind === 'cast') t += ' · ' + job.items.length + ' ' + (job.kind === 'assets' ? 'asset' : 'person');
+    return t + ' · ' + ({ single: 'ONE PROMPT', two: 'COMPARE, CHAT 1 OF 2', one: 'COMPARE, TWO VERSIONS' })[mode];
+  }
+  function fileLine(P) {
+    return 'FILE: attach "' + J.fileName(P) + '" (button "Project file for Sonnet"). The number ' + J.stamp(P) + ' must match; if your file has another number, download it again. It holds my Gilded Kasumi rulebook, plan, engine, library, parts and player. Read the rulebook first and obey it.';
+  }
+  function contract(P, job, mode, extra) {
+    var lang = LANG[job.kind], n = 0, L = [], one = mode === 'one', tag = J.replyLine(P, job, null), none = job.kind === 'plan';
+    function add(s) { L.push((++n) + '. ' + s) }
+    if (one) {
+      add('Reply with exactly TWO ```' + lang + ' code blocks and nothing else. The line "=== VERSION A ===" comes before the first block and "=== VERSION B ===" before the second. No other words. Make the two really different in their creative choices (framing, staging, shapes); both must obey every rule.');
+      add((none ? 'The first key of the JSON object in the first block is exactly: ' : 'The first line inside the first block is exactly: ') + J.replyLine(P, job, 'A') + (none ? ' and in the second block: ' : ' and inside the second: ') + J.replyLine(P, job, 'B'));
+    } else {
+      add('Reply with ONE ```' + lang + ' code block and NOTHING else. No words before it or after it: no greeting, no title, no summary, no "what I made", no checks list, no questions. This replaces the reply shape of section 27; it saves tokens.');
+      add((none ? 'The first key of the JSON object is exactly: ' : 'The first line inside the block is exactly: ') + tag);
+    }
+    (extra || []).forEach(add);
+    add(none ? 'Valid JSON only: double quotes, no comments, no trailing commas, no "...".' : 'Complete code only. Never write "...", "same as before", "rest unchanged" or any shortcut. Notes (assumptions, new things, limits) go as // comment lines at the top of the code, 3 lines at most.');
+    add('Do not return the file. Do not change, rename or "tidy" anything that exists.');
+    add('Answer in the chat only: no artifact, no file, no download, no tool.');
+    add('Check silently before you answer. Never print the checks. If a check fails, fix your answer first.');
+    add('If something is unclear, take the simplest choice that obeys the plan. Never ask a question.');
+    return 'OUTPUT CONTRACT (an app reads your reply by machine, so the format is strict):\n' + L.join('\n');
+  }
+  var PLAN_SHAPE = '{"REPLY": "<the id from rule 2>",\n "continuity": {"<person or thing>": "what must stay the same in every part"},\n "assets_info": {"<NEW asset>": {"note": "what it is, size and look, one line", "band": "far | middle | subject | foreground", "level": 1 or 2 or 3}},\n "cast_info": {"<NEW person>": {"note": "who, age, clothes, hair, colours", "level": 1 or 2 or 3}},\n "parts": [{"id": 1, "title": "", "place": "", "time": "", "moods": [""], "cast": [""], "assets": [""], "in": "dip", "out": "whip", "starts_on": "", "ends_on": "", "job": "", "beats": ["", "", ""]}]}';
+  J.prompt = function (P, job, mode) {
+    mode = mode === true ? 'one' : (mode === 'one' || mode === 'two' ? mode : 'single');
+    var plan = window.GK.plan(P), txt = '', task = '', ctr, bar;
+    var head = titleLine(P, job, mode) + '\n' + fileLine(P) + '\n\nMODE: ' + ({ plan: 'PROJECT', assets: 'ASSETS', cast: 'CAST', scene: 'SCENE' })[job.kind] + (job.kind === 'scene' ? '\nPART: ' + job.part : '') + '\n';
     if (job.kind === 'plan') {
-      txt = head('PROJECT') + EXAMPLE +
-        'The app has ALREADY done the audio work with Whisper and my script. These are final, do not change them: "stage", "audio" (with audio.words, the exact time of every word) and every part\'s "id", "start", "end" and "text". The parts were cut at long pauses after sentences (section 16).\n\n' +
-        'Fill in everything else for EVERY part (sections 16, 20, 23, 24 and 25): title, place, time, moods, cast, assets, in, out, starts_on, ends_on, job, beats. Fill "continuity". ' + (plan.audio.length > 120 ? 'This video is over 2 minutes, so also fill "chapters" and "places" (section 20). ' : '') + '\n' +
-        'Use names already in CAST and the asset library when they fit. Give the same thing the same name in every part.\n' +
-        'Also add two lists the app uses to share the drawing work between chats:\n' +
-        '"assets_info": {"<name>": {"note": "what it is, its size and look in one line", "band": "far / middle / subject / foreground", "level": 1 simple, 2 medium, 3 hard}} for every NEW asset,\n' +
-        '"cast_info": {"<name>": {"note": "who, age, clothes, hair, colours", "level": 1 to 3}} for every NEW person.\n\n' +
-        'Reply in the shape of section 27. For CODE give ONLY the finished project plan JSON, in one ```json code block. Do not return the file.\n\n' +
-        'FULL SCRIPT:\n' + (P.script || '').trim();
+      var long = plan.audio.length > 120, np = plan.parts.length + (plan.parts.length === 1 ? ' part' : ' parts');
+      task = 'TASK\nPlan the whole video (rulebook sections 16, 20, 23, 24, 25). The app already did the audio work: the project plan in the file holds the stage, the audio words and every part\'s id, start, end and text. They are final; do not repeat them (that wastes tokens).\n' +
+        'For EVERY part fill: title, place, time, moods, cast, assets, in, out, starts_on, ends_on, job, beats. Fill "continuity".' + (long ? ' This video is over 2 minutes: also fill "chapters" and "places" (section 20).' : '') + '\n' +
+        'Reuse names already in CAST and the asset library when they fit. The same thing has the same name in every part.\n' +
+        'List every NEW asset in "assets_info" and every NEW person in "cast_info" with a level: 1 simple, 2 medium, 3 hard. The app shares the drawing work between chats by level.\n' +
+        'The parts were cut at long pauses after sentences: ' + np + ', ids 1 to ' + plan.parts.length + '.\n\nFULL SCRIPT:\n' + (P.script || '').trim();
+      ctr = contract(P, job, mode, ['The JSON has exactly this shape (add "chapters" and "places" only when asked above):\n' + PLAN_SHAPE]);
+      bar = 'QUALITY BAR (check silently)\n- Exactly ' + np + ', ids 1 to ' + plan.parts.length + ', each once. Do not return stage, audio, start, end or text.\n- Every part: 3 to 8 short beats in the order they are seen; "starts_on" and "ends_on" say size and picture, they are promises to the next chat.\n- Joins: part 1 "in" is "dip", the last part "out" is "none", and every other "in" equals the "out" of the part before.\n- Every part shows what its words say, literally. Few places, well used. Story shape of section 23: hook in the first 2 seconds, stakes, turn, payoff.\n- Light and time of day are logical for each place; continuity notes cover clothes, props, weather, direction of travel.';
     } else if (job.kind === 'assets') {
-      txt = head('ASSETS') + EXAMPLE +
-        'Make ONLY these ' + job.items.length + ' asset' + (job.items.length > 1 ? 's' : '') + ' for this video. Follow section 17 (and 5) and the project plan in the file:\n' +
-        job.items.map(function (x) { return '- ' + x.name + (x.note ? ': ' + x.note : '') + ' (level ' + x.level + ')' }).join('\n') + '\n\n' +
-        'Other chats are making the other assets at the same time, so do not make anything else and do not change anything that exists.\n' +
-        'Reply in the shape of section 27. For CODE give ONLY the ASSET(...) calls you added (and any small helper they need), in one ```js code block. Do not return the file.';
+      task = 'TASK\nMake ONLY these ' + job.items.length + ' asset' + (job.items.length > 1 ? 's' : '') + ' for this video (sections 17 and 5, and the plan in the file). Use these names exactly, with these capitals:\n' +
+        job.items.map(function (x, i) { return (i + 1) + '. ' + x.name + (x.note ? ': ' + x.note : '') + ' (level ' + x.level + ' of 3)' }).join('\n') + '\n' +
+        'Other chats make the other assets at the same time: make nothing else and change nothing that exists.\n' + EXAMPLE;
+      ctr = contract(P, job, mode, ['The code is ONLY the ASSET(...) call' + (job.items.length > 1 ? 's' : '') + ' you add (and a small helper they need), in the exact shape of section 17. Never the whole asset block.']);
+      bar = 'QUALITY BAR (check silently)\n- Exactly the ' + job.items.length + ' name' + (job.items.length > 1 ? 's' : '') + ' above, spelled exactly. No other asset, no changed asset.\n- Every asset draws with its demo values and fits its box; it is clearly the thing named and readable at phone size.\n- Gilded Kasumi: flat cut-paper shapes, thin gold edges, palette colours only, no gradients except the approved ones, no images, fonts or network calls.\n- Detail matches the depth band (section 5): far = simple shapes, subject = rich detail. Clearer is better than more.';
     } else if (job.kind === 'cast') {
-      txt = head('CAST') + EXAMPLE +
-        'Add ONLY these ' + job.items.length + ' ' + (job.items.length > 1 ? 'people' : 'person') + ' for this video. Follow section 18 (and 6, 24) and the plan and continuity notes in the file. Every new look needs side, front and back:\n' +
-        job.items.map(function (x) { return '- ' + x.name + (x.note ? ': ' + x.note : '') }).join('\n') + '\n\n' +
-        'Other chats are making the other people at the same time, so do not add anyone else and do not change anything that exists.\n' +
-        'Reply in the shape of section 27. For CODE give ONLY the lines you added to the cast block (CAST entries, HAIR() and OUTFIT() looks), in one ```js code block. Do not return the file.';
+      task = 'TASK\nAdd ONLY ' + (job.items.length > 1 ? 'these ' + job.items.length + ' people' : 'this person') + ' for this video (sections 18, 6 and 24, and the plan and continuity notes in the file). Use these names exactly, with these capitals. Every new look needs side, front and back views:\n' +
+        job.items.map(function (x, i) { return (i + 1) + '. ' + x.name + (x.note ? ': ' + x.note : '') }).join('\n') + '\n' +
+        'Other chats add the other people at the same time: add nobody else and change nothing that exists.\n' + EXAMPLE;
+      ctr = contract(P, job, mode, ['The code is ONLY the lines you add to the cast block (CAST entries, HAIR() and OUTFIT() looks), never the whole block.']);
+      bar = 'QUALITY BAR (check silently)\n- Exactly the name' + (job.items.length > 1 ? 's' : '') + ' above, spelled exactly. Nobody else, nothing existing changed.\n- Age, gender, skin, hair and clothes match the description and the continuity notes; the side, front and back views are clearly the same person.\n- Clean paper-diorama look; palette colours only; the feeling and pose names exist in section 6.';
     } else if (job.kind === 'scene') {
       var p = plan.parts.filter(function (x) { return x.id === job.part })[0] || {}, prev = plan.parts.filter(function (x) { return x.id === job.part - 1 })[0], next = plan.parts.filter(function (x) { return x.id === job.part + 1 })[0];
-      txt = head('SCENE') + 'PART: ' + job.part + '\n' + EXAMPLE +
-        'Build only part ' + job.part + ' of the project plan in this file (' + plan.parts.length + ' parts). Follow sections 14, 15 and 16. Copy AUDIO_START (' + p.start + '), AUDIO_END (' + p.end + '), IN ("' + p.in + '"), OUT ("' + p.out + '") and the words from the plan. The word times are in audio.words: use them for SEG (timing Level A).\n\n' +
+      task = 'TASK\nBuild ONLY part ' + job.part + ' of ' + plan.parts.length + ' of the project plan in the file (sections 14, 15, 16). Copy AUDIO_START (' + p.start + '), AUDIO_END (' + p.end + '), IN ("' + p.in + '"), OUT ("' + p.out + '") and the words from the plan; the word times are in audio.words: use them for SEG (section 22, level A).\n\n' +
         'SCRIPT FOR THIS PART: "' + (p.text || '') + '"\n' +
         (prev ? 'The part before ends on: ' + (prev.ends_on || '(see the plan)') + '. Start on a different picture.\n' : 'This is the first part: open on the strongest picture within 2 seconds.\n') +
         (next ? 'The part after starts on: ' + (next.starts_on || '(see the plan)') + '.\n' : 'This is the last part.\n') +
-        '\nOther chats build the other parts at the same time with the same file, so never build any other part.\n' +
-        'Reply in the shape of section 27 (start with the SYNC line). For CODE give ONLY the new <script data-part="' + job.part + '"> … </script> block with its tags, in one ```html code block. Do not return the file.';
+        'Other chats build the other parts at the same time from the same file: never build another part.\n' + EXAMPLE;
+      ctr = contract(P, job, mode, ['Then exactly one block: <script data-part="' + job.part + '"> ... </script>, with both tags. Never the whole file.']);
+      bar = 'QUALITY BAR (check silently, then fix)\n- LINT() passes on every line. Words a second is 2.2 to 3.6 for the part; the first SEG time minus AUDIO_START is 0 to 0.6 s.\n- Every phrase has its picture: what the words name is on screen at that word (use T(\'word\')).\n- Strongest picture in the first 2 s; a new picture or camera move every 1.5 to 2.5 s; never the same size twice in a row.\n- The subject is large and whole, heads stay above the captions, all five depth layers have something in them.\n- Light and weather match place and time of the plan; the darkest moment of the story is the darkest frame.\n- Hits: one of 9 to 11 on the key word, the rest 3 to 6. Obey the continuity notes and the people and assets in the file.';
     }
-    return txt + (two ? REPLY_TWO : '');
+    txt = head + '\n' + task + '\n\n' + ctr + '\n\n' + bar;
+    return txt;
   };
+  /* the contract for the small prompts of stages 4 to 7: strict, code only, no talk */
+  J.jsonRules = function () { return 'OUTPUT CONTRACT (an app reads your reply by machine, so the format is strict): reply with ONE ```json code block and NOTHING else (no words before or after it, no summary, no questions); valid JSON only (double quotes, no comments, no trailing commas, no "..."); answer in the chat only (no artifact, no file, no tool). The shape is exactly: ' };
   J.improvePrompt = function (P, partId, t, note) {
-    return head('IMPROVE') + 'PART: ' + partId + '\n' + EXAMPLE +
-      'Follow section 19. Keep AUDIO_START, AUDIO_END, IN, OUT and the words exactly as they are.\n' +
-      'What I want better: at ' + t.toFixed(1) + ' s into part ' + partId + ' (clock time of the part): ' + (note || 'a full review of this moment') + '\n\n' +
-      'Reply in the shape of section 27 (start with the SYNC line). For CODE give ONLY the improved <script data-part="' + partId + '"> … </script> block with its tags, in one ```html code block.';
+    var tag = '<!-- REPLY IMPROVE part-' + partId + ' -->';
+    return 'PROMPT IMPROVE · SCENE · PART ' + partId + '\n' + fileLine(P) + '\n\nMODE: IMPROVE\nPART: ' + partId + '\n\n' +
+      'TASK\nImprove part ' + partId + ' (section 19, every pass in order). Keep AUDIO_START, AUDIO_END, IN, OUT and the words exactly as they are. Change only this part.\n' +
+      'What I want better: at ' + t.toFixed(1) + ' s into part ' + partId + ' (clock time of the part): ' + (note || 'a full review of this moment') + '\n' + EXAMPLE + '\n\n' +
+      'OUTPUT CONTRACT (an app reads your reply by machine, so the format is strict):\n1. Reply with ONE ```html code block and NOTHING else: no words before or after it, no scores, no summary, no questions.\n2. The first line inside the block is exactly: ' + tag + '\n3. Then exactly one block: <script data-part="' + partId + '"> ... </script>, with both tags, complete. Never "...", "same as before" or "rest unchanged". Notes go as // comment lines at the top, 3 lines at most.\n4. Do not return the file. Answer in the chat only: no artifact, no file, no download.\n5. Check silently, never print the checks. If a check fails, fix the code first. Never ask a question.\n\n' +
+      'QUALITY BAR (check silently)\n- Every score of section 19 is the same or better; a change that does not raise a score is undone.\n- LINT() passes on every line. Keep what already works.';
   };
 
   /* ---------- the critic ---------- */
@@ -136,10 +202,10 @@
     return what;
   };
   J.criticAsk = function (P, job, facts) {
-    return 'You are the art director of a YouTube channel that makes narrated videos in one fixed style, Gilded Kasumi. Pick the better of two versions, A or B.\n\n' + J.criticBrief(P, job) + '\n\n' +
+    return 'PROMPT CRITIC \u00B7 ' + J.label(P, job) + '\nYou are the art director of a YouTube channel that makes narrated videos in one fixed style, Gilded Kasumi. Pick the better of two versions, A or B.\n\n' + J.criticBrief(P, job) + '\n\n' +
       (facts ? 'Automatic checks:\n' + facts + '\n\n' : '') +
       'A version that fails automatic checks or does not draw loses unless both fail. Be strict and concrete.\n' +
-      'Reply with JSON only: {"winner": "A" or "B", "score_a": 0-10, "score_b": 0-10, "why": "two or three short sentences", "fix_for_winner": "the one thing to improve next, or empty"}';
+      J.jsonRules() + '{"winner": "A" or "B", "score_a": 0-10, "score_b": 0-10, "why": "two or three short sentences", "fix_for_winner": "the one thing to improve next, or empty"}';
   };
   J.parseCritic = function (text) {
     text = String(text || ''); var j = null, a = text.indexOf('{'), b = text.lastIndexOf('}');
