@@ -101,7 +101,17 @@ await p.click('.player [aria-label=Pause]');await p.waitForTimeout(400);await sh
 const px=await p.evaluate(()=>{const c=document.querySelector('canvas');const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let s=0;for(let i=0;i<d.length;i+=4000)s+=d[i]+d[i+1]+d[i+2];return s});ok(px>1000,'the video frame is drawn (not black)');
 await p.click('text=Improve this moment');await p.waitForTimeout(400);ok((await p.locator('.modal h3').innerText()).startsWith('Improve part'),'improve this moment opens');
 await p.click('.modal >> text=Copy prompt');const ip=await p.evaluate(()=>navigator.clipboard.readText());ok(/MODE: IMPROVE/.test(ip),'improve prompt copied');await p.click('.modal .x');
-await p.click('text=Copy prompt for Sonnet');const upp=await p.evaluate(()=>navigator.clipboard.readText());ok(/6 title options/.test(upp),'upload package prompt');
+await p.fill('input[placeholder^="Channel name"]','NYENZ LEARN');
+await p.click('.card button:has-text("Copy prompt")');const upp=await p.evaluate(()=>navigator.clipboard.readText());
+ok(/^PROMPT U01/.test(upp)&&/write 6/.test(upp)&&/No "#Shorts" in the title/.test(upp)&&/FIRST 3 appear above the title/.test(upp)&&/under 450 characters/.test(upp)&&/NYENZ LEARN/.test(upp)&&/ONE ```json/.test(upp),'upload prompt: 6 title angles, Shorts length rule, hashtag order, tag limit, channel name, JSON only');
+await p.click('button:has-text("Paste package")');await p.fill('.modal textarea','not json');await p.click('.modal .btn.primary');await p.waitForTimeout(300);ok(/not valid JSON/.test((await toasts())),'bad package reply explained');
+await p.fill('.modal textarea','```json\n'+JSON.stringify({titles:[{title:'Why Doctors Refused to Warm This Frozen Boy #Shorts',angle:'why'},{title:'7°C and No Pulse for 2 Hours. He Lived.',angle:'number'},{title:'Can a Boy Survive 2 Hours Under Ice?',angle:'question'}],best:2,why_best:'number hook',description:'An 8-year-old survived 2 hours under ice.\nWhy doctors did not warm him.\nSubscribe to NYENZ LEARN.\n#Shorts #Hypothermia #Survival',hashtags:['#Hypothermia','Survival','#Shorts'],tags:['frozen boy','hypothermia survival','nyenz learn'],pinned_comment:'Did you know the warm and dead rule?',category:'Education'})+'\n```');await p.click('.modal .btn.primary');await p.waitForTimeout(800);
+ok(await p.locator('.modal .titlerow').count()===3,'package opens with the 3 titles');
+ok(/#Shorts; it only wastes space/.test(await p.locator('.modal').innerText()),'title checks: #Shorts in a title is flagged');
+ok(/#Survival/.test(await p.locator('.modal').innerText()),'hashtags get their #');
+await p.locator('.modal .titlerow').nth(2).click();await p.waitForTimeout(600);ok(/in use/.test(await p.locator('.modal .titlerow').nth(2).innerText()),'click a title to use it');
+await p.click('.modal button:has-text("Copy title + description")');const td=await p.evaluate(()=>navigator.clipboard.readText());ok(/^Can a Boy Survive/.test(td)&&/NYENZ LEARN/.test(td),'copy title + description');
+await p.click('.modal .x');await p.waitForTimeout(300);ok(/Can a Boy Survive/.test(await p.locator('.card:has-text("Upload package")').innerText()),'card shows the title in use');
 const [dl]=await Promise.all([p.waitForEvent('download'),p.click('.titlebar >> text=Project file')]);const fp=await dl.path();const ftxt=fs.readFileSync(fp,'utf8');
 ok(/data-example-part="1"/.test(ftxt)&&(ftxt.match(/<script data-part="\d/g)||[]).length===parts.length&&/data-assets data-job=/.test(ftxt)&&!/studio-bridge/.test(ftxt),'downloaded project file: '+parts.length+' parts, example off, no app bridge');
 fs.writeFileSync(SP+'/joined.html',ftxt);

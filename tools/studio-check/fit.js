@@ -38,7 +38,7 @@ ok(/NOT saved/.test(rep),'wrong part is refused');
 ok(/part 1/i.test(rep)&&/part 2/i.test(rep),'the report says it is part 1 and this is part 2');
 ok(await p.locator('.modal button:has-text("Save it in")').count()===1,'offers to save it in the right prompt');
 await p.click('.modal button:has-text("Copy all details")');const det=await clip();ok(det.length>200&&/P\d\d/.test(det),'all details can be copied ('+det.length+' characters)');
-await p.click('.modal button:has-text("Save it in")');await p.waitForTimeout(1500);
+await p.click('.modal button:has-text("Save it in")');for(let k=0;k<40;k++){if(await p.evaluate(()=>STORE.list().then(a=>!!a[0].jobs['scene-1'].A)))break;await p.waitForTimeout(500)}
 ok(await p.evaluate(()=>STORE.list().then(a=>!!a[0].jobs['scene-1'].A)),'moved reply saved in part 1');
 // cut-off reply gives a fix message
 await pasteIn('Part 2:',fx[1].slice(0,Math.floor(fx[1].length*.6)));

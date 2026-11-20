@@ -1353,13 +1353,70 @@
 
   /* ================= stage 7: watch & export ================= */
   var WATCH = { on: false, t: 0, raf: 0, busy: false };
+  /* upload package: Sonnet writes titles, description, tags, hashtags and a pinned comment as JSON; the app checks lengths and shows each piece with its own Copy button */
+  function channelName() { try { return localStorage.getItem('studio.channel') || '' } catch (e) { return '' } }
   function uploadPrompt() {
-    var plan = GK.plan(P), long = P.format === 'long';
-    return 'PROMPT S7 \u00B7 UPLOAD PACKAGE\nWrite the upload package for this ' + (long ? 'YouTube video' : 'YouTube Short and TikTok') + '. Aim for the most clicks and watch time without misleading anyone.\n\n' +
-      'TITLE IDEA: ' + (P.name || plan.title) + '\nLENGTH: ' + fmtLen(totalDur()) + '\nSCRIPT:\n' + (P.script || '').trim() + '\n\n' +
-      'Give: 1) 6 title options (under 60 characters, curiosity without lying, the best first), 2) a description (' + (long ? 'first 2 lines hook, then a short summary, then chapters with timestamps from the parts below' : '2 to 3 short lines') + '), 3) 15 tags, 4) 3 to 5 hashtags, 5) a pinned comment that starts a discussion' + (long ? ', 6) chapter timestamps' : '') + '.\n' +
-      (long ? 'PARTS (for chapters):\n' + plan.parts.map(function (p) { return fmtT(p.start).replace(/\.\d$/, '') + ' ' + (p.title || 'Part ' + p.id) }).join('\n') + '\n' : '') +
-      'OUTPUT CONTRACT: reply in plain text with exactly these headings, in this order, and nothing else: TITLES, DESCRIPTION, TAGS, HASHTAGS, PINNED COMMENT' + (long ? ', CHAPTERS' : '') + '. No greeting, no closing remarks, no questions. Answer in the chat only: no artifact, no file.';
+    var plan = GK.plan(P), long = P.format === 'long', ch = channelName();
+    return 'PROMPT U01 · UPLOAD PACKAGE · ' + (long ? 'YOUTUBE VIDEO' : 'YOUTUBE SHORT') + '\n' +
+      'ROLE: you are the YouTube growth editor of a fast-growing ' + (long ? 'channel' : 'Shorts channel') + '. Write the words people see before they watch: titles, description, hashtags and tags. Goal: the most clicks and watch time WITHOUT misleading anyone (YouTube removes videos with misleading titles, tags or hashtags).\n\n' +
+      'VIDEO: "' + (P.name || plan.title) + '" · ' + fmtLen(totalDur()) + (ch ? ' · channel: ' + ch : '') + '\n' +
+      'SCRIPT:\n' + (P.script || '').trim() + '\n\n' +
+      (long ? 'PARTS (for chapters):\n' + plan.parts.map(function (p) { return fmtT(p.start).replace(/\.\d$/, '') + ' ' + (p.title || 'Part ' + p.id) }).join('\n') + '\n\n' : '') +
+      'TITLES (most important): write 6, each from a different angle: 1 a "why" curiosity gap, 2 the shocking number or fact, 3 a question, 4 the story hook (who + what happened), 5 a "this is how / the science" promise, 6 your free best.\n' +
+      '- ' + (long ? '45 to 65 characters; the hook and the main search words in the first 45.' : '30 to 55 characters; the hook in the first 40 characters (the Shorts feed cuts the rest).') + '\n' +
+      '- Use the words people would search (e.g. the main thing, the place, the condition) in plain language.\n' +
+      '- Every promise must be paid off in the video. No fake shock, no words like "you won\'t believe".\n' +
+      '- No "#Shorts" in the title (YouTube decides Shorts by length and shape; it wastes title space). At most 1 emoji, only at the end. No ALL-CAPS title (1 or 2 caps words are fine).\n' +
+      'Pick the best one and say why in one line.\n\n' +
+      'DESCRIPTION:\n' + (long ? '- Line 1 (under 150 characters): the hook with the main search words; it shows in search and under the title.\n- Then 3 to 5 short lines: what happens and why it matters, in plain words.\n- Then the chapters (from the parts above, 0:00 first).\n'
+        : '- Line 1 (under 150 characters): the hook with the main search words; it shows in search and under the title.\n- Line 2 and 3: the true story in plain words and the question the video answers.\n') +
+      (ch ? '- Last line: one subscribe line that names ' + ch + ' and what the channel gives.\n' : '- Last line: one subscribe line that says what the channel gives.\n') +
+      '- Natural sentences only. No list of keywords, no repeated phrases (YouTube removes keyword stuffing).\n- Put the hashtags on the very last line.\n\n' +
+      'HASHTAGS: 3 to 5, all about this video. The FIRST 3 appear above the title, so put the strongest topic first' + (long ? '' : ' and include #Shorts') + '. No unrelated trending hashtags.\n\n' +
+      'TAGS: 10 to 15 (YouTube says tags matter little; they help with misspellings and other names for the topic): the exact topic, 2 or 3 other ways or misspellings people write it, the science or medical term, the broader topic' + (ch ? ', the channel name' : '') + '. All together under 450 characters.\n\n' +
+      'PINNED COMMENT: one or two lines that ask a question viewers want to answer about THIS story (an opinion, a "did you know", or what to cover next).\n\n' +
+      J.jsonRules() + '{"titles": [{"title": "", "angle": "why | number | question | story | science | free"}], "best": 1, "why_best": "one line", "description": "the full description with \\n between lines, hashtags on the last line", "hashtags": ["#..."], "tags": ["..."], "pinned_comment": "", "category": "Education or Science & Technology"' + (long ? ', "chapters": "0:00 ...\\n..."' : '') + '}';
+  }
+  function parsePack(text) {
+    var a = text.indexOf('{'), b = text.lastIndexOf('}'), j = null;
+    try { j = JSON.parse(text.slice(a, b + 1)) } catch (e) { return { err: 'The reply is not valid JSON. Ask Sonnet: "Send it again as ONE json code block, valid JSON, nothing else."' } }
+    if (!j || !Array.isArray(j.titles) || !j.titles.length || !j.description) return { err: 'The reply has no "titles" list or no "description". Ask Sonnet to follow the JSON shape exactly.' };
+    j.titles = j.titles.map(function (t) { return typeof t === 'string' ? { title: t, angle: '' } : t }).filter(function (t) { return t && t.title });
+    j.hashtags = (j.hashtags || []).map(function (x) { x = String(x).trim().replace(/\s+/g, ''); return x.charAt(0) === '#' ? x : '#' + x });
+    j.tags = (j.tags || []).map(function (x) { return String(x).trim() }).filter(Boolean);
+    j.best = Math.max(1, Math.min(j.titles.length, +j.best || 1));
+    return { pack: j };
+  }
+  function packChecks(j) {
+    var long = P.format === 'long', max = long ? 70 : 55, out = [];
+    j.titles.forEach(function (t, i) { var n = t.title.length; if (n > 100) out.push(['bad', 'Title ' + (i + 1) + ' is ' + n + ' characters; YouTube allows 100.']); else if (n > max) out.push(['warn', 'Title ' + (i + 1) + ' is ' + n + ' characters; aim for ' + (long ? '65' : '55') + ' or less so it is not cut.']); if (/#shorts/i.test(t.title)) out.push(['warn', 'Title ' + (i + 1) + ' has #Shorts; it only wastes space.']) });
+    var tl = j.tags.join(',').length; if (tl > 500) out.push(['bad', 'Tags are ' + tl + ' characters together; YouTube allows 500. Remove some.']);
+    if (j.hashtags.length > 15) out.push(['bad', j.hashtags.length + ' hashtags; YouTube ignores more than 15. Keep 3 to 5.']); else if (j.hashtags.length > 5) out.push(['warn', j.hashtags.length + ' hashtags; 3 to 5 work best.']);
+    if (j.description.length > 5000) out.push(['bad', 'The description is over 5,000 characters.']);
+    return out;
+  }
+  function packModal() {
+    var j = P.uploadPack; if (!j) return;
+    var long = P.format === 'long', shut = null;
+    function piece(label, text, note) { return h('div', { class: 'fieldgroup' }, h('div', { class: 'row', style: { flexWrap: 'nowrap' } }, h('span', { class: 'label', style: { flex: 1, margin: 0 } }, label), note ? h('span', { class: 'muted', style: { fontSize: '11.5px' } }, note) : null, h('button', { class: 'btn small', onclick: function () { copyText(text, label + ' is copied', 'Paste it in YouTube Studio.') } }, icon('copy'), 'Copy')), h('div', { class: 'packtext' }, text)) }
+    var titles = h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Titles (click one to use it)'), j.titles.map(function (t, i) {
+      var on = j.best === i + 1, n = t.title.length, max = long ? 65 : 55;
+      return h('div', { class: 'titlerow' + (on ? ' on' : ''), onclick: function () { j.best = i + 1; save(true); if (shut) shut(); packModal(); render() } },
+        h('span', { class: 'num' }, String(i + 1)), h('div', { style: { flex: 1, minWidth: 0 } }, h('b', null, t.title), h('div', { class: 'muted', style: { fontSize: '11.5px' } }, (t.angle ? t.angle + ' · ' : '') + n + ' characters' + (on ? ' · in use' : ''))),
+        h('span', { class: n > 100 ? 't-bad' : n > max ? 't-warn' : 't-ok', style: { fontSize: '11.5px' } }, n > max ? 'long' : 'good'),
+        h('button', { class: 'btn small', onclick: function (e) { e.stopPropagation(); copyText(t.title, 'Title ' + (i + 1) + ' is copied', 'Paste it in YouTube Studio.') } }, icon('copy')));
+    }), j.why_best ? h('div', { class: 'muted', style: { fontSize: '12px', marginTop: '6px' } }, 'Sonnet’s pick: ' + j.why_best) : null);
+    var checks = packChecks(j);
+    shut = modal({ title: 'Upload package · ' + (P.name || ''), body: h('div', { class: 'packbody' },
+      checks.length ? h('div', { class: 'warnline' }, checks.map(function (c) { return h('div', { class: c[0] === 'bad' ? 't-bad' : 't-warn' }, c[1]) })) : h('div', { class: 't-ok', style: { fontSize: '12.5px', marginBottom: '8px' } }, 'Lengths and counts are within YouTube’s limits.'),
+      titles,
+      piece('Description', j.description, j.description.length + ' characters'),
+      piece('Tags', j.tags.join(', '), j.tags.length + ' tags · ' + j.tags.join(',').length + ' / 500 characters'),
+      piece('Hashtags', j.hashtags.join(' '), j.hashtags.length + ' · the first 3 show above the title'),
+      piece('Pinned comment', j.pinned_comment || ''),
+      j.chapters ? piece('Chapters', j.chapters) : null,
+      h('div', { class: 'muted', style: { fontSize: '12px' } }, 'Category: ' + (j.category || 'Education') + ' · Audience: not made for kids (comments stay on) · Captions are already in the video.')),
+      actions: [{ label: 'Copy title + description', primary: true, do: function () { copyText(j.titles[j.best - 1].title + '\n\n' + j.description, 'Title and description are copied'); return false } }] });
   }
   function exportPage() {
     var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(7, 'Watch & export', 'The finished video.'), nt);
@@ -1437,10 +1494,19 @@
       }).catch(function (e) { toast('The MP4 could not be made: ' + e.message, 'bad', 9000) })
         .then(function () { BUSY = false; render() });
     }
-    var up = h('textarea', { class: 'area', style: { minHeight: '64px', height: '64px' }, placeholder: 'Paste the upload package from Sonnet here to keep it with the video.' }, (P.upload || ''));
-    up.addEventListener('input', function () { P.upload = up.value; save() });
-    var pack = h('div', { class: 'card' }, h('h2', null, 'Upload package'), h('p', { class: 'sub' }, 'Titles, description, tags, hashtags and a pinned comment.'),
-      h('div', { class: 'row', style: { marginBottom: '10px' } }, h('button', { class: 'btn', onclick: function () { copyText(uploadPrompt(), 'The upload prompt is copied') } }, icon('copy'), 'Copy prompt for Sonnet'), P.upload ? h('button', { class: 'btn', onclick: function () { copyText(P.upload, 'The package is copied') } }, icon('copy'), 'Copy package') : null), up);
+    var chIn = h('input', { class: 'input', placeholder: 'Channel name (optional), e.g. NYENZ LEARN', value: channelName(), style: { height: '34px' } });
+    chIn.addEventListener('input', function () { try { localStorage.setItem('studio.channel', chIn.value.trim()) } catch (e) {} });
+    function pastePack() {
+      var ta = h('textarea', { class: 'area', style: { minHeight: '220px' }, placeholder: 'Paste the whole Sonnet reply (the json code block).' });
+      modal({ title: 'Paste the upload package', body: ta, actions: [{ label: 'Check and save', primary: true, do: function () { var r = parsePack(ta.value); if (r.err) { ta.classList.add('field-bad'); toast(r.err, 'warn', 9000); return false } P.uploadPack = r.pack; P.upload = ta.value; save(true).then(function () { render(); packModal() }) } }] });
+    }
+    var UP = P.uploadPack, upChecks = UP ? packChecks(UP) : [];
+    var pack = h('div', { class: 'card' }, h('h2', null, 'Upload package'), h('p', { class: 'sub' }, 'Titles, description, tags, hashtags and a pinned comment, written for clicks without misleading.'),
+      chIn,
+      h('div', { class: 'row', style: { margin: '10px 0 0' } }, h('button', { class: 'btn', onclick: function () { copyText(uploadPrompt(), 'Upload prompt U01 is copied', 'Paste it in a new Sonnet chat (no file needed).') } }, icon('copy'), 'Copy prompt'),
+        h('button', { class: 'btn' + (UP ? '' : ' primary'), onclick: pastePack }, icon('paste'), UP ? 'Replace' : 'Paste package'),
+        UP ? h('button', { class: 'btn primary', onclick: packModal }, icon('spark'), 'Open package') : null),
+      UP ? h('div', { style: { marginTop: '10px', fontSize: '12.5px' } }, h('div', null, h('span', { class: 'muted' }, 'Title: '), h('b', null, UP.titles[UP.best - 1].title)), h('div', { class: upChecks.some(function (c) { return c[0] === 'bad' }) ? 't-bad' : upChecks.length ? 't-warn' : 't-ok', style: { marginTop: '4px', fontSize: '12px' } }, upChecks.length ? plural(upChecks.length, 'thing') + ' to look at' : UP.titles.length + ' titles · ' + UP.tags.length + ' tags · ' + UP.hashtags.length + ' hashtags · all within YouTube’s limits')) : null);
     info.appendChild(exp); info.appendChild(pack);
     pg.appendChild(h('div', { class: 'cols' }, left, info));
     pg.appendChild(nextBar({ label: 'Thumbnails', go: 'thumbs' }, null));
