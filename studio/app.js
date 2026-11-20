@@ -597,7 +597,7 @@
     if (P.timing && P.timing.words && P.timing.words.length) return null;
     return h('div', { class: 'card locked-page' }, h('h2', null, 'Finish Script & audio first'), h('p', { class: 'muted' }, 'This stage uses the parts and word times from stage 2.'), h('button', { class: 'btn primary', onclick: function () { go(P.id + '/audio') } }, 'Go to Script & audio'));
   }
-  function pageHead(n, title, sub, extra) { return h('div', { class: 'titlebar' }, backBtn(), h('div', null, h('h1', null, n + '. ' + title), h('p', null, sub)), h('div', { class: 'grow' }), extra || null) }
+  function pageHead(n, title, sub) { var extra = Array.prototype.slice.call(arguments, 3).filter(Boolean); return h('div', { class: 'titlebar' }, backBtn(), h('div', null, h('h1', null, n + '. ' + title), h('p', null, sub)), h('div', { class: 'grow' }), extra.length ? h('div', { class: 'row headacts', style: { gap: '8px', justifyContent: 'flex-end' } }, extra) : null) }
 
   /* ================= checking and saving replies ================= */
   function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's') }
@@ -1236,48 +1236,96 @@
   }
 
   /* ================= stage 6: thumbnails ================= */
-  function thumbPrompt() {
-    var plan = GK.plan(P), long = P.format === 'long';
-    return 'PROMPT S6 \u00B7 THUMBNAILS (3 designs)\nYou are the thumbnail designer of a fast-growing YouTube channel. Design 3 different thumbnails for this video. They must make people click AND show honestly what the video delivers.\n\n' +
-      'VIDEO: "' + (P.name || plan.title) + '" · ' + (long ? 'long video, 16:9, thumbnail 1280 x 720 px' : 'Short / TikTok, 9:16 cover, 1080 x 1920 px (keep faces and text inside the middle 1080 x 1350, away from the top 250 px and the bottom 420 px where the app covers it)') + '\n' +
-      'STYLE OF THE VIDEO: Gilded Kasumi: Japanese woodblock print rebuilt as an Art Deco paper diorama: flat layered cut-paper shapes, thin gold edges, deep indigo and vermilion with cream, soft mist between layers, expressive paper people. The thumbnail must look like it belongs to the video.\n' +
-      'THE STORY:\n' + plan.parts.map(function (p) { return 'Part ' + p.id + (p.job ? ' (' + p.job + ')' : '') + ': ' + p.text }).join('\n') + '\n\n' +
-      'Rules for every thumbnail: one clear focal point readable at phone size; a human face with a strong emotion or a striking object/moment from the story; high contrast and a clear light source; rule of thirds; at most 3 to 5 words of text (or none), bold, never repeating the title; no clutter; no fake moments that are not in the video.\n' +
-      'Make the 3 really different: 1) the moment of greatest danger or tension, 2) the impossible fact or number of the story, 3) the human emotion (a face) with the key object.\n\n' +
-      J.jsonRules() + '{"thumbnails": [{"name": "short name", "idea": "one line: why people will click", "image_prompt": "a detailed prompt for an image AI: subject, pose and emotion, setting, composition and camera angle, lighting, colours, the Gilded Kasumi paper style, aspect ratio ' + (long ? '16:9' : '9:16') + '", "text": "the words on the thumbnail, or empty", "text_place": "where the words go and their colour"}]}';
+  /* thumbnails: Sonnet designs the scene in fields; the app builds the image prompt with a fixed FORMAT and STYLE block,
+     so every image fills the whole frame and is clearly Gilded Kasumi */
+  function thumbFormat() {
+    var long = P.format === 'long';
+    return long ? { ar: '16:9', size: '1280 x 720 px (or 1920 x 1080)', shape: 'horizontal landscape', safe: 'Keep the face and any words away from the bottom-right corner (YouTube puts the video length there).' }
+      : { ar: '9:16', size: '1080 x 1920 px', shape: 'tall vertical portrait', safe: 'Keep the face and any words inside the middle area: not in the top 13% and not in the bottom 22% (the app covers those parts).' };
   }
+  var THUMB_STYLE = [
+    'STYLE: Gilded Kasumi. A Japanese woodblock print (ukiyo-e) rebuilt as an Art Deco cut-paper diorama. Every object is a flat cut-paper shape with a thin gold edge, standing in layers at different distances like a theatre set made of paper.',
+    'LAYERS: 4 to 5 clear depth layers: a dark framing shape in the foreground, the subject, a middle layer, far shapes that get paler and bluer with distance, and the sky or back wall. Soft mist bands with rounded ends slice across the far layers.',
+    'SHAPES: flat colour shapes, no realistic shading. Each shape has 3 flat tones (lit, base, shadow). Long simple curves; man-made things are geometric and streamlined (1930s Art Deco); natural things are soft. Every object reads clearly as a silhouette.',
+    'GOLD: thin gold lines (#D9B45A, lit edge #F6DE8C) only on the edges facing the light, plus small gold trims. Gold is never a big fill. No black outlines.',
+    'PEOPLE: flat jointed paper-puppet figures: simple rounded head, small simple eyes and brows that clearly show the emotion, simple hair shape, clothes as flat paper pieces with a gold edge on the lit side, slight visible joints at shoulders, elbows and knees. Not anime, not 3D, not realistic.',
+    'COLOURS (use only these and mixes of them): paper cream #F3E4BE, mist white #FBF3DC, warm peach #F5BE8C, indigo #2F4A7A, deep indigo #1B2A4A, night navy #0C1630, haze blue #A9B9D0, vermilion #C8402F, dark vermilion #9E2A1C, gold #D9B45A, pine green #17382C. Balance: about 60% cream, peach and sky tones, 25% indigo tones, 10% vermilion, 5% gold. At most two strong red objects.',
+    'TEXTURE AND LIGHT: one fine paper grain over the whole image; a clear light source with soft glows; the sky is a vertical fade from a dark strip at the top to pale paper; a large simple sun or moon or lamp glow with fine Art Deco sunburst rays is welcome when it fits.'
+  ].join('\n');
+  var THUMB_NEVER = 'NEVER: borders, frames, letterbox or black/blank bars, empty bands at the top or bottom, white margins, rounded-corner card look, photo textures, 3D render, plastic or glossy look, bevels, neon, lens flare, sparkles, anime style, emojis, watermark, signature, logos, random letters.';
+  function thumbImagePrompt(c) {
+    var F = thumbFormat(), sc = c.scene || {};
+    var scene = c.scene ? [
+      'SUBJECT: ' + (sc.subject || ''), 'EMOTION: ' + (sc.emotion || ''), 'SETTING: ' + (sc.setting || ''), 'COMPOSITION: ' + (sc.composition || ''), 'LIGHT AND MOOD: ' + (sc.light || ''), sc.key_object ? 'KEY OBJECT: ' + sc.key_object : null
+    ].filter(Boolean).join('\n') : 'SCENE: ' + (c.prompt || '');
+    var text = c.text ? 'TEXT ON THE IMAGE: exactly "' + c.text + '" and no other words. PLACE: ' + (c.place || 'large, in the upper middle') + '. LOOK: very bold, heavy, rounded sans-serif in capitals, white #FFFDF4 with a thick dark navy outline; the key word in gold #F6C956. Big enough to read on a phone. Spell it exactly.'
+      : 'TEXT ON THE IMAGE: none. No letters or words anywhere.';
+    return [
+      'IMAGE ' + c.n + ' of 3 · YouTube thumbnail · ' + c.name,
+      '',
+      'FORMAT (most important): a ' + F.shape + ' image, aspect ratio exactly ' + F.ar + ', ' + F.size + '. FULL-BLEED: the artwork fills the whole canvas edge to edge. The sky, wall, water or ground continues right into all four edges and corners. No border, no frame, no bars, no empty area. ' + F.safe,
+      '',
+      scene,
+      '',
+      THUMB_STYLE,
+      '',
+      text,
+      '',
+      'CLICK POWER: one clear focal point that reads at phone size, strong contrast between the subject and the background, the face (if any) large with an easy-to-read emotion, calm empty space around the subject, no clutter.',
+      THUMB_NEVER,
+      '',
+      'Before you finish: the image is ' + F.ar + ' and full-bleed (no bars at the top or bottom), it looks like cut paper with gold edges, and it uses only the colours above.'
+    ].join('\n');
+  }
+  function thumbPrompt() {
+    var plan = GK.plan(P), F = thumbFormat();
+    return 'PROMPT T01 · THUMBNAILS · 3 DESIGNS\n' +
+      'ROLE: you are the thumbnail designer of a fast-growing YouTube channel. Design 3 thumbnails for this video that make people click AND show honestly what the video delivers.\n\n' +
+      'VIDEO: "' + (P.name || plan.title) + '" · ' + (P.format === 'long' ? 'long YouTube video' : 'YouTube Short') + ' · thumbnail ' + F.ar + ', ' + F.size + '.\n' +
+      'STYLE: the app adds the full Gilded Kasumi style block and the format rules to every image prompt by itself (cut-paper diorama, gold edges, woodblock sky, mist, the palette). Do NOT describe the style, colours or format. Describe only WHAT is in the picture.\n\n' +
+      'THE STORY:\n' + plan.parts.map(function (p) { return 'Part ' + p.id + (p.job ? ' (' + p.job + ')' : '') + ': ' + p.text }).join('\n') + '\n\n' +
+      'MAKE THE 3 REALLY DIFFERENT:\n1. The moment of greatest danger or tension.\n2. The impossible fact or number of the story.\n3. The human emotion: a large face with the key object.\n\n' +
+      'RULES FOR EVERY DESIGN:\n- Only things that really happen in the story. No fake moments.\n- One focal point, readable at phone size. A face with a strong, clear emotion, or a striking object.\n- The scene fills the whole ' + F.ar + ' frame: describe what is at the top, the middle and the bottom so nothing is left empty.\n- Text: 0 to 4 words, never repeating the title. Leave "text" empty for no words.\n- Each field is 1 or 2 plain sentences. Concrete: who, where, what pose, what shot.\n\n' +
+      J.jsonRules() + '{"thumbnails": [{"name": "2 to 4 words", "idea": "one line: why people will click", "subject": "who or what, the pose and what they do", "emotion": "the feeling on the face, very clear (e.g. eyes wide in shock, jaw tight)", "key_object": "the one object that tells the story, or empty", "setting": "the place, and what fills the top, the middle and the bottom of the frame", "composition": "shot size and camera angle, where the subject sits (rule of thirds), what frames it in the foreground", "light": "the light source, the mood, day or night", "text": "the words on the thumbnail, or empty", "text_place": "where the words go"}]}\n' +
+      'Exactly 3 items in "thumbnails".';
+  }
+  var THOWOPEN = false;
   function thumbsPage() {
     var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(6, 'Thumbnails', 'Three designs.'), nt);
-    P.thumbs = P.thumbs || {}; var T = P.thumbs, cs = T.concepts || [];
-    var pg = h('div', { class: 'page' }, pageHead(6, 'Thumbnails', 'Three different thumbnail designs that fit this video. Make each one in an image AI and add the picture here.',
-      h('button', { class: 'btn', onclick: function () { copyText(thumbPrompt(), 'The thumbnail prompt is copied') } }, icon('copy'), 'Copy prompt for Sonnet')));
-    pg.appendChild(h('div', { class: 'card', style: { marginBottom: 'var(--gap)' } }, h('div', { class: 'row' },
-      h('div', { style: { flex: 1, minWidth: '240px' } }, h('b', null, 'How it works'), h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, '1. Copy the prompt into Sonnet. It knows your story and writes 3 detailed designs. 2. Paste its reply. 3. Copy each image prompt into an image AI (ChatGPT, Gemini, Ideogram). 4. Add the pictures here and pick your favourite.')),
-      h('button', { class: 'btn primary', onclick: function () {
-        var ta = h('textarea', { class: 'area', style: { minHeight: '220px' }, placeholder: 'Paste the Sonnet reply with the thumbnails JSON.' });
-        modal({ title: 'Paste the thumbnail designs', body: ta, actions: [{ label: 'Save', primary: true, do: function () {
-          var txt = ta.value, a = txt.indexOf('{'), b = txt.lastIndexOf('}'), j = null; try { j = JSON.parse(txt.slice(a, b + 1)) } catch (e) { }
-          var l = j && (j.thumbnails || j.designs); if (!Array.isArray(l) || !l.length) { ta.classList.add('field-bad'); toast('No thumbnails were found. The reply must hold {"thumbnails": [...]}.', 'warn'); return false }
-          T.concepts = l.slice(0, 3).map(function (x, i) { return { n: i + 1, name: x.name || 'Design ' + (i + 1), idea: x.idea || '', prompt: x.image_prompt || x.prompt || '', text: x.text || '', place: x.text_place || '' } });
-          save(true).then(render); toast('Three designs saved.', 'ok');
-        } }] });
-      } }, icon('paste'), cs.length ? 'Replace designs' : 'Paste designs'))));
-    if (!cs.length) { pg.appendChild(h('div', { class: 'card empty' }, 'No designs yet.')); pg.appendChild(nextBar({ label: 'Sound', go: 'sound' }, { label: 'Next: Watch & export', go: 'export' })); return pg }
-    var grid = h('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' } });
+    P.thumbs = P.thumbs || {}; var T = P.thumbs, cs = T.concepts || [], F = thumbFormat();
+    function pasteDesigns() {
+      var ta = h('textarea', { class: 'area', style: { minHeight: '220px' }, placeholder: 'Paste the Sonnet reply with the thumbnails JSON.' });
+      modal({ title: 'Paste the thumbnail designs', body: ta, actions: [{ label: 'Save', primary: true, do: function () {
+        var txt = ta.value, a = txt.indexOf('{'), b = txt.lastIndexOf('}'), j = null; try { j = JSON.parse(txt.slice(a, b + 1)) } catch (e) { }
+        var l = j && (j.thumbnails || j.designs); if (!Array.isArray(l) || !l.length) { ta.classList.add('field-bad'); toast('No thumbnails were found. The reply must hold {"thumbnails": [...]} in a json code block.', 'warn'); return false }
+        T.concepts = l.slice(0, 3).map(function (x, i) { return { n: i + 1, name: x.name || 'Design ' + (i + 1), idea: x.idea || '', scene: x.subject || x.setting ? { subject: x.subject || '', emotion: x.emotion || '', key_object: x.key_object || '', setting: x.setting || '', composition: x.composition || '', light: x.light || '' } : null, prompt: x.image_prompt || x.prompt || '', text: x.text || '', place: x.text_place || '' } });
+        save(true).then(render); toast(T.concepts.length + ' designs saved. Press Image prompt 1 to start.', 'ok');
+      } }] });
+    }
+    var howBox = h('div', { class: 'howbox', style: { display: THOWOPEN || !cs.length ? '' : 'none' } }, '1. Copy the prompt for Sonnet. It writes 3 designs from your story. 2. Paste its reply. 3. Press Image prompt 1, 2 or 3: the app adds the Gilded style and the full-frame rules. Paste it in an image AI (Gemini, ChatGPT, Ideogram) and set the aspect ratio to ' + F.ar + ' in its settings too. 4. Add each picture here and pick your favourite.');
+    var howBtn = h('button', { class: 'btn' + (THOWOPEN ? ' on' : ''), onclick: function () { THOWOPEN = !THOWOPEN; howBox.style.display = THOWOPEN ? '' : 'none'; howBtn.classList.toggle('on', THOWOPEN) } }, icon('spark'), 'How it works');
+    var pg = h('div', { class: 'page fit' }, pageHead(6, 'Thumbnails', 'Three designs, each made in an image AI. ' + F.ar + ', full frame.',
+      cs.length ? howBtn : null,
+      h('button', { class: 'btn', onclick: function () { copyText(thumbPrompt(), 'Thumbnail prompt T01 is copied', 'Paste it in a new Sonnet chat (no file needed).') } }, icon('copy'), 'Copy prompt for Sonnet'),
+      h('button', { class: 'btn' + (cs.length ? '' : ' primary'), onclick: pasteDesigns }, icon('paste'), cs.length ? 'Replace designs' : 'Paste designs')));
+    pg.appendChild(howBox);
+    if (!cs.length) { pg.appendChild(h('div', { class: 'card empty fill' }, 'No designs yet. Copy the prompt for Sonnet, then paste its reply.')); pg.appendChild(nextBar({ label: 'Sound', go: 'sound' }, { label: 'Next: Watch & export', go: 'export' })); return pg }
+    var grid = h('div', { class: 'grid thumbgrid fill' });
     cs.forEach(function (c) {
-      var img = h('div', { style: { aspectRatio: P.format === 'long' ? '16 / 9' : '9 / 16', maxHeight: '360px', borderRadius: '10px', overflow: 'hidden', background: 'var(--third)', border: '1px solid var(--edge)', display: 'grid', placeItems: 'center', margin: '0 auto', width: P.format === 'long' ? '100%' : 'auto', height: P.format === 'long' ? 'auto' : '360px' } }, h('span', { class: 'muted', style: { fontSize: '12px' } }, 'No picture yet'));
-      if (c.has) S.getBlob(P.id + ':thumb:' + c.n).then(function (b) { if (b) { img.innerHTML = ''; img.appendChild(h('img', { src: URL.createObjectURL(b), alt: c.name, style: { width: '100%', height: '100%', objectFit: 'cover' } })) } });
+      var fav = T.fav === c.n;
+      var img = h('div', { class: 'thumbbox ' + (P.format === 'long' ? 'wide' : 'tall') }, h('span', { class: 'muted', style: { fontSize: '12px' } }, 'No picture yet'));
+      if (c.has) S.getBlob(P.id + ':thumb:' + c.n).then(function (b) { if (b) { img.innerHTML = ''; img.appendChild(h('img', { src: URL.createObjectURL(b), alt: c.name })) } });
       var fin = h('input', { type: 'file', accept: 'image/*', class: 'hidden-file' });
-      fin.addEventListener('change', function () { var f = fin.files[0]; if (!f) return; S.putBlob(P.id + ':thumb:' + c.n, f).then(function () { c.has = true; save(true).then(render); toast('Picture added to ' + c.name + '.', 'ok') }) });
-      grid.appendChild(h('div', { class: 'panel' + (T.fav === c.n ? ' lit' : ''), style: T.fav === c.n ? { boxShadow: '0 0 0 2px var(--accent), var(--shadow-panel)' } : null },
-        h('div', { class: 'row' }, h('span', { class: 'mono', style: { color: 'var(--gold)' } }, String(c.n)), h('h2', { style: { margin: 0 } }, c.name), T.fav === c.n ? h('span', { class: 't-ok', style: { fontSize: '12px' } }, 'Favourite') : null),
-        h('p', { class: 'sub', style: { marginTop: '4px' } }, c.idea), img,
-        c.text ? h('div', { style: { margin: '10px 0 0', fontSize: '12.5px' } }, h('span', { class: 'muted' }, 'Text: '), h('b', null, c.text), c.place ? h('span', { class: 'muted' }, ' · ' + c.place) : null) : null,
-        h('div', { class: 'row', style: { marginTop: '12px' } },
-          h('button', { class: 'btn small', onclick: function () { copyText(c.prompt, 'The image prompt is copied') } }, icon('copy'), 'Image prompt'),
-          h('button', { class: 'btn small', onclick: function () { fin.click() } }, icon('image'), c.has ? 'Replace picture' : 'Add picture'), fin,
-          c.has ? h('button', { class: 'btn small', onclick: function () { S.getBlob(P.id + ':thumb:' + c.n).then(function (b) { if (b) download(safeName(P.name) + ' - thumbnail ' + c.n + '.' + ((b.type.split('/')[1] || 'png').replace('jpeg', 'jpg')), b) }) } }, icon('download'), 'Download') : null,
-          h('button', { class: 'btn small' + (T.fav === c.n ? ' primary' : ''), onclick: function () { T.fav = c.n; save(true).then(render) } }, T.fav === c.n ? 'Favourite' : 'Make favourite'))));
+      fin.addEventListener('change', function () { var f = fin.files[0]; if (!f) return; S.putBlob(P.id + ':thumb:' + c.n, f).then(function () { c.has = true; save(true).then(render); toast('Picture added to design ' + c.n + '.', 'ok') }) });
+      grid.appendChild(h('div', { class: 'panel thumbcard' + (fav ? ' fav' : '') },
+        h('div', { class: 'row', style: { flexWrap: 'nowrap', alignItems: 'flex-start' } }, h('span', { class: 'num' }, 'T' + c.n), h('div', { style: { minWidth: 0, flex: 1 } }, h('h2', { style: { margin: 0 } }, c.name, fav ? h('span', { class: 't-ok', style: { fontSize: '12px', marginLeft: '8px', fontFamily: 'var(--f-sans)' } }, 'Favourite') : null), h('div', { class: 'sub', style: { margin: '2px 0 0', fontSize: '12px' } }, c.idea))),
+        img,
+        h('div', { style: { fontSize: '12px', minHeight: '18px' } }, c.text ? [h('span', { class: 'muted' }, 'Text: '), h('b', null, c.text), c.place ? h('span', { class: 'muted' }, ' · ' + c.place) : null] : h('span', { class: 'muted' }, 'No text on the picture')),
+        h('div', { class: 'row', style: { gap: '6px' } },
+          h('button', { class: 'btn small primary', title: 'The full image prompt: format, scene, style and text', onclick: function () { copyText(thumbImagePrompt(c), 'Image prompt T' + c.n + ' is copied', 'Paste it in the image AI and set its aspect ratio to ' + F.ar + ' too.') } }, icon('copy'), 'Image prompt T' + c.n),
+          h('button', { class: 'btn small', onclick: function () { fin.click() } }, icon('image'), c.has ? 'Replace' : 'Add picture'), fin,
+          fav ? null : h('button', { class: 'btn small', title: 'Make this the favourite', onclick: function () { T.fav = c.n; save(true).then(render) } }, icon('check'), 'Favourite?'),
+          c.has ? h('button', { class: 'btn small', title: 'Download', 'aria-label': 'Download', onclick: function () { S.getBlob(P.id + ':thumb:' + c.n).then(function (b) { if (b) download(safeName(P.name) + ' - thumbnail ' + c.n + '.' + ((b.type.split('/')[1] || 'png').replace('jpeg', 'jpg')), b) }) } }, icon('download')) : null)));
     });
     pg.appendChild(grid);
     pg.appendChild(nextBar({ label: 'Sound', go: 'sound' }, { label: 'Next: Watch & export', go: 'export' }));

@@ -521,3 +521,18 @@ body { font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0; 
 .chip.toggle.on { color: var(--on-dark); border-color: var(--accent); background: rgba(200,32,43,.14); box-shadow: 0 0 12px rgba(200,32,43,.22); }
 .chip.toggle.on .tick { background: var(--accent); border-color: var(--accent); }
 .chip.toggle.on .tick svg { opacity: 1; }
+/* thumbnails: three cards that fit the window; the picture takes the free height */
+.thumbgrid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--gap); }
+.thumbcard { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.thumbcard.fav { box-shadow: 0 0 0 2px var(--accent), var(--shadow-panel); }
+.thumbcard .num { font: 600 12px/1 var(--f-mono); color: var(--on-dark); background: rgba(0,0,0,.25); border: 1px solid var(--edge); border-radius: 7px; padding: 6px 7px; flex: none; }
+.thumbbox { border-radius: 10px; overflow: hidden; background: var(--third); border: 1px solid var(--edge); display: grid; place-items: center; margin: 0 auto; max-width: 100%; }
+.thumbbox.tall { aspect-ratio: 9 / 16; height: 300px; }
+.thumbbox.wide { aspect-ratio: 16 / 9; width: 100%; }
+.thumbbox img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@media (min-width: 901px) and (min-height: 540px) {
+  .page.fit > .thumbgrid { align-items: stretch; overflow: auto; }
+  .thumbcard .thumbbox.tall { flex: 1 1 0; height: auto; min-height: 150px; }
+  .thumbcard .thumbbox.wide { flex: none; }
+}
+@media (min-width: 1000px) { .titlebar .headacts { flex-wrap: nowrap; } }

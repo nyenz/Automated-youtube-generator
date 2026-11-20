@@ -18,6 +18,7 @@ await p.click('.jt-body .jt-row >> text=Copy prompt');const pr=await clip();
 ok(/^PROMPT P01 of 01 · PLAN · ONE PROMPT/.test(pr),'prompt starts with its number: '+pr.split('\n')[0]);
 ok(/ONE ```json code block and NOTHING else/.test(pr)&&/"REPLY": "P01 plan"/.test(pr)&&/Never ask a question/.test(pr),'plan prompt forces code only, with its REPLY line');
 ok(!/VERSION A/.test(pr),'no two-version text in one prompt mode');
+ok(/WARDROBE RULES/.test(pr)&&/"signature"/.test(pr)&&/"accent"/.test(pr)&&/"story"/.test(pr),'plan prompt asks every new person for an outfit type, a signature colour and an easy-to-spot detail');
 const parts=await p.evaluate(()=>STORE.list().then(a=>AUDIO.plan(a[0]).parts.map(x=>({id:x.id}))));
 await pasteIn('The plan',await p.evaluate(ps=>FIX.plan(ps,0),parts));if(await p.locator('.veil').count())await p.click('.modal .x');await p.waitForTimeout(300);
 ok((await p.locator('.jt-body .jt-row').first().innerText()).includes('Done'),'a plan that passes is used straight away');
@@ -25,6 +26,8 @@ const titles=await p.locator('.jt-body .num').allInnerTexts();ok(titles.every((t
 await p.locator('.jt-body .jt-row',{hasText:'Assets: crate'}).locator('text=Copy prompt').click();const ap=await clip();
 ok(/^PROMPT P02 of \d\d · ASSETS/.test(ap)&&/\/\/ REPLY P02 assets-crate/.test(ap)&&/ONLY the ASSET/.test(ap),'asset prompt: number, REPLY line, only the asset');
 await pasteIn('Assets: crate',await p.evaluate(()=>FIX.asset('crate','#C8402F')));if(await p.locator('.veil').count())await p.click('.modal .x');
+await p.locator('.jt-body .jt-row',{hasText:'People: nurse'}).locator('text=Copy prompt').click();const cp=await clip();ok(/WARDROBE RULES/.test(cp)&&/OUTFIT\(\)/.test(cp)&&/signature colour above/.test(cp),'people prompt: wardrobe rules, new OUTFIT when the type does not fit');
+ok(/CREATIVE BAR/.test(ap),'asset prompt has the creative bar');
 await pasteIn('People: nurse',await p.evaluate(()=>FIX.cast('#2F7F7A')));if(await p.locator('.veil').count())await p.click('.modal .x');
 ok((await p.locator('.jt-body .jt-row',{hasText:'People: nurse'}).innerText()).includes('Done'),'person passes and is used');
 await p.locator('.jt-body .jt-row',{hasText:'Part 2:'}).locator('text=Copy prompt').click();const sp=await clip();
@@ -38,7 +41,7 @@ ok(/NOT saved/.test(rep),'wrong part is refused');
 ok(/part 1/i.test(rep)&&/part 2/i.test(rep),'the report says it is part 1 and this is part 2');
 ok(await p.locator('.modal button:has-text("Save it in")').count()===1,'offers to save it in the right prompt');
 await p.click('.modal button:has-text("Copy all details")');const det=await clip();ok(det.length>200&&/P\d\d/.test(det),'all details can be copied ('+det.length+' characters)');
-await p.click('.modal button:has-text("Save it in")');await p.waitForTimeout(1500);
+await p.click('.modal button:has-text("Save it in")');await p.waitForFunction(()=>STORE.list().then(a=>!!a[0].jobs['scene-1'].A),null,{timeout:20000}).catch(()=>{});
 ok(await p.evaluate(()=>STORE.list().then(a=>!!a[0].jobs['scene-1'].A)),'moved reply saved in part 1');
 // cut-off reply gives a fix message
 await pasteIn('Part 2:',fx[1].slice(0,Math.floor(fx[1].length*.6)));
