@@ -46,6 +46,7 @@
       action ? h('button', { class: 'act', onclick: function () { t.remove(); action.do() } }, action.label) : null,
       h('button', { class: 'x', 'aria-label': 'Close', onclick: function () { t.remove() } }, '×'));
     TOASTS.appendChild(t); setTimeout(function () { t.remove() }, ms || 4200);
+    return t;
   }
   var MENU = null;
   function closeMenu() { if (MENU) { MENU.remove(); MENU = null } }
@@ -1042,13 +1043,14 @@
     mfile.addEventListener('change', function () { var f = mfile.files[0]; if (!f) return; S.putBlob(P.id + ':music', f).then(function () { SD.forget(P.id + ':music'); Sx.music = { name: f.name, size: f.size }; save(true).then(render); toast('Music added: ' + f.name + '.', 'ok') }) });
     function slider(label, key, min, max, step, fmt) {
       var val = h('span', { class: 'mono', style: { minWidth: '64px', textAlign: 'right' } }, fmt(Sx[key])), inp = h('input', { type: 'range', class: 'range', min: min, max: max, step: step, value: Sx[key] });
-      inp.addEventListener('input', function () { Sx[key] = +inp.value; val.textContent = fmt(Sx[key]); save() });
-      return h('div', { class: 'row', style: { gap: '12px', marginTop: '10px' } }, h('span', { style: { width: '170px', fontSize: '12.5px' } }, label), inp, val);
+      inp.addEventListener('input', function () { Sx[key] = +inp.value; val.textContent = fmt(Sx[key]); save(); liveRestart() });
+      return h('div', { class: 'row', style: { gap: '12px', marginTop: '10px', flexWrap: 'nowrap' } }, h('span', { style: { width: '150px', flex: 'none', fontSize: '12.5px' } }, label), inp, val);
     }
     var music = h('div', { class: 'card' }, h('h2', null, 'Background music'), h('p', { class: 'sub' }, 'Your own music file. It fades in, drops under every piece of speech and fades out at the end.'),
       h('div', { class: 'fieldgroup' },
         h('div', { class: 'drop', onclick: function () { mfile.click() } }, h('div', { class: 'ico' }, icon('music')), h('div', null, h('div', { class: 'big' }, Sx.music ? Sx.music.name : 'Add a music file'), h('div', { class: 'muted', style: { fontSize: '12px' } }, Sx.music ? 'Click to replace it' : 'MP3, WAV or M4A')), mfile),
-        Sx.music ? h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn small danger', onclick: function () { Sx.music = null; save(true).then(render); toast('Music removed.', 'info') } }, icon('trash'), 'Remove music')) : null),
+        Sx.music ? h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn small danger', onclick: function () { SD.stopOne(); Sx.music = null; save(true).then(render); toast('Music removed.', 'info') } }, icon('trash'), 'Remove music')) : null),
+      Sx.music ? songStart(Sx) : null,
       h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Levels'),
         slider('Music volume', 'musicVol', 0, 1, .01, function (v) { return Math.round(v * 100) + '%' }),
         slider('Drop while speaking', 'duckDb', -30, 0, 1, function (v) { return v + ' dB' }),
@@ -1059,12 +1061,27 @@
         slider('Effects volume', 'sfxVol', 0, 1.5, .01, function (v) { return Math.round(v * 100) + '%' }),
         h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '10px' } }, 'The final mix is brought to about -14 LUFS, the loudness YouTube plays at, without clipping.')));
     // preview
-    var tm = h('span', { class: 'mono' }, '0:00.0'), pbtn = h('button', { class: 'btn primary', onclick: function () { if (SPLAY.on) stopMix(); else startMix() } }, icon(SPLAY.on ? 'pause' : 'play'), SPLAY.on ? 'Pause' : 'Play the mix');
-    function startMix() { stopAudio(); soundBlobs().then(function (b) { return SD.play(P, SPLAY.t || 0, totalDur(), b) }).then(function () { SPLAY.on = true; pbtn.innerHTML = ''; pbtn.appendChild(icon('pause')); pbtn.appendChild(document.createTextNode('Pause')); loop() }) }
-    function stopMix() { SPLAY.t = SD.now() || 0; SD.stop(); SPLAY.on = false; cancelAnimationFrame(SPLAY.raf); pbtn.innerHTML = ''; pbtn.appendChild(icon('play')); pbtn.appendChild(document.createTextNode('Play the mix')) }
-    function loop() { var t = SD.now(); if (t != null) { tm.textContent = fmtT(t) + ' / ' + fmtT(totalDur()); if (t >= totalDur()) { SPLAY.t = 0; stopMix(); return } } if (tm.isConnected) SPLAY.raf = requestAnimationFrame(loop); else { SD.stop(); SPLAY.on = false } }
-    var preview = h('div', { class: 'panel short' }, h('h2', null, 'Listen'), h('p', { class: 'sub' }, 'Narration, music and effects together, as they will be in the MP4.'),
-      h('div', { class: 'row' }, pbtn, h('button', { class: 'btn', onclick: function () { SPLAY.t = 0; stopMix(); tm.textContent = '0:00.0' } }, icon('stop'), 'From the start'), tm));
+    var tm = h('span', { class: 'mono' }, fmtT(SPLAY.t || 0) + ' / ' + fmtT(totalDur())), pbtn = h('button', { class: 'btn primary', onclick: function () { if (SPLAY.on) stopMix(); else startMix() } }, icon(SPLAY.on ? 'pause' : 'play'), SPLAY.on ? 'Pause' : 'Play the mix');
+    var seek = h('input', { type: 'range', class: 'range', min: 0, max: Math.max(1, totalDur()), step: .1, value: SPLAY.t || 0, 'aria-label': 'Where to play from' });
+    seek.addEventListener('input', function () { SPLAY.t = +seek.value; SPLAY.jump = true; tm.textContent = fmtT(SPLAY.t) + ' / ' + fmtT(totalDur()); if (SPLAY.on) liveRestart() });
+    function setBtn(on, busy) { pbtn.innerHTML = ''; pbtn.disabled = !!busy; pbtn.appendChild(icon(busy ? 'spark' : on ? 'pause' : 'play')); pbtn.appendChild(document.createTextNode(busy ? 'Loading the sounds…' : on ? 'Pause' : 'Play the mix')) }
+    function startMix() {
+      stopAudio(); SD.stopOne(); setBtn(false, true);
+      soundBlobs().then(function (b) { if (!b.narr && Lx.voice) throw new Error('The narration file is missing. Add it again in stage 2'); if (!Lx.voice && !Lx.music && !Lx.sfx) throw new Error('Voice, Music and Effects are all off. Turn at least one on'); return SD.play(P, SPLAY.t || 0, totalDur(), b, Lx) })
+        .then(function () { SPLAY.on = true; setBtn(true); loop() })
+        .catch(function (e) { SPLAY.on = false; setBtn(false); toast('The mix could not play: ' + (e && e.message ? e.message : 'a sound file could not be read') + '.', 'bad', 9000) });
+    }
+    function stopMix() { SPLAY.t = SD.now() || SPLAY.t || 0; SD.stop(); SPLAY.on = false; cancelAnimationFrame(SPLAY.raf); setBtn(false) }
+    function loop() { var t = SD.now(); if (t != null) { tm.textContent = fmtT(t) + ' / ' + fmtT(totalDur()); seek.value = t; if (t >= totalDur()) { stopMix(); SPLAY.t = 0; seek.value = 0; return } } if (tm.isConnected) SPLAY.raf = requestAnimationFrame(loop); else { SD.stop(); SPLAY.on = false } }
+    SPLAY.restart = function () { if (!SPLAY.on) return; if (!SPLAY.jump) SPLAY.t = SD.now() || SPLAY.t; SPLAY.jump = false; SD.stop(); cancelAnimationFrame(SPLAY.raf); soundBlobs().then(function (b) { return SD.play(P, SPLAY.t, totalDur(), b, Lx) }).then(loop).catch(function () {}) };
+    var Lx = Sx.listen || (Sx.listen = { voice: true, music: true, sfx: true });
+    function layer(id, label) { var b = h('button', { class: 'chip toggle' + (Lx[id] ? ' on' : ''), 'aria-pressed': String(!!Lx[id]), onclick: function () { Lx[id] = !Lx[id]; b.classList.toggle('on', Lx[id]); b.setAttribute('aria-pressed', String(Lx[id])); save(); if (SPLAY.on) liveRestart() } }, h('span', { class: 'tick' }, icon('check')), h('span', null, label)); return b }
+    SPLAY.playFrom = function (t) { SPLAY.t = t; seek.value = t; if (SPLAY.on) { SPLAY.jump = true; liveRestart() } else startMix() };
+    var preview = h('div', { class: 'panel short' }, h('h2', null, 'Listen'), h('p', { class: 'sub' }, 'Pick what to hear. The MP4 always has all three. Changes are heard straight away.'),
+      h('div', { class: 'chips', style: { marginBottom: '12px' } }, layer('voice', 'Voice'), layer('music', 'Music'), layer('sfx', 'Effects')),
+      h('div', { class: 'row' }, pbtn, h('button', { class: 'btn', title: 'Back to the start', onclick: function () { var was = SPLAY.on; if (was) stopMix(); SPLAY.t = 0; seek.value = 0; tm.textContent = '0:00.0 / ' + fmtT(totalDur()); if (was) startMix() } }, icon('stop'), 'From the start')),
+      h('div', { class: 'row', style: { marginTop: '12px', flexWrap: 'nowrap', gap: '10px' } }, seek, tm),
+      h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '8px' } }, (Sx.music ? 'Music: ' + Sx.music.name : 'No music added') + ' · ' + plural(Sx.cues.filter(function (c) { return c.pickName && !c.off }).length, 'effect') + ' with a sound'));
     var nOn = Sx.cues.filter(function (c) { return !c.off }).length;
     pg.appendChild(h('div', { class: 'toolbar' }, tabs([{ id: 'music', label: 'Background music', count: Sx.music ? '1' : '0' }, { id: 'sfx', label: 'Sound effects', count: String(nOn) }], SNDTAB, function (t) { SNDTAB = t; render() })));
     var leftCard = SNDTAB === 'sfx' ? cuesCard(Sx) : music; leftCard.classList.add('scrollbox', 'tabpane');
@@ -1072,26 +1089,52 @@
     pg.appendChild(nextBar({ label: stageNames().t, go: 'pick' }, { label: 'Next: Thumbnails', go: 'thumbs' }));
     return pg;
   }
-  var SNDTAB = 'music';
+  var SNDTAB = 'music', LIVET = 0;
+  function liveRestart() { clearTimeout(LIVET); LIVET = setTimeout(function () { if (SPLAY.restart) SPLAY.restart() }, 250) }
+  /* where the song starts: a picture of the song, click it or drag the slider, hear 12 s from there */
+  function songStart(Sx) {
+    var cv = h('canvas', { class: 'songwave', width: 800, height: 70, title: 'Click where the song should start' }), info = { dur: 0 };
+    var val = h('span', { class: 'mono', style: { minWidth: '64px', textAlign: 'right' } }, fmtT(Sx.musicStart || 0));
+    var inp = h('input', { type: 'range', class: 'range', min: 0, max: 1, step: .1, value: Sx.musicStart || 0, 'aria-label': 'Start the song at' });
+    function draw() {
+      var g = cv.getContext('2d'), W = cv.width, H = cv.height; g.clearRect(0, 0, W, H); if (!info.peaks) return;
+      var x0 = info.dur ? (Sx.musicStart || 0) / info.dur * W : 0;
+      info.peaks.forEach(function (v, i) { var x = i / info.peaks.length * W, hh = Math.max(1, v * H * .9); g.fillStyle = x < x0 ? 'rgba(236,230,216,.22)' : 'rgba(236,230,216,.8)'; g.fillRect(x, (H - hh) / 2, Math.max(1, W / info.peaks.length - .5), hh) });
+      g.fillStyle = '#C8202B'; g.fillRect(x0 - 1, 0, 3, H);
+    }
+    function setStart(t) { Sx.musicStart = Math.max(0, Math.min(t, Math.max(0, info.dur - 1))); inp.value = Sx.musicStart; val.textContent = fmtT(Sx.musicStart); draw(); save(); liveRestart() }
+    inp.addEventListener('input', function () { setStart(+inp.value) });
+    cv.addEventListener('click', function (e) { var r = cv.getBoundingClientRect(); if (info.dur) setStart((e.clientX - r.left) / r.width * info.dur) });
+    S.getBlob(P.id + ':music').then(function (b) { if (!b) return; return SD.musicInfo(P.id + ':music', b).then(function (i) { info = i; inp.max = Math.max(1, i.dur - 1); inp.value = Sx.musicStart || 0; draw(); dur.textContent = 'Song length ' + fmtT(i.dur) }) }).catch(function () { dur.textContent = 'This music file could not be read. Try an MP3 or WAV.'; dur.className = 't-bad' });
+    var dur = h('span', { class: 'muted', style: { fontSize: '12px' } }, 'Reading the song…');
+    return h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Start the song at'), cv,
+      h('div', { class: 'row', style: { gap: '12px', marginTop: '8px', flexWrap: 'nowrap' } }, inp, val),
+      h('div', { class: 'row', style: { marginTop: '8px' } },
+        h('button', { class: 'btn small', onclick: function () { S.getBlob(P.id + ':music').then(function (b) { if (b) return SD.playOne(P.id + ':music', b, Sx.musicVol, Sx.musicStart || 0, 12) }).then(function () { toast('Playing 12 s of the song from ' + fmtT(Sx.musicStart || 0) + '.', 'info') }).catch(function () { toast('The music file could not be played.', 'bad') }) } }, icon('play'), 'Hear the song from here'),
+        h('button', { class: 'btn small', onclick: function () { SD.stopOne() } }, icon('stop'), 'Stop'), dur));
+  }
   function cuesCard(Sx) {
     var card = h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('h2', null, 'Sound effects'), h('p', { class: 'sub', style: { margin: 0 } }, 'Placed on whips and big hits from the built scenes, plus any Sonnet suggests. Sounds come from your folder first, then Freesound.')),
       h('button', { class: 'btn', onclick: autoCues }, icon('spark'), 'Find moments'),
       h('button', { class: 'btn', onclick: function () { copyText(SD.cuePrompt(P), 'The sound prompt is copied') } }, icon('copy'), 'Sonnet prompt'),
       h('button', { class: 'btn', onclick: pasteCues }, icon('paste'), 'Paste cues'),
       h('button', { class: 'btn primary', onclick: findAll, disabled: Sx.cues.length ? null : true }, icon('music'), 'Find sounds')));
-    var src = S.folderSupported() ? (SFXFILES ? SFXFILES.length + ' sounds in your folder' : 'No sound folder yet') : 'Folders need Chrome or Edge';
-    card.appendChild(h('div', { class: 'row', style: { margin: '10px 0', fontSize: '12.5px' } }, h('span', { class: SFXFILES && SFXFILES.length ? 't-ok' : 'muted' }, src), S.folderSupported() ? h('button', { class: 'btn small', onclick: pickSfxFolder }, icon('folder'), SFXFILES ? 'Change folder' : 'Pick sound folder') : null,
+    var src = SFXFILES ? SFXFILES.length + ' sounds in your folder' : 'No sound folder yet';
+    card.appendChild(h('div', { class: 'row', style: { margin: '10px 0', fontSize: '12.5px' } }, h('span', { class: SFXFILES && SFXFILES.length ? 't-ok' : 'muted' }, src), h('button', { class: 'btn small', onclick: pickSfxFolder }, icon('folder'), SFXFILES ? 'Change folder' : 'Pick sound folder'),
       h('span', { class: SD.fsKey() ? 't-ok' : 'muted' }, SD.fsKey() ? 'Freesound key added' : 'No Freesound key'), SD.fsKey() ? null : h('button', { class: 'btn small', onclick: settings }, 'Add key')));
     if (!Sx.cues.length) { card.appendChild(h('div', { class: 'empty', style: { padding: '18px' } }, 'No sound effects yet. Press Find moments (after scenes are built) or paste cues from Sonnet.')); return card }
     var list = h('div', { class: 'plist' });
     Sx.cues.slice().sort(function (a, b) { return a.t - b.t }).forEach(function (c) {
       var has = !!c.pickName;
-      list.appendChild(h('div', { class: 'pitem' + (c.off ? ' warn' : ''), style: { gridTemplateColumns: '70px 1fr auto', cursor: 'default', borderLeftColor: c.off ? 'var(--line-2)' : has ? 'var(--ok)' : 'var(--warn)' } },
+      list.appendChild(h('div', { class: 'pitem' + (c.off ? ' warn' : ''), style: { gridTemplateColumns: '70px 1fr', rowGap: '8px', cursor: 'default', borderLeftColor: c.off ? 'var(--line-2)' : has ? 'var(--ok)' : 'var(--warn)' } },
         h('div', { class: 'mono', style: { fontSize: '13px' } }, fmtT(c.t)),
         h('div', { style: { minWidth: 0 } }, h('div', { class: 'hd' }, h('b', null, c.label), h('span', { class: 'muted' }, c.from === 'auto' ? 'from the video' : c.from === 'sonnet' ? 'from Sonnet' : '')),
-          h('div', { class: 'txt' }, has ? (c.pickFrom === 'folder' ? 'Your folder: ' : 'Freesound: ') + c.pickName : 'No sound yet · search: ' + c.query)),
-        h('div', { class: 'row' },
-          h('button', { class: 'btn small', title: 'Hear it', disabled: has ? null : true, onclick: function () { S.getBlob(P.id + ':sfx:' + c.id).then(function (b) { if (b) SD.playOne(P.id + ':sfx:' + c.id + ':' + c.pickKey, b, c.vol) }) } }, icon('play')),
+          h('div', { class: 'txt' }, c.busy ? 'Looking for a sound…' : has ? (c.pickFrom === 'folder' ? 'Your folder: ' : 'Freesound: ') + c.pickName + (c.pickVia ? ' · related sound (searched "' + c.pickVia + '")' : '') : 'No sound yet · search: ' + c.query),
+          c.err && !c.busy ? h('div', { class: 't-bad', style: { fontSize: '12px', marginTop: '3px' } }, c.err) : null),
+        h('div', { class: 'row', style: { gridColumn: '2', gap: '6px' } },
+          h('button', { class: 'btn small', title: 'Hear it', disabled: has ? null : true, onclick: function () { S.getBlob(P.id + ':sfx:' + c.id).then(function (b) { if (b) SD.playOne(P.id + ':sfx:' + c.id + ':' + c.pickKey, b, (c.vol || .6) * SD.cfg(P).sfxVol) }) } }, icon('play')),
+          h('button', { class: 'btn small', title: 'Hear it in the mix: plays from 2 s before it, with your Listen choices', disabled: has ? null : true, onclick: function () { if (SPLAY.playFrom) SPLAY.playFrom(Math.max(0, c.t - 2)) } }, icon('wave'), 'In mix'),
+          h('button', { class: 'btn small', title: 'Change the time, search words or volume', onclick: function () { editCue(c) } }, 'Edit'),
           h('button', { class: 'btn small', title: 'Use the next best sound', onclick: function () { redoCue(c) } }, icon('redo'), has ? 'Redo' : 'Find'),
           h('button', { class: 'btn small', onclick: function () { c.off = !c.off; save(); render() } }, c.off ? 'Turn on' : 'Turn off'),
           h('button', { class: 'btn small danger', title: 'Remove', onclick: function () { Sx.cues = Sx.cues.filter(function (x) { return x !== c }); save(); render() } }, icon('trash')))));
@@ -1099,11 +1142,35 @@
     card.appendChild(list);
     return card;
   }
+  function editCue(c) {
+    var tIn = h('input', { class: 'input mono', value: c.t.toFixed(2), inputmode: 'decimal' }), lab = h('input', { class: 'input', value: c.label || '' }), q = h('input', { class: 'input', value: c.query || '' });
+    var vv = h('span', { class: 'mono', style: { minWidth: '48px', textAlign: 'right' } }, Math.round((c.vol || .6) * 100) + '%'), vol = h('input', { type: 'range', class: 'range', min: 0, max: 1.5, step: .05, value: c.vol || .6 });
+    vol.addEventListener('input', function () { vv.textContent = Math.round(vol.value * 100) + '%' });
+    function nudge(d) { tIn.value = Math.max(0, (+tIn.value || 0) + d).toFixed(2) }
+    modal({ title: 'Edit sound effect at ' + fmtT(c.t), body: h('div', null,
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Time (seconds)'), h('div', { class: 'row', style: { flexWrap: 'nowrap' } }, h('button', { class: 'btn small', onclick: function () { nudge(-.1) } }, '-0.1 s'), tIn, h('button', { class: 'btn small', onclick: function () { nudge(.1) } }, '+0.1 s'))),
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Name'), lab),
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Search words (short English sound words work best, e.g. "ice crack")'), q),
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Volume of this effect'), h('div', { class: 'row', style: { flexWrap: 'nowrap' } }, vol, vv))),
+      actions: [{ label: 'Save', primary: true, do: function () {
+        var t = +tIn.value; if (!isFinite(t) || t < 0 || t > totalDur()) { tIn.classList.add('field-bad'); toast('The time must be between 0 and ' + totalDur().toFixed(1) + ' s.', 'warn'); return false }
+        var newQ = q.value.trim() || c.query, changed = newQ !== c.query;
+        c.t = t; c.label = lab.value.trim() || c.label; c.vol = +vol.value; c.query = newQ; c.err = null;
+        if (changed) { c.pickName = null; c.pickVia = null; delete CANDS[c.id] }
+        save(true).then(function () { render(); if (changed) redoCue(c); else if (SPLAY.on) liveRestart() });
+      } }] });
+  }
   function newCueId() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }
   function addCues(list) {
     var Sx = SD.cfg(P), n = 0;
     list.forEach(function (c) { if (Sx.cues.some(function (x) { return Math.abs(x.t - c.t) < .3 && x.query === c.query })) return; c.id = newCueId(); Sx.cues.push(c); n++ });
-    save(true).then(render); return n;
+    save(true).then(function () { render(); if (n) autoFind() }); return n;
+  }
+  function autoFind() {
+    loadSfxFolder().then(function (f) {
+      if (f || SD.fsKey()) findAll();
+      else toast('Cues added. To get sounds automatically, add a free Freesound key or pick a sound folder.', 'info', 9000, { label: 'Add key', do: settings });
+    });
   }
   function autoCues() {
     master().then(function (M) { var n = addCues(SD.autoCues(P, M.info.built)); toast(n ? n + ' moments added from the built scenes.' : (M.info.built.length ? 'No new moments: whips and big hits already have cues.' : 'No scenes are built yet. Build scenes first, or paste cues from Sonnet.'), n ? 'ok' : 'info', 6000) });
@@ -1113,6 +1180,11 @@
     modal({ title: 'Paste sound cues', body: ta, actions: [{ label: 'Add cues', primary: true, do: function () { var l = SD.parseCues(ta.value); if (!l || !l.length) { ta.classList.add('field-bad'); toast('No cues were found. The reply must hold {"cues": [...]}.', 'warn'); return false } toast(addCues(l) + ' cues added.', 'ok') } }] });
   }
   function pickSfxFolder() {
+    if (!S.folderSupported()) { // Brave, Firefox, Safari: a normal folder upload (kept until the app is closed; the chosen sounds are saved with the video)
+      var fi = h('input', { type: 'file', multiple: true, webkitdirectory: true, class: 'hidden-file' }); fi.webkitdirectory = true; document.body.appendChild(fi);
+      fi.addEventListener('change', function () { SFXFILES = SD.indexFiles(fi.files); CANDS = {}; fi.remove(); toast(SFXFILES.length + ' sounds found in that folder.', SFXFILES.length ? 'ok' : 'warn'); render() });
+      fi.click(); return;
+    }
     window.showDirectoryPicker({ id: 'nyenz-sfx', mode: 'read' }).then(function (d) { return S.setting('sfxDir', d).then(function () { return SD.indexFolder(d) }) }).then(function (f) { SFXFILES = f; toast(f.length + ' sounds found in that folder.', f.length ? 'ok' : 'warn'); render() })
       .catch(function (e) { if (e && e.name === 'AbortError') return; toast('Could not read that folder.', 'bad') });
   }
@@ -1120,29 +1192,47 @@
     if (SFXFILES || !S.folderSupported()) return Promise.resolve(SFXFILES);
     return S.setting('sfxDir').then(function (d) { if (!d) return null; return d.queryPermission({ mode: 'read' }).then(function (p) { if (p !== 'granted') return null; return SD.indexFolder(d).then(function (f) { SFXFILES = f; return f }) }) }).catch(function () { return null });
   }
+  function search(q, files, errs) {
+    var local = files ? SD.matchFolder(files, q) : [];
+    return (SD.fsKey() ? SD.freesound(q).catch(function (e) { errs.push(e.message); return [] }) : Promise.resolve([])).then(function (fs) { return local.concat(fs) });
+  }
+  /* exact words first; when nothing is found, related sounds (shorter words, sounds that do the same job) */
   function candidates(c) {
     return loadSfxFolder().then(function (files) {
-      var local = files ? SD.matchFolder(files, c.query) : [];
-      return (SD.fsKey() ? SD.freesound(c.query).catch(function (e) { toast(e.message, 'warn'); return [] }) : Promise.resolve([])).then(function (fs) { return local.concat(fs) });
+      var errs = [], tries = [c.query].concat(SD.related(c.query + ' ' + (c.label || '')));
+      function next(i) {
+        if (i >= tries.length || (errs.length && /blocked|accept the key|too many/.test(errs[0]))) { var l = []; l.fsErr = errs[0] || null; l.tried = tries.slice(0, i); return Promise.resolve(l) }
+        return search(tries[i], files, errs).then(function (l) { if (l.length) { l.via = i ? tries[i] : null; return l } return next(i + 1) });
+      }
+      return next(0);
     });
   }
-  function redoCue(c) {
+  function redoCue(c, quiet) {
     var key = c.query;
-    (CANDS[c.id] && CANDS[c.id].q === key ? Promise.resolve(CANDS[c.id].list) : candidates(c).then(function (l) { CANDS[c.id] = { q: key, list: l }; return l })).then(function (list) {
-      if (!list.length) { toast('No sound found for "' + c.query + '". Pick a sound folder or add a Freesound key in Settings.', 'warn', 7000); return }
+    c.busy = true; if (!quiet) render();
+    return (CANDS[c.id] && CANDS[c.id].q === key && CANDS[c.id].list.length ? Promise.resolve(CANDS[c.id].list) : candidates(c).then(function (l) { CANDS[c.id] = { q: key, list: l }; return l })).then(function (list) {
+      if (!list.length) throw new Error(list.fsErr || (SFXFILES || SD.fsKey() ? 'No sound found for "' + c.query + '", nor for related words (' + (list.tried || []).slice(1).join(', ') + '). Press Edit to change the search words.' : 'No sound folder and no Freesound key yet. Pick a sound folder here, or add a free Freesound key in Settings.'));
       var i = c.pickName ? (list.findIndex(function (x) { return x.name === c.pickName }) + 1) % list.length : 0, cand = list[i];
       return SD.fetchBlob(cand).then(function (b) { return S.putBlob(P.id + ':sfx:' + c.id, b) }).then(function () {
-        c.pickName = cand.name; c.pickFrom = cand.kind; c.pickKey = cand.kind + ':' + (cand.id || cand.path); c.credit = cand.kind === 'freesound' ? cand.name + ' by ' + cand.by + ' (freesound.org, CC0)' : '';
+        c.pickName = cand.name; c.pickFrom = cand.kind; c.pickVia = list.via || null; c.pickKey = cand.kind + ':' + (cand.id || cand.path); c.credit = cand.kind === 'freesound' ? cand.name + ' by ' + cand.by + ' (freesound.org, CC0)' : ''; c.err = null;
         return save(true);
-      }).then(function () { render(); toast('Sound for ' + fmtT(c.t) + ': ' + cand.name, 'ok') });
-    }).catch(function (e) { toast(e.message, 'bad') });
+      }).then(function () { if (!quiet) toast('Sound for ' + fmtT(c.t) + ': ' + cand.name, 'ok'); return true });
+    }).catch(function (e) { c.err = e.message; save(); if (!quiet) toast(e.message, 'bad', 9000); return false })
+      .then(function (r) { c.busy = false; if (!quiet) render(); if (SPLAY.on) liveRestart(); return r });
   }
   var CANDS = {};
   function findAll() {
     var Sx = SD.cfg(P), todo = Sx.cues.filter(function (c) { return !c.pickName && !c.off });
     if (!todo.length) { toast('Every cue has a sound. Use Redo on a cue to change it.', 'info'); return }
-    toast('Finding ' + todo.length + ' sounds…', 'info');
-    todo.reduce(function (pr, c) { return pr.then(function () { return redoCue(c) }) }, Promise.resolve()).then(render);
+    if (!SFXFILES && !SD.fsKey()) { loadSfxFolder().then(function (f) { if (f) findAll(); else toast('No sound folder and no Freesound key yet. Add a free Freesound key in Settings, or press Pick sound folder.', 'warn', 10000, { label: 'Add key', do: settings }) }); return }
+    var ok = 0, bad = [], i = 0;
+    var tt = toast('Finding sounds: 0 of ' + todo.length + '…', 'info', 600000);
+    todo.reduce(function (pr, c) { return pr.then(function () { return redoCue(c, true).then(function (r) { i++; if (r) ok++; else bad.push(c); if (tt && tt.firstChild) tt.firstChild.textContent = 'Finding sounds: ' + i + ' of ' + todo.length + '…' }) }) }, Promise.resolve())
+      .then(function () {
+        if (tt && tt.remove) tt.remove(); render();
+        if (!bad.length) toast('Found a sound for all ' + todo.length + ' cues.', 'ok');
+        else toast('Found ' + ok + ' of ' + todo.length + '. ' + plural(bad.length, 'cue') + ' had a problem: ' + bad[0].err + (bad.length > 1 ? ' (each row shows its reason)' : ''), ok ? 'warn' : 'bad', 12000);
+      });
   }
 
   /* ================= stage 6: thumbnails ================= */
@@ -1309,7 +1399,7 @@
     var calm = h('div', null, seg([{ id: 'on', label: 'Animations on' }, { id: 'off', label: 'Calm (no animations)' }], document.body.classList.contains('calm') ? 'off' : 'on', function (v) { try { localStorage.setItem('studio.calm', v === 'off' ? '1' : '') } catch (e) { } document.body.classList.toggle('calm', v === 'off'); document.querySelector('.veil').remove(); settings() }));
     modal({ title: 'Settings', body: h('div', null,
       h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Gemini key (the automatic critic)'), gk, h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, 'Free at aistudio.google.com, Get API key. It stays only in this browser.')),
-      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Freesound key (sound effects)'), fk, h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, 'Free at freesound.org/apiv2/apply after making an account. Only free-to-use (CC0) sounds are taken.')),
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Freesound key (sound effects)'), h('div', { class: 'row', style: { flexWrap: 'nowrap' } }, fk, h('button', { class: 'btn small', onclick: function (e) { var b = e.currentTarget, k = fk.value.trim(); if (!k) { toast('Paste the Freesound key first.', 'warn'); return } b.disabled = true; SD.testKey(k).then(function (n) { toast('The Freesound key works (' + n + ' test sounds found).', 'ok') }).catch(function (er) { toast(er.message, 'bad', 12000) }).then(function () { b.disabled = false }) } }, 'Test key')), h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, 'Free at freesound.org/apiv2/apply after making an account. Only free-to-use (CC0) sounds are taken.')),
       h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Motion'), calm)),
       actions: [{ label: 'Save', primary: true, do: function () { CR.setKey(gk.value); SD.setFsKey(fk.value); toast('Settings saved.', 'ok'); render() } }] });
   }

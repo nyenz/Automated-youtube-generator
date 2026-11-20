@@ -513,3 +513,11 @@ body { font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0; 
   .rbody .pgrid.frames { flex: 1 1 auto; height: auto; align-content: stretch; align-items: stretch; }
   .rbody .pgrid.frames .pc { height: auto; }
 }
+.songwave { display: block; width: 100%; height: 70px; border-radius: 8px; background: rgba(0,0,0,.25); border: 1px solid var(--line); cursor: pointer; }
+/* on/off chips (Listen: Voice, Music, Effects) */
+.chip.toggle { cursor: pointer; align-items: center; font: 600 12.5px var(--f-sans); color: var(--on-dark-2); transition: border-color var(--t), color var(--t), box-shadow var(--t), background var(--t); }
+.chip.toggle .tick { display: inline-flex; width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--edge); align-items: center; justify-content: center; }
+.chip.toggle .tick svg { width: 11px; height: 11px; opacity: 0; transition: opacity var(--t); }
+.chip.toggle.on { color: var(--on-dark); border-color: var(--accent); background: rgba(200,32,43,.14); box-shadow: 0 0 12px rgba(200,32,43,.22); }
+.chip.toggle.on .tick { background: var(--accent); border-color: var(--accent); }
+.chip.toggle.on .tick svg { opacity: 1; }

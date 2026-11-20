@@ -11,8 +11,9 @@
   SD.fsKey = function () { return get('studio.freesoundKey', '') };
   SD.setFsKey = function (k) { set('studio.freesoundKey', String(k || '').trim()) };
 
-  SD.defaults = function () { return { music: null, musicVol: 0.35, duckDb: -14, attack: .12, release: .45, fadeIn: 1.5, fadeOut: 2.5, narrVol: 1, sfxVol: 0.8, cues: [], useHits: true, useWhips: true } };
-  SD.cfg = function (P) { P.sound = Object.assign(SD.defaults(), P.sound || {}); return P.sound };
+  SD.defaults = function () { return { music: null, musicVol: 0.35, musicStart: 0, duckDb: -14, attack: .12, release: .45, fadeIn: 1.5, fadeOut: 2.5, narrVol: 1, sfxVol: 0.8, cues: [], useHits: true, useWhips: true, listen: { voice: true, music: true, sfx: true } } };
+  SD.cfg = function (P) { // fills missing settings in place: the same object stays in use, so a change made while playing is never lost
+    var d = SD.defaults(); if (!P.sound) P.sound = {}; Object.keys(d).forEach(function (k) { if (P.sound[k] === undefined) P.sound[k] = d[k] }); return P.sound };
 
   /* speech regions: pieces of the audio map joined when the gap is short, so the music does not pump */
   SD.speech = function (P) {
@@ -76,20 +77,56 @@
     }
     return walk(dir, 0, '').then(function () { return out });
   };
+  SD.indexFiles = function (list) {
+    return Array.prototype.filter.call(list || [], function (f) { return /\.(wav|mp3|ogg|m4a|flac|aac|webm)$/i.test(f.name) })
+      .map(function (f) { return { name: f.name, path: (f.webkitRelativePath || f.name).split('/').slice(1).join('/') || f.name, file: f } });
+  };
   SD.matchFolder = function (files, query) {
     var q = tokens(query); if (!q.length) return [];
     return files.map(function (f) { var t = tokens(f.path), s = 0; q.forEach(function (w, i) { if (t.indexOf(w) >= 0) s += 3 - Math.min(2, i * .5); else if (t.some(function (x) { return x.indexOf(w) === 0 || w.indexOf(x) === 0 })) s += 1 }); return { f: f, s: s } })
-      .filter(function (x) { return x.s > 0 }).sort(function (a, b) { return b.s - a.s }).slice(0, 8).map(function (x) { return { kind: 'folder', name: x.f.name, path: x.f.path, h: x.f.h } });
+      .filter(function (x) { return x.s > 0 }).sort(function (a, b) { return b.s - a.s }).slice(0, 8).map(function (x) { return { kind: 'folder', name: x.f.name, path: x.f.path, h: x.f.h, file: x.f.file } });
   };
-  SD.freesound = function (query) {
-    var k = SD.fsKey(); if (!k) return Promise.resolve([]);
+  var BLOCKED = 'This browser blocked the connection to Freesound. In Brave: click the lion icon in the address bar and turn Shields off for this app, then try again. Also check the internet connection.';
+  SD.freesound = function (query, key) {
+    var k = key || SD.fsKey(); if (!k) return Promise.resolve([]);
     var u = 'https://freesound.org/apiv2/search/text/?query=' + encodeURIComponent(query) + '&filter=' + encodeURIComponent('license:"Creative Commons 0" duration:[0.2 TO 12]') + '&fields=id,name,previews,duration,username&sort=score&page_size=8&token=' + encodeURIComponent(k);
-    return fetch(u).then(function (r) { if (!r.ok) throw new Error(r.status === 401 ? 'Freesound did not accept the key. Check it in Settings.' : 'Freesound could not be reached.'); return r.json() })
+    return fetch(u).catch(function () { throw new Error(BLOCKED) }).then(function (r) {
+      if (r.status === 401 || r.status === 403) throw new Error('Freesound did not accept the key (error ' + r.status + '). Open Settings and paste the "Client secret/Api key" from freesound.org/apiv2/apply.');
+      if (r.status === 429) throw new Error('Freesound says too many searches for now (error 429). Wait a minute and try again.');
+      if (!r.ok) throw new Error('Freesound answered with error ' + r.status + '. Try again in a minute.');
+      return r.json() })
       .then(function (j) { return (j.results || []).map(function (x) { return { kind: 'freesound', name: x.name, id: x.id, by: x.username, url: x.previews && (x.previews['preview-hq-mp3'] || x.previews['preview-lq-mp3']), dur: x.duration } }).filter(function (x) { return x.url }) });
   };
+  /* related searches, used when the exact words find nothing: shorter words first, then sounds that do the same job */
+  var RELATED = { beep: ['bleep', 'electronic beep', 'alarm beep'], alarm: ['siren', 'beep', 'alert'], crack: ['snap', 'break', 'ice crack'], ice: ['ice crack', 'freeze', 'crunch'], fall: ['thud', 'impact', 'body fall'], drop: ['thud', 'fall', 'impact'], thud: ['impact', 'hit', 'knock'], hit: ['impact', 'punch', 'thud'], punch: ['hit', 'impact'], impact: ['hit', 'thud', 'boom'],
+    whoosh: ['swoosh', 'swish', 'woosh'], whip: ['whoosh', 'swish'], swoosh: ['whoosh', 'swish'], heart: ['heartbeat', 'heart beat', 'pulse'], heartbeat: ['heart beat', 'pulse'], monitor: ['heart monitor', 'beep', 'hospital beep'], splash: ['water splash', 'water'], water: ['splash', 'water drip', 'bubbles'], wind: ['cold wind', 'howling wind', 'wind blow'],
+    door: ['door open', 'door close', 'door slam'], step: ['footstep', 'footsteps'], footsteps: ['footstep', 'walking'], phone: ['phone ring', 'phone vibrate', 'notification'], click: ['button click', 'tick'], tick: ['clock tick', 'click'], clock: ['clock tick', 'ticking'], breath: ['gasp', 'breathing', 'inhale'], gasp: ['breath', 'inhale'],
+    boom: ['explosion', 'impact', 'thud'], siren: ['ambulance siren', 'alarm'], scream: ['shout', 'yell'], crowd: ['people talking', 'murmur'], paper: ['paper rustle', 'page turn'], rise: ['riser', 'swell'], riser: ['rise', 'swell'], ding: ['bell', 'chime'], bell: ['ding', 'chime'], pop: ['bubble pop', 'click'] };
+  var GENERIC = ['impact', 'whoosh', 'click'];
+  SD.related = function (query) {
+    var STOP = ['the', 'and', 'with', 'from', 'into', 'onto', 'that', 'this', 'his', 'her', 'their', 'its', 'as', 'of', 'on', 'in', 'at', 'a', 'an'];
+    var w = String(query || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (x) { return x.length > 2 && STOP.indexOf(x) < 0 }), out = [];
+    function base(x) { return RELATED[x] ? x : RELATED[x.replace(/e?s$/, '')] ? x.replace(/e?s$/, '') : RELATED[x.replace(/s$/, '')] ? x.replace(/s$/, '') : null }
+    function add(q) { q = q.trim(); if (q && out.indexOf(q) < 0 && q !== String(query).toLowerCase().trim()) out.push(q) }
+    var snd = w.map(base).filter(Boolean);
+    snd.forEach(add);                                            // 1. the sound word alone: "beep"
+    snd.forEach(function (x) { RELATED[x].forEach(add) });       // 2. sounds that do the same job: "bleep", "alarm beep"
+    if (!snd.length) { if (w.length > 1) add(w.slice(-2).join(' ')); w.slice().reverse().forEach(add); GENERIC.forEach(add) } // 3. no sound word: shorter words, then a soft general sound
+    return out.slice(0, 6);
+  };
+  SD.testKey = function (key) { return SD.freesound('beep', key).then(function (l) { return l.length }) };
   SD.fetchBlob = function (cand) {
-    if (cand.kind === 'folder') return cand.h.getFile();
-    return fetch(cand.url).then(function (r) { if (!r.ok) throw new Error('That sound could not be downloaded.'); return r.blob() });
+    if (cand.kind === 'folder') return cand.file ? Promise.resolve(cand.file) : cand.h.getFile();
+    return fetch(cand.url).catch(function () { throw new Error('The sound "' + cand.name + '" could not be downloaded from Freesound. ' + BLOCKED) })
+      .then(function (r) { if (!r.ok) throw new Error('The sound "' + cand.name + '" could not be downloaded (error ' + r.status + ').'); return r.blob() });
+  };
+  /* the music file: its length and a picture of its loudness, for choosing where the song starts */
+  SD.musicInfo = function (key, blob, n) {
+    return SD.decode(key, blob).then(function (b) {
+      var d = b.getChannelData(0), N = n || 400, step = Math.max(1, Math.floor(d.length / N)), out = [];
+      for (var i = 0; i < N; i++) { var m = 0, o = i * step; for (var j = 0; j < step && o + j < d.length; j += 8) { var v = Math.abs(d[o + j]); if (v > m) m = v } out.push(m) }
+      return { dur: b.duration, peaks: out };
+    });
   };
 
   /* ---------- decoding and mixing ---------- */
@@ -101,6 +138,7 @@
     return DEC[key];
   };
   SD.forget = function (key) { delete DEC[key] };
+  function musicAt(S, b) { return Math.max(0, Math.min(+S.musicStart || 0, b.duration - 1)) }
   /* the whole soundtrack as one buffer (for the MP4); blobs: { narr, music, sfx: {cueId: blob} } */
   SD.mix = function (P, dur, blobs) {
     var S = SD.cfg(P);
@@ -108,15 +146,16 @@
       .then(function (bufs) {
         var off = new OfflineAudioContext(2, Math.ceil(dur * 48000), 48000);
         if (bufs[0]) { var n = off.createBufferSource(), ng = off.createGain(); ng.gain.value = S.narrVol; n.buffer = bufs[0]; n.connect(ng); ng.connect(off.destination); n.start(0) }
-        if (bufs[1]) { var m = off.createBufferSource(), mg = off.createGain(); m.buffer = bufs[1]; m.loop = true; m.connect(mg); mg.connect(off.destination); applyMusicGain(mg, P, dur, 0, 0); m.start(0) }
+        if (bufs[1]) { var m = off.createBufferSource(), mg = off.createGain(), ms = musicAt(S, bufs[1]); m.buffer = bufs[1]; m.loop = true; m.loopStart = ms; m.loopEnd = bufs[1].duration; m.connect(mg); mg.connect(off.destination); applyMusicGain(mg, P, dur, 0, 0); m.start(0, ms) }
         S.cues.forEach(function (c, i) { var b = bufs[2 + i]; if (!b || c.off) return; var s = off.createBufferSource(), g = off.createGain(); g.gain.value = (c.vol || .6) * S.sfxVol; s.buffer = b; s.connect(g); g.connect(off.destination); s.start(Math.max(0, c.t)) });
         return off.startRendering();
       }).then(function (buf) { return SD.loudness(buf, -14, -1) });
   };
   /* live preview from time t0 (returns a stop function) */
   var LIVE = null;
-  SD.play = function (P, t0, dur, blobs) {
+  SD.play = function (P, t0, dur, blobs, layers) {
     SD.stop();
+    var L = layers || { voice: true, music: true, sfx: true }; blobs = { narr: L.voice ? blobs.narr : null, music: L.music ? blobs.music : null, sfx: L.sfx ? blobs.sfx : {} };
     var S = SD.cfg(P), ctx = new (window.AudioContext || window.webkitAudioContext)(), live = { ctx: ctx, srcs: [], t0: t0, base: 0 };
     LIVE = live;
     return Promise.all([blobs.narr ? SD.decode(P.id + ':narr', blobs.narr) : null, blobs.music ? SD.decode(P.id + ':music', blobs.music) : null].concat(S.cues.map(function (c) { var b = blobs.sfx && blobs.sfx[c.id]; return b ? SD.decode(P.id + ':sfx:' + c.id + ':' + (c.pickKey || ''), b) : null })))
@@ -124,15 +163,20 @@
         if (LIVE !== live) return live;
         var base = ctx.currentTime + .08; live.base = base;
         if (bufs[0]) { var n = ctx.createBufferSource(), ng = ctx.createGain(); ng.gain.value = S.narrVol; n.buffer = bufs[0]; n.connect(ng); ng.connect(ctx.destination); n.start(base, t0); live.srcs.push(n) }
-        if (bufs[1]) { var m = ctx.createBufferSource(), mg = ctx.createGain(); m.buffer = bufs[1]; m.loop = true; m.connect(mg); mg.connect(ctx.destination); applyMusicGain(mg, P, dur, t0, base); m.start(base, t0 % bufs[1].duration); live.srcs.push(m) }
+        if (bufs[1]) { var m = ctx.createBufferSource(), mg = ctx.createGain(), ms = musicAt(S, bufs[1]); m.buffer = bufs[1]; m.loop = true; m.loopStart = ms; m.loopEnd = bufs[1].duration; m.connect(mg); mg.connect(ctx.destination); applyMusicGain(mg, P, dur, t0, base); m.start(base, ms + (t0 % Math.max(.5, bufs[1].duration - ms))); live.srcs.push(m) }
         S.cues.forEach(function (c, i) { var b = bufs[2 + i]; if (!b || c.off || c.t + b.duration < t0) return; var s = ctx.createBufferSource(), g = ctx.createGain(); g.gain.value = (c.vol || .6) * S.sfxVol; s.buffer = b; s.connect(g); g.connect(ctx.destination); if (c.t >= t0) s.start(base + (c.t - t0)); else s.start(base, t0 - c.t); live.srcs.push(s) });
         return live;
       });
   };
   SD.now = function () { return LIVE && LIVE.base ? LIVE.t0 + (LIVE.ctx.currentTime - LIVE.base) : null };
   SD.stop = function () { if (!LIVE) return; var l = LIVE; LIVE = null; l.srcs.forEach(function (s) { try { s.stop() } catch (e) { } }); try { l.ctx.close() } catch (e) { } };
-  SD.playOne = function (key, blob, vol) {
-    return SD.decode(key, blob).then(function (b) { var ctx = new (window.AudioContext || window.webkitAudioContext)(), s = ctx.createBufferSource(), g = ctx.createGain(); g.gain.value = vol || .8; s.buffer = b; s.connect(g); g.connect(ctx.destination); s.start(); s.onended = function () { ctx.close() } });
+  var ONE = null;
+  SD.stopOne = function () { if (ONE) { try { ONE.s.stop() } catch (e) {} try { ONE.ctx.close() } catch (e) {} ONE = null } };
+  /* one sound alone; from = start second, len = how long (the song preview plays 12 s) */
+  SD.playOne = function (key, blob, vol, from, len) {
+    SD.stopOne();
+    return SD.decode(key, blob).then(function (b) { var ctx = new (window.AudioContext || window.webkitAudioContext)(), s = ctx.createBufferSource(), g = ctx.createGain(); g.gain.value = vol == null ? .8 : vol; s.buffer = b; s.connect(g); g.connect(ctx.destination);
+      var me = { ctx: ctx, s: s }; ONE = me; s.start(0, from || 0, len || undefined); s.onended = function () { if (ONE === me) ONE = null; try { ctx.close() } catch (e) {} }; return me });
   };
   /* a gentle gain so the mix sits near the target loudness without clipping */
   SD.loudness = function (buf, target, ceil) {
