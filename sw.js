@@ -1,7 +1,7 @@
 /* Service worker: lets the app install and open offline.
    Network first, so every update arrives the next time the app opens; the saved copy is used only when offline.
    It never touches your projects (they live in IndexedDB and your backup folder, not in this cache). */
-var CACHE = 'nyenz-studio-2026.11.20-2';
+var CACHE = 'nyenz-studio-2026.11.20-3';
 var CORE = ['./', 'index.html', 'manifest.webmanifest', 'app/asr-worker.js', 'icons/logo-ink-192.png', 'icons/logo-ink-512.png', 'icons/logo-ink.svg'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(CORE) }).then(function () { return self.skipWaiting() })) });
 self.addEventListener('activate', function (e) { e.waitUntil(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== CACHE }).map(function (k) { return caches.delete(k) })) }).then(function () { return self.clients.claim() })) });

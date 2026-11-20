@@ -76,7 +76,7 @@ await p.click('.tabs button:has-text("Background music")');await p.waitForTimeou
 await p.locator('.range').first().fill('0.5');await p.waitForTimeout(300);
 await p.click('text=Play the mix');await p.waitForTimeout(1500);const mt=await p.locator('.panel .mono').first().innerText();ok(!/^0:00.0/.test(mt),'mix plays ('+mt+')');
 await p.click('.panel button:has-text("Pause")');await p.waitForTimeout(300);ok(await p.locator('text=Play the mix').count()===1,'mix pauses');
-await p.click('.tabs button:has-text("Sound effects")');await p.waitForTimeout(400);await p.click('button:has-text("Find sounds")');await p.waitForTimeout(800);ok((await toasts()).includes('No sound found')||(await toasts()).includes('Finding'),'no source: plain message');
+await p.click('.tabs button:has-text("Sound effects")');await p.waitForTimeout(400);await p.click('button:has-text("Find sounds")');await p.waitForTimeout(800);ok((await toasts()).includes('No sound folder and no Freesound key'),'no source: plain message');
 await shot('8-sound');
 // thumbnails
 await p.click('.side .stage:has-text("Thumbnails")');await p.waitForTimeout(600);
