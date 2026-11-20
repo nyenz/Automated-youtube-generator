@@ -71,7 +71,7 @@ for(let i=1;i<=parts.length;i++){await p.click('.side .stage:has-text("Pick the 
 ok(await p.evaluate(()=>STORE.list().then(a=>JOBS.list(a[0]).every(j=>JOBS.picked(j)))),'every job picked');
 // sound
 await p.click('.side .stage:has-text("Sound")');await p.waitForTimeout(700);
-await p.click('.tabs button:has-text("Sound effects")');await p.waitForTimeout(400);await p.click('text=Find moments');await p.waitForTimeout(3000);const nc=await p.locator('.card .pitem').count();ok(nc>0,'moments found from whips and hits ('+nc+')');
+await p.click('.tabs button:has-text("Sound effects")');await p.waitForTimeout(4000);const nc=await p.locator('.card .pitem').count();ok(nc>0,'opening Sound finds the moments by itself, no button ('+nc+')');
 await p.click('.tabs button:has-text("Background music")');await p.waitForTimeout(400);await p.setInputFiles('.card input[type=file]',SP+'/a.wav');await p.waitForTimeout(1200);ok((await p.locator('.drop .big').first().innerText()).includes('a.wav'),'music added');
 await p.locator('.range').first().fill('0.5');await p.waitForTimeout(300);
 await p.click('text=Play the mix');await p.waitForTimeout(1500);const mt=await p.locator('.panel .mono').first().innerText();ok(!/^0:00.0/.test(mt),'mix plays ('+mt+')');

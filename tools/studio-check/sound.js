@@ -41,8 +41,8 @@ ok(/No sound folder and no Freesound key/.test(await p.locator('.card .pitem').f
 ok(await p.locator('button:has-text("Pick sound folder")').count()===1,'folder button shown even without the folder picker (Brave)');
 const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.click('button:has-text("Pick sound folder")')]);await fc.setFiles(SP+'/sfxdir');await p.waitForTimeout(800);
 ok(/1 sounds in your folder/.test(await p.locator('.card').innerText()),'folder read with a normal folder upload');
-await clear();await p.locator('.card .pitem',{hasText:'Thermometer'}).locator('button:has-text("Find")').click();await p.waitForTimeout(1200);
-ok(/Your folder: thermometer-beep.wav/.test(await p.locator('.card .pitem',{hasText:'Thermometer'}).innerText()),'folder sound matched by its name');
+await p.waitForFunction(()=>[...document.querySelectorAll('.card .pitem')].some(r=>/Your folder: thermometer-beep.wav/.test(r.innerText)),null,{timeout:15000}).catch(()=>{});
+ok(/Your folder: thermometer-beep.wav/.test(await p.locator('.card .pitem',{hasText:'Thermometer'}).innerText()),'after picking a folder, sounds are found by themselves (no button)');
 // freesound blocked
 await p.evaluate(()=>SOUND.setFsKey('testkey'));fsMode='blocked';await p.click('.tabs button:has-text("Background music")');await p.click('.tabs button:has-text("Sound effects")');await p.waitForTimeout(300);
 await clear();await p.locator('.card .pitem',{hasText:'Ice cracks'}).locator('button:has-text("Find")').click();await p.waitForTimeout(1200);
