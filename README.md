@@ -9,6 +9,8 @@ A free app that makes narrated videos in the **Gilded Kasumi** style (Japanese w
 4. Click **Pick a backup folder** at the top right and choose a folder on your PC. Every video is also saved there, so nothing is lost even if the browser is cleared.
 
 ## The stages
+Little scrolling: every stage fits one screen (1366 x 720 and up). Long lists (prompts, results, parts, sound effects) are tables with tabs and scroll inside their own box; detail sits behind tabs or a How it works fold. Pop-up messages show top right so they never cover the Next button.
+
 1. **Style** – pick a style and watch its demo. Gilded is the main style; the older styles are kept aside.
 2. **Script & audio** – Short (9:16) or Long (16:9), paste the script, drop the audio, press **Listen and split into parts**. Whisper times every word (free, in the browser), the words are matched to your script and the narration is split into parts of 12–25 s at long pauses, as the Gilded rulebook says.
 3. **Prompts** – numbered jobs (P01 the plan, then assets and people, then one scene per part). Copy the prompt, open a NEW Sonnet chat, attach the project file (its number, e.g. F03, is in the file name and in the prompt), paste, then paste the reply back. **One prompt** is the default: one strict prompt per job, the model must answer with ONE code block and nothing else, with a REPLY line first (e.g. `<!-- REPLY P05 scene-2 -->`) so a reply pasted in the wrong place is caught. A reply that passes is used at once. A bad reply gets a numbered problem report (what was found, each problem with its fix, what to do next), a "Copy fix message" to send in the same chat, and "Save it in P04" when it belongs to another job. **Compare** modes (two chats, or one chat with two versions) are still there.

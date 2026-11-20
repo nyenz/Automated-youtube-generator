@@ -12,5 +12,6 @@ node <repo>/tools/studio-check/controls.js /tmp/sc       # play, pause, stop, ke
 ```
 Every line must say PASS. The test audio can be made from `facet/films/under-the-ice-20/narration.wav` and `words.js`.
 node <repo>/tools/studio-check/prompts.js /tmp/sc      # One prompt mode (the default): numbered strict prompts, wrong-part reply report, one-result preview with back/next
+node <repo>/tools/studio-check/fit.js /tmp/sc          # every page fits 1366 x 720 without page scrolling; phone width has no sideways spill
 node <repo>/tools/studio-check/pipeline.js /tmp/sc     # stages 3 to 7 in compare mode with sample Sonnet replies (copy fixtures.js into /tmp/sc first)
 node <repo>/tools/studio-check/export.js /tmp/sc       # makes a real video file from a one-part project (slow: run it alone)

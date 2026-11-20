@@ -12,44 +12,44 @@ await newVideo('Pipeline','script-long.txt','long.wav');
 await p.addScriptTag({path:SP+'/fixtures.js'});
 await p.click('.nextbar >> text=Next: Prompts');await p.waitForTimeout(800);
 ok(p.url().endsWith('/prompts'),'Next goes to Prompts');
-await p.click('.seg >> text=Compare: two chats');await p.waitForTimeout(400);   // this script tests the compare mode; prompts.js tests One prompt
+await p.click('button:has-text("Mode:")');await p.click('.menu button:has-text("Compare: two chats")');await p.waitForTimeout(400);await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);   // this script tests the compare mode; prompts.js tests One prompt
 await shot('1-prompts');
-const jobsN=await p.locator('.pitem').count();ok(jobsN===1,'only the plan job before a plan ('+jobsN+')');
-await p.click('.pitem >> text=Copy prompt');const pr=await p.evaluate(()=>navigator.clipboard.readText());
+const jobsN=await p.locator('.jt-body .jt-row').count();ok(jobsN===1,'only the plan job before a plan ('+jobsN+')');
+await p.click('.jt-body .jt-row >> text=Copy prompt');const pr=await p.evaluate(()=>navigator.clipboard.readText());
 ok(/MODE: PROJECT/.test(pr)&&/FULL SCRIPT/.test(pr)&&/assets_info/.test(pr),'plan prompt is complete');
-ok(await p.locator('.pitem button:has-text("Paste B")').count()===1,'two chats: Paste A and Paste B');
+ok(await p.locator('.jt-body .jt-row button:has-text("Paste B")').count()===1,'two chats: Paste A and Paste B');
 // plan A and B
 const parts=await p.evaluate(()=>STORE.list().then(a=>{const P=a[0];return AUDIO.plan(P).parts.map((x,i,all)=>({id:x.id}))}));
 await paste('Paste A',await p.evaluate(ps=>FIX.plan(ps,0),parts));
 await paste('Paste B',await p.evaluate(ps=>FIX.plan(ps,1),parts));
-ok((await p.locator('.pitem').first().innerText()).includes('Ready to pick'),'plan is ready to pick');
-await p.click('.pitem >> text=Preview');await p.waitForTimeout(700);ok(/\/pick\/plan$/.test(p.url()),'Preview opens that one result');
+ok((await p.locator('.jt-body .jt-row').first().innerText()).includes('Ready to pick'),'plan is ready to pick');
+await p.click('.jt-body .jt-row >> text=Preview');await p.waitForTimeout(700);ok(/\/pick\/plan$/.test(p.url()),'Preview opens that one result');
 await shot('2-pick-plan');
 ok(await p.locator('text=Plan A').count()===1,'plan A and B are compared side by side');
 await p.click('.panel .btn:has-text("Use A")');await p.waitForTimeout(700);
 await p.click('.side .stage:has-text("Prompts")');await p.waitForTimeout(800);
-const titles=await p.locator('.pitem b').allInnerTexts();ok(titles.some(t=>/Assets: crate/.test(t))&&titles.some(t=>/People: nurse/.test(t))&&titles.filter(t=>/^Part /.test(t)).length===parts.length,'jobs made from the plan: '+titles.join(' | '));
-ok((await p.locator('.pitem:has-text("Part 1")').innerText()).includes('Finish the assets'),'scenes wait for assets and people');
+const titles=await p.locator('.jt-body .jt-row b').allInnerTexts();ok(titles.some(t=>/Assets: crate/.test(t))&&titles.some(t=>/People: nurse/.test(t))&&titles.filter(t=>/^Part /.test(t)).length===parts.length,'jobs made from the plan: '+titles.join(' | '));
+ok((await p.locator('.jt-body .jt-row:has-text("Part 1")').innerText()).includes('Finish the assets'),'scenes wait for assets and people');
 await shot('3-jobs');
 // asset + cast A/B
-async function pasteIn(card,which,text){await clear();await p.locator('.pitem',{hasText:card}).locator('button:has-text("Paste '+which+'"), button:has-text("Replace '+which+'")').first().click();await p.fill('.modal textarea',text);await p.click('.modal .btn.primary');await p.waitForFunction(()=>!document.querySelector('.veil')||document.querySelector('.veil .rep'),null,{timeout:60000});if(await p.locator('.veil').count())await p.click('.modal .x');await p.waitForTimeout(300)}
+async function pasteIn(card,which,text){await clear();await p.locator('.jt-body .jt-row',{hasText:card}).locator('button:has-text("Paste '+which+'"), button:has-text("Replace '+which+'")').first().click();await p.fill('.modal textarea',text);await p.click('.modal .btn.primary');await p.waitForFunction(()=>!document.querySelector('.veil')||document.querySelector('.veil .rep'),null,{timeout:60000});if(await p.locator('.veil').count())await p.click('.modal .x');await p.waitForTimeout(300)}
 await pasteIn('Assets: crate','A',await p.evaluate(()=>FIX.asset('crate','#C8402F')));
 await pasteIn('Assets: crate','B',await p.evaluate(()=>FIX.asset('crate','#2E4A7A')));
-const at=await p.locator('.pitem',{hasText:'Assets: crate'}).innerText();console.log('ISSUES',JSON.stringify(await p.evaluate(()=>STORE.list().then(a=>{const j=a[0].jobs;return Object.keys(j).map(k=>[k,j[k].A&&j[k].A.check,j[k].B&&j[k].B.check])}))));ok(at.includes('A: checks pass'),'asset A is checked and draws: '+at.replace(/\n/g,' / '));
+const at=await p.locator('.jt-body .jt-row',{hasText:'Assets: crate'}).innerText();console.log('ISSUES',JSON.stringify(await p.evaluate(()=>STORE.list().then(a=>{const j=a[0].jobs;return Object.keys(j).map(k=>[k,j[k].A&&j[k].A.check,j[k].B&&j[k].B.check])}))));ok(at.includes('A: checks pass'),'asset A is checked and draws: '+at.replace(/\n/g,' / '));
 await pasteIn('People: nurse','A',await p.evaluate(()=>FIX.cast('#2F7F7A')));
 await pasteIn('People: nurse','B',await p.evaluate(()=>FIX.cast('#7A2F55')));
-ok((await p.locator('.pitem',{hasText:'People: nurse'}).innerText()).includes('B: checks pass'),'person B is checked and draws');
+ok((await p.locator('.jt-body .jt-row',{hasText:'People: nurse'}).innerText()).includes('B: checks pass'),'person B is checked and draws');
 // a broken reply is caught
-await clear();await p.locator('.pitem',{hasText:'Assets: crate'}).locator('button:has-text("Replace B")').click();await p.fill('.modal textarea','sorry I cannot');await p.click('.modal .btn.primary');await p.waitForTimeout(600);const tb=await p.locator('.modal').count();ok(tb===1&&(await p.locator('.modal .prob .t').first().innerText()).length>5,'a reply without code is refused with a reason');await p.click('.modal .x');
+await clear();await p.locator('.jt-body .jt-row',{hasText:'Assets: crate'}).locator('button:has-text("Replace B")').click();await p.fill('.modal textarea','sorry I cannot');await p.click('.modal .btn.primary');await p.waitForTimeout(600);const tb=await p.locator('.modal').count();ok(tb===1&&(await p.locator('.modal .prob .t').first().innerText()).length>5,'a reply without code is refused with a reason');await p.click('.modal .x');
 // pick
-await p.click('.side .stage:has-text("Pick the best")');await p.waitForTimeout(600);
-await p.locator('.pitem',{hasText:'Assets: crate'}).click();await p.waitForTimeout(300);
+await p.click('.side .stage:has-text("Pick the best")');await p.waitForTimeout(600);await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);
+await p.locator('.jt-body .jt-row',{hasText:'Assets: crate'}).click();await p.waitForTimeout(300);
 await p.click('text=Draw A and B');await p.waitForSelector('.panel img',{timeout:60000});await p.waitForTimeout(400);
 await shot('4-sheet-assets');ok(await p.locator('.panel img').count()===1,'asset comparison picture drawn');
 await p.click('.panel .btn:has-text("Use A")');await p.waitForTimeout(500);
 await p.click('.titlebar .back');await p.waitForTimeout(500);ok(/\/pick$/.test(p.url()),'back goes to the list of results');
 await p.click('.seg >> text=Sonnet (copy-paste)');await p.waitForTimeout(300);
-await p.locator('.pitem',{hasText:'People: nurse'}).click();await p.waitForTimeout(300);
+await p.locator('.jt-body .jt-row',{hasText:'People: nurse'}).click();await p.waitForTimeout(300);
 await p.click('text=Draw A and B');await p.waitForSelector('.panel img',{timeout:60000});await p.waitForTimeout(300);await shot('5-sheet-cast');
 // Sonnet critic path
 await p.click('text=Copy critic prompt');await p.waitForTimeout(500);const cp=await p.evaluate(()=>navigator.clipboard.readText());ok(/winner/.test(cp)&&/Automatic checks/.test(cp),'critic prompt has the checks and the JSON shape');
@@ -57,26 +57,26 @@ await p.click('text=Paste critic answer');await p.fill('.modal textarea','{"winn
 ok((await p.locator('.panel').first().innerText()).includes('Sonnet picks B'),'critic verdict shown and B picked');
 // scenes
 await p.click('.side .stage:has-text("Prompts")');await p.waitForTimeout(700);
-ok(!(await p.locator('.pitem:has-text("Part 1")').innerText()).includes('Finish the assets'),'scenes unlock after assets and people are picked');
-await p.locator('.pitem',{hasText:'Part 1'}).locator('text=Copy prompt').click();const sp=await p.evaluate(()=>navigator.clipboard.readText());ok(/MODE: SCENE/.test(sp)&&/SCRIPT FOR THIS PART/.test(sp)&&/AUDIO_START \(0\)/.test(sp),'scene prompt has the part, words and times');
+ok(!(await p.locator('.jt-body .jt-row:has-text("Part 1")').innerText()).includes('Finish the assets'),'scenes unlock after assets and people are picked');
+await p.locator('.jt-body .jt-row',{hasText:'Part 1'}).locator('text=Copy prompt').click();const sp=await p.evaluate(()=>navigator.clipboard.readText());ok(/MODE: SCENE/.test(sp)&&/SCRIPT FOR THIS PART/.test(sp)&&/AUDIO_START \(0\)/.test(sp),'scene prompt has the part, words and times');
 const fx=await p.evaluate(async()=>{const tpl=await (await fetch('styles/gilded-kasumi/project.html')).text();const P=(await STORE.list())[0];const plan=GK.plan(P);return plan.parts.map(pt=>[FIX.scene(tpl,pt,P.timing.words,plan,1),FIX.scene(tpl,pt,P.timing.words,plan,.85)])});
 for(let i=0;i<fx.length;i++){await pasteIn('Part '+(i+1)+':','A',fx[i][0]);await pasteIn('Part '+(i+1)+':','B',fx[i][1]);}
-const s1=await p.locator('.pitem',{hasText:'Part 1:'}).innerText();ok(/A: (checks pass|\d+ problem)/.test(s1),'scene A checked: '+s1.split('\n').slice(-1)[0]);
+const s1=await p.locator('.jt-body .jt-row',{hasText:'Part 1:'}).innerText();ok(/A: (checks pass|\d+ problem)/.test(s1),'scene A checked: '+s1.split('\n').slice(-1)[0]);
 await shot('6-scenes');
-await p.click('.side .stage:has-text("Pick the best")');await p.waitForTimeout(600);
-await p.locator('.pitem',{hasText:'Part 2'}).click();await p.waitForTimeout(300);
+await p.click('.side .stage:has-text("Pick the best")');await p.waitForTimeout(600);await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);
+await p.locator('.jt-body .jt-row',{hasText:'Part 2'}).click();await p.waitForTimeout(300);
 await p.click('text=Draw A and B');await p.waitForSelector('.panel img',{timeout:90000});await p.waitForTimeout(400);await shot('7-sheet-scene');
 ok(await p.locator('.panel img').count()===1,'scene frames drawn for A and B');
-for(let i=1;i<=parts.length;i++){await p.click('.side .stage:has-text("Pick the best")');await p.waitForTimeout(300);await p.locator('.pitem',{hasText:'Part '+i}).first().click();await p.waitForTimeout(250);await p.click('.panel .btn:has-text("Use A")');await p.waitForTimeout(350)}
+for(let i=1;i<=parts.length;i++){await p.click('.side .stage:has-text("Pick the best")');await p.waitForTimeout(300);await p.locator('.jt-body .jt-row',{hasText:'Part '+i}).first().click();await p.waitForTimeout(250);await p.click('.panel .btn:has-text("Use A")');await p.waitForTimeout(350)}
 ok(await p.evaluate(()=>STORE.list().then(a=>JOBS.list(a[0]).every(j=>JOBS.picked(j)))),'every job picked');
 // sound
 await p.click('.side .stage:has-text("Sound")');await p.waitForTimeout(700);
-await p.click('text=Find moments');await p.waitForTimeout(3000);const nc=await p.locator('.card .pitem').count();ok(nc>0,'moments found from whips and hits ('+nc+')');
-await p.setInputFiles('.card input[type=file]',SP+'/a.wav');await p.waitForTimeout(1200);ok((await p.locator('.drop .big').first().innerText()).includes('a.wav'),'music added');
+await p.click('.tabs button:has-text("Sound effects")');await p.waitForTimeout(400);await p.click('text=Find moments');await p.waitForTimeout(3000);const nc=await p.locator('.card .pitem').count();ok(nc>0,'moments found from whips and hits ('+nc+')');
+await p.click('.tabs button:has-text("Background music")');await p.waitForTimeout(400);await p.setInputFiles('.card input[type=file]',SP+'/a.wav');await p.waitForTimeout(1200);ok((await p.locator('.drop .big').first().innerText()).includes('a.wav'),'music added');
 await p.locator('.range').first().fill('0.5');await p.waitForTimeout(300);
 await p.click('text=Play the mix');await p.waitForTimeout(1500);const mt=await p.locator('.panel .mono').first().innerText();ok(!/^0:00.0/.test(mt),'mix plays ('+mt+')');
 await p.click('.panel button:has-text("Pause")');await p.waitForTimeout(300);ok(await p.locator('text=Play the mix').count()===1,'mix pauses');
-await p.click('button:has-text("Find sounds")');await p.waitForTimeout(800);ok((await toasts()).includes('No sound found')||(await toasts()).includes('Finding'),'no source: plain message');
+await p.click('.tabs button:has-text("Sound effects")');await p.waitForTimeout(400);await p.click('button:has-text("Find sounds")');await p.waitForTimeout(800);ok((await toasts()).includes('No sound found')||(await toasts()).includes('Finding'),'no source: plain message');
 await shot('8-sound');
 // thumbnails
 await p.click('.side .stage:has-text("Thumbnails")');await p.waitForTimeout(600);
