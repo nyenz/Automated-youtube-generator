@@ -1087,6 +1087,7 @@
     var leftCard = SNDTAB === 'sfx' ? cuesCard(Sx) : music; leftCard.classList.add('scrollbox', 'tabpane');
     pg.appendChild(h('div', { class: 'cols fill fitcols' }, leftCard, preview));
     pg.appendChild(nextBar({ label: stageNames().t, go: 'pick' }, { label: 'Next: Thumbnails', go: 'thumbs' }));
+    setTimeout(autoSound, 300);
     return pg;
   }
   var SNDTAB = 'music', LIVET = 0;
@@ -1221,14 +1222,32 @@
       .then(function (r) { c.busy = false; if (!quiet) render(); if (SPLAY.on) liveRestart(); return r });
   }
   var CANDS = {};
-  function findAll() {
-    var Sx = SD.cfg(P), todo = Sx.cues.filter(function (c) { return !c.pickName && !c.off });
-    if (!todo.length) { toast('Every cue has a sound. Use Redo on a cue to change it.', 'info'); return }
+  /* automatic: opening Sound finds moments (when there are none) and a sound for every effect that has none. No button needed. */
+  var AUTOSND = { busy: false, tried: {}, moments: {} };
+  function autoSound() {
+    if (AUTOSND.busy || !P) return;
+    var Sx = SD.cfg(P), pid = P.id;
+    var built = P.jobs && J.list(P).some(function (j) { return j.kind === 'scene' && J.picked(j) });
+    if (!Sx.cues.length && !AUTOSND.moments[pid] && built) {
+      AUTOSND.moments[pid] = true;
+      master().then(function (M) { if (!P || P.id !== pid || !M.info.built.length) return; var n = addCues(SD.autoCues(P, M.info.built)); if (n) toast(n + ' sound effect moments found in the built scenes. Finding their sounds now.', 'info', 6000) }).catch(function () {});
+      return;
+    }
+    var todo = Sx.cues.filter(function (c) { return !c.pickName && !c.off && !c.busy && !AUTOSND.tried[c.id] });
+    if (!todo.length) return;
+    loadSfxFolder().then(function (f) { if (!P || P.id !== pid || (!f && !SD.fsKey())) return; findAll(true) });
+  }
+  function findAll(auto) {
+    var Sx = SD.cfg(P), todo = Sx.cues.filter(function (c) { return !c.pickName && !c.off && !c.busy && (auto !== true || !AUTOSND.tried[c.id]) });
+    todo.forEach(function (c) { AUTOSND.tried[c.id] = true });
+    if (!todo.length) { if (auto !== true) toast('Every effect has a sound. Use Redo on one to change it.', 'info'); return }
+    AUTOSND.busy = true;
     if (!SFXFILES && !SD.fsKey()) { loadSfxFolder().then(function (f) { if (f) findAll(); else toast('No sound folder and no Freesound key yet. Add a free Freesound key in Settings, or press Pick sound folder.', 'warn', 10000, { label: 'Add key', do: settings }) }); return }
     var ok = 0, bad = [], i = 0;
-    var tt = toast('Finding sounds: 0 of ' + todo.length + '…', 'info', 600000);
+    var tt = toast((auto === true ? 'Finding sounds by itself: 0 of ' : 'Finding sounds: 0 of ') + todo.length + '…', 'info', 600000);
     todo.reduce(function (pr, c) { return pr.then(function () { return redoCue(c, true).then(function (r) { i++; if (r) ok++; else bad.push(c); if (tt && tt.firstChild) tt.firstChild.textContent = 'Finding sounds: ' + i + ' of ' + todo.length + '…' }) }) }, Promise.resolve())
       .then(function () {
+        AUTOSND.busy = false;
         if (tt && tt.remove) tt.remove(); render();
         if (!bad.length) toast('Found a sound for all ' + todo.length + ' cues.', 'ok');
         else toast('Found ' + ok + ' of ' + todo.length + '. ' + plural(bad.length, 'cue') + ' had a problem: ' + bad[0].err + (bad.length > 1 ? ' (each row shows its reason)' : ''), ok ? 'warn' : 'bad', 12000);
