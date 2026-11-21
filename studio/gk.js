@@ -101,7 +101,12 @@
           if (m.id != null) seek(m.t, m.id); else seek(m.t);
           var scr = document.getElementById('scr'); out = svgOf(scr.innerHTML, scr.getAttribute('viewBox'));
         } else if (m.cmd === 'assets') {
-          out = (m.names || []).map(function (n) { var f = ASSETS[n]; if (!f) return { name: n, missing: true }; var s = f.spec || {}; try { UID = 7000; return { name: n, svg: svgOf(f(s.demo || {}), (s.box || [-100, -200, 200, 220]).join(' ')), note: s.note || '', band: s.band || '', dark: !!s.dark } } catch (er) { return { name: n, error: er.message } } });
+          out = (m.names || []).map(function (n) { var f = ASSETS[n]; if (!f) return { name: n, missing: true }; var s = f.spec || {}; try { UID = 7000; var b = (s.box || [-100, -200, 200, 220]).map(Number), inner = f(s.demo || {}), vb = b;
+            // a 185 tall person beside the asset, at the same scale, so its real size can be judged (not for sky things or huge far shapes)
+            var sky = /sky/.test(s.band || ''), withMan = !sky && b[3] >= 30 && b[3] <= 3200;
+            if (withMan) { var px = b[0] + b[2] + 50; inner += '<g opacity=".78" fill="#9AA3B2"><circle cx="' + px + '" cy="-171" r="13"/><path d="M' + (px - 21) + ' -152 Q' + px + ' -160 ' + (px + 21) + ' -152 L' + (px + 17) + ' -92 L' + (px + 11) + ' 0 L' + (px + 3) + ' 0 L' + px + ' -82 L' + (px - 3) + ' 0 L' + (px - 11) + ' 0 L' + (px - 17) + ' -92 Z"/><text x="' + px + '" y="-192" font-size="' + Math.max(14, Math.round(b[3] / 18)) + '" text-anchor="middle" font-family="sans-serif">185</text></g>';
+              var y0 = Math.min(b[1], -215), x1 = px + 40, y1 = Math.max(b[1] + b[3], 6); vb = [b[0], y0, x1 - b[0], y1 - y0] }
+            return { name: n, svg: svgOf(inner, vb.join(' ')), box: b, person: withMan, note: s.note || '', band: s.band || '', dark: !!s.dark } } catch (er) { return { name: n, error: er.message } } });
           UID = 0;
         } else if (m.cmd === 'cast') {
           out = (m.names || []).map(function (n, i) { var ch = CAST[n]; if (!ch) return { name: n, missing: true }; try { UID = 1000 + i * 60; return { name: n, svg: svgOf(['side', 'front', 'back'].map(function (v, j) { return place(ch, (j - 1) * 270, 0, poseAt('stand', 0), faceAt('neutral', 0), { light: 'left', state: 'normal', headR: 43, t: 1, size: 1, view: v }) }).join(''), '-420 -350 840 380') } } catch (er) { return { name: n, error: er.message } } });

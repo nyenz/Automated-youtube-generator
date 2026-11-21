@@ -157,7 +157,9 @@
       else { code = r.code; res.full = !!r.full; res.note = r.note || ''; problems.push(warn('whole-file', 'The whole file was returned', 'That is thousands of wasted tokens. ' + (r.note || ''), 'Tell the model: return only the new lines.')) }
     } else {
       var bs = bodies(f);
-      if (!bs.length) problems.push(warn('no-fence', 'The code was not inside a code block', 'The app used the whole reply as code.', 'Tell the model: put the code in ONE ```js block.'));
+      // copied with the code box's own Copy button = clean code without the ``` marks: that is fine, no note.
+      // Only flag it when there is chat text around the code.
+      if (!bs.length && !looksLikeCode(text)) problems.push(warn('no-fence', 'The code was mixed with chat text', 'There was no code block, and some lines look like sentences, not code. The app used the whole reply as code.', 'Tell the model: answer with ONE code block and nothing else.'));
       code = (bs.length ? bs.join('\n\n') : text).replace(/<\/?script[^>]*>/g, '').trim();
     }
     if (code == null) return;
@@ -237,10 +239,41 @@
     (r.cards || []).forEach(function (c) {
       if (c.missing) out.push(err('card-missing', c.name + ' was not made', 'The file has no ' + (job.kind === 'cast' ? 'CAST.' + c.name : "ASSET('" + c.name + "')") + '.', 'Add it with exactly this name.'));
       else if (c.error) out.push(err('card-error', c.name + ' does not draw', c.error, 'Fix the drawing code of ' + c.name + '. It must draw with its demo values.'));
+      else if (job.kind === 'assets' && c.box) { var it = (job.items || []).filter(function (x) { return x.name === c.name })[0], sz = R.sizeCheck(c.name, it ? it.note : '', c.box, c.band); if (sz) out.push(warn('size', sz.title, sz.detail, sz.fix)) }
     });
     return out;
   };
 
+  /* real size: the asset's box against the size in the plan note ("520 wide x 1500 tall") or, without one, the size table of section 4 */
+  var NUMW = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, single: 1 };
+  R.planSize = function (note) {
+    var m = String(note || '').match(/(\d{2,5})\s*(?:units?\s*)?(?:wide|w|long)\s*(?:x|×|by|,)\s*(\d{2,5})\s*(?:units?\s*)?(?:tall|high|h)/i);
+    return m ? { w: +m[1], h: +m[2] } : null;
+  };
+  R.sizeCheck = function (name, note, box, band) {
+    var w = Math.round(box[2]), hh = Math.round(box[3]), txt = (name + ' ' + (note || '')).toLowerCase(), want = R.planSize(note);
+    function fixFor(W, H) { return 'Set the box of ' + name + ' to [' + Math.round(-W / 2) + ', ' + (-H) + ', ' + W + ', ' + H + '] and draw it to fill that size (1 unit = 1 cm; an adult is 185 tall).' }
+    if (want) {
+      var off = Math.max(Math.abs(w - want.w) / want.w, Math.abs(hh - want.h) / want.h);
+      if (off > .3) return { title: name + ' is the wrong size', detail: 'Its box is ' + w + ' wide x ' + hh + ' tall, but the plan says ' + want.w + ' wide x ' + want.h + ' tall (' + Math.round(off * 100) + '% off). Next to people it will look ' + (hh < want.h ? 'too small' : 'too big') + '.', fix: fixFor(want.w, want.h) };
+      return null;
+    }
+    if (/sky|far/.test(band || '')) return null;
+    var st = txt.match(/\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|single)[ -](?:storey|story|floor)/);
+    var rules = [
+      [/\bdoor/, 'h', 180, 260, 'a door is about 210 high'], [/\b(car|taxi|sedan)\b/, 'w', 400, 520, 'a car is 450 to 480 long'], [/street ?lamp|lamp ?post/, 'h', 330, 480, 'a street lamp is about 400 high'],
+      [/\btree\b/, 'h', 450, 1200, 'a tree is 600 to 1000 high'], [/\b(boat|canoe)\b/, 'w', 180, 400, 'a small boat is 220 to 330 wide'], [/\b(bench)\b/, 'h', 70, 110, 'a bench is about 90 high'], [/\b(bed)\b/, 'h', 40, 110, 'a bed is about 60 high'], [/\b(rickshaw|tuk ?tuk)\b/, 'h', 150, 220, 'a rickshaw is about 180 high']];
+    if (st) { var n = NUMW[st[1]] || +st[1]; rules.unshift([/./, 'h', n * 300 * .75, n * 300 * 1.3, 'a ' + n + '-storey building is about ' + n * 300 + ' high']) }
+    for (var i = 0; i < rules.length; i++) { var r = rules[i]; if (!r[0].test(txt)) continue; var v = r[1] === 'h' ? hh : w; if (v < r[2] || v > r[3]) { var target = Math.round((r[2] + r[3]) / 2); return { title: name + ' looks the wrong size', detail: 'Its box is ' + w + ' wide x ' + hh + ' tall; ' + r[4] + ' (section 4).', fix: r[1] === 'h' ? fixFor(Math.round(w * target / hh), target) : fixFor(target, Math.round(hh * target / w)) } } }
+    return null;
+  };
+  /* true when every line of a reply without ``` marks is code (the first line is the REPLY line, a comment or code) */
+  function looksLikeCode(text) {
+    var L = String(text || '').split('\n').map(function (x) { return x.trim() }).filter(Boolean);
+    if (!L.length) return false;
+    var prose = L.filter(function (x) { return /^[A-Z][a-z]+(\s+[a-z'’]+){4,}[.!?:]?$/.test(x) && !/[;{}()=<>]/.test(x) });
+    return prose.length === 0 && /^(<!--|\/\/|\/\*|<script|ASSET\(|CAST|PART\(|OUTFIT|const |let |var |function |\{)/.test(L[0]);
+  }
   /* ---------- 3. the message to send back ---------- */
   R.fixMessage = function (P, job, problems, ver) {
     var JJ = J(), errs = problems.filter(function (p) { return p.level === 'error' }), warns = problems.filter(function (p) { return p.level === 'warn' }), n = 0;

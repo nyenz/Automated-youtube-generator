@@ -544,3 +544,4 @@ body { font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0; 
 .titlerow.on { border-color: var(--accent); background: rgba(200,32,43,.1); }
 .titlerow .num { font: 600 12px/1 var(--f-mono); padding: 5px 7px; border-radius: 6px; background: var(--field); border: 1px solid var(--line-2); }
 .titlerow b { font-size: 13.5px; overflow-wrap: anywhere; }
+.result-box > .tabs, .result-box > .row, .result-box > .result-acts { flex: none; }
