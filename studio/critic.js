@@ -59,7 +59,7 @@
       (x.frames || []).forEach(function (f, i) { out.push({ svg: f, cap: x.times[i].toFixed(1) + ' s', sub: words ? words(x.times[i]) : '' }) });
       if (x.nextFrame) out.push({ svg: x.nextFrame, cap: 'Part after', sub: 'its first second', dim: true });
     } else if (x.cards) {
-      x.cards.forEach(function (c) { out.push({ svg: c.svg, cap: c.name, sub: c.error ? 'does not draw: ' + c.error : c.missing ? 'was not made' : (c.band ? c.band + (c.note ? ' \u00B7 ' + c.note : '') : c.note || ''), contain: true, light: !c.dark, kind: job.kind, bad: !!(c.error || c.missing) }) });
+      x.cards.forEach(function (c) { out.push({ svg: c.svg, cap: c.name, sub: c.error ? 'does not draw: ' + c.error : c.missing ? 'was not made' : (c.box ? Math.round(c.box[2]) + ' x ' + Math.round(c.box[3]) + (c.person ? ' · grey person = 185' : '') + ' \u00B7 ' : '') + (c.band ? c.band + (c.note ? ' \u00B7 ' + c.note : '') : c.note || ''), contain: true, light: !c.dark, kind: job.kind, bad: !!(c.error || c.missing) }) });
     }
     return out;
   };

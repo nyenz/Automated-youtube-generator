@@ -3,6 +3,7 @@ const R=[]; const ok=(c,m)=>{R.push((c?'PASS ':'FAIL ')+m); if(!c) console.log('
 (async()=>{const b=await chromium.launch({args:['--autoplay-policy=no-user-gesture-required']});const ctx=await b.newContext({viewport:{width:1366,height:860},acceptDownloads:true,permissions:['clipboard-read','clipboard-write']});const p=await ctx.newPage();
 const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error'&&!/ERR_TUNNEL|fonts|404|ERR_INTERNET/.test(m.text()))errs.push(m.text())});
 const shot=n=>p.screenshot({path:SP+'/e-'+n+'.png'});
+const promptOf=t=>t.includes('</project_file>')?t.slice(t.indexOf('</project_file>')+15).trim():t;
 const toasts=async()=>(await p.locator('.toast').allInnerTexts()).join(' | ');
 const clear=()=>p.evaluate(()=>document.querySelectorAll('.toast').forEach(t=>t.remove()));
 async function paste(btnText,text){await clear();await p.click('button:has-text("'+btnText+'")');await p.fill('.modal textarea',text);await p.click('.modal .btn.primary');await p.waitForSelector('.veil',{state:'detached',timeout:60000});await p.waitForTimeout(300)}
@@ -15,7 +16,7 @@ ok(p.url().endsWith('/prompts'),'Next goes to Prompts');
 await p.click('button:has-text("Mode:")');await p.click('.menu button:has-text("Compare: two chats")');await p.waitForTimeout(400);await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);   // this script tests the compare mode; prompts.js tests One prompt
 await shot('1-prompts');
 const jobsN=await p.locator('.jt-body .jt-row').count();ok(jobsN===1,'only the plan job before a plan ('+jobsN+')');
-await p.click('.jt-body .jt-row >> text=Copy prompt');const pr=await p.evaluate(()=>navigator.clipboard.readText());
+await p.click('.jt-body .jt-row >> text=Copy prompt');await p.waitForTimeout(1200);const pr=promptOf(await p.evaluate(()=>navigator.clipboard.readText()));
 ok(/MODE: PROJECT/.test(pr)&&/FULL SCRIPT/.test(pr)&&/assets_info/.test(pr),'plan prompt is complete');
 ok(await p.locator('.jt-body .jt-row button:has-text("Paste B")').count()===1,'two chats: Paste A and Paste B');
 // plan A and B
@@ -58,7 +59,7 @@ ok((await p.locator('.panel').first().innerText()).includes('Sonnet picks B'),'c
 // scenes
 await p.click('.side .stage:has-text("Prompts")');await p.waitForTimeout(700);
 ok(!(await p.locator('.jt-body .jt-row:has-text("Part 1")').innerText()).includes('Finish the assets'),'scenes unlock after assets and people are picked');
-await p.locator('.jt-body .jt-row',{hasText:'Part 1'}).locator('text=Copy prompt').click();const sp=await p.evaluate(()=>navigator.clipboard.readText());ok(/MODE: SCENE/.test(sp)&&/SCRIPT FOR THIS PART/.test(sp)&&/AUDIO_START \(0\)/.test(sp),'scene prompt has the part, words and times');
+await p.locator('.jt-body .jt-row',{hasText:'Part 1'}).locator('text=Copy prompt').click();await p.waitForTimeout(1200);const sp=promptOf(await p.evaluate(()=>navigator.clipboard.readText()));ok(/MODE: SCENE/.test(sp)&&/SCRIPT FOR THIS PART/.test(sp)&&/AUDIO_START \(0\)/.test(sp),'scene prompt has the part, words and times');
 const fx=await p.evaluate(async()=>{const tpl=await (await fetch('styles/gilded-kasumi/project.html')).text();const P=(await STORE.list())[0];const plan=GK.plan(P);return plan.parts.map(pt=>[FIX.scene(tpl,pt,P.timing.words,plan,1),FIX.scene(tpl,pt,P.timing.words,plan,.85)])});
 for(let i=0;i<fx.length;i++){await pasteIn('Part '+(i+1)+':','A',fx[i][0]);await pasteIn('Part '+(i+1)+':','B',fx[i][1]);}
 const s1=await p.locator('.jt-body .jt-row',{hasText:'Part 1:'}).innerText();ok(/A: (checks pass|\d+ problem)/.test(s1),'scene A checked: '+s1.split('\n').slice(-1)[0]);
@@ -100,7 +101,7 @@ await p.click('.player [aria-label=Play]');await p.waitForTimeout(2500);const wt
 await p.click('.player [aria-label=Pause]');await p.waitForTimeout(400);await shot('11-watch-playing');
 const px=await p.evaluate(()=>{const c=document.querySelector('canvas');const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let s=0;for(let i=0;i<d.length;i+=4000)s+=d[i]+d[i+1]+d[i+2];return s});ok(px>1000,'the video frame is drawn (not black)');
 await p.click('text=Improve this moment');await p.waitForTimeout(400);ok((await p.locator('.modal h3').innerText()).startsWith('Improve part'),'improve this moment opens');
-await p.click('.modal >> text=Copy prompt');const ip=await p.evaluate(()=>navigator.clipboard.readText());ok(/MODE: IMPROVE/.test(ip),'improve prompt copied');await p.click('.modal .x');
+await p.click('.modal >> text=Copy prompt');await p.waitForTimeout(1200);const ip=promptOf(await p.evaluate(()=>navigator.clipboard.readText()));ok(/MODE: IMPROVE/.test(ip),'improve prompt copied');await p.click('.modal .x');
 await p.fill('input[placeholder^="Channel name"]','NYENZ LEARN');
 await p.click('.card button:has-text("Copy prompt")');const upp=await p.evaluate(()=>navigator.clipboard.readText());
 ok(/^PROMPT U01/.test(upp)&&/write 6/.test(upp)&&/No "#Shorts" in the title/.test(upp)&&/FIRST 3 appear above the title/.test(upp)&&/under 450 characters/.test(upp)&&/NYENZ LEARN/.test(upp)&&/ONE ```json/.test(upp),'upload prompt: 6 title angles, Shorts length rule, hashtag order, tag limit, channel name, JSON only');

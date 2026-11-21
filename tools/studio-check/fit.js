@@ -4,7 +4,8 @@ const R=[]; const ok=(c,m)=>{R.push((c?'PASS ':'FAIL ')+m); if(!c) console.log('
 (async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:1366,height:720},permissions:['clipboard-read','clipboard-write']});const p=await ctx.newPage();
 const errs=[];p.on('pageerror',e=>errs.push(e.message));
 const shot=n=>p.screenshot({path:SP+'/o-'+n+'.png'});
-const clip=()=>p.evaluate(()=>navigator.clipboard.readText());
+const clip=()=>p.evaluate(()=>navigator.clipboard.readText());const promptOf=t=>t.includes('</project_file>')?t.slice(t.indexOf('</project_file>')+15).trim():t;const clipP=async()=>{await p.waitForTimeout(1200);return promptOf(await p.evaluate(()=>navigator.clipboard.readText()))};const clipRaw=async()=>{await p.waitForTimeout(1200);return p.evaluate(()=>navigator.clipboard.readText())};
+
 const clear=()=>p.evaluate(()=>document.querySelectorAll('.toast').forEach(t=>t.remove()));
 async function pasteIn(card,text){await clear();await p.locator('.jt-body .jt-row',{hasText:card}).locator('button:has-text("Paste reply"), button:has-text("Replace reply")').first().click();await p.fill('.modal textarea',text);await p.click('.modal .btn.primary');await p.waitForFunction(()=>!document.querySelector('.veil')||document.querySelector('.veil .rep'),null,{timeout:60000});await p.waitForTimeout(300)}
 await p.goto('http://localhost:8125/');await p.waitForTimeout(700);await p.click('.newcard');await p.fill('.modal input','One');await p.press('.modal input','Enter');await p.waitForTimeout(700);await p.click('text=Use Gilded');await p.waitForTimeout(600);
@@ -14,7 +15,7 @@ await p.click('.nextbar >> text=Next: Prompts');await p.waitForTimeout(800);
 ok(/One prompt/.test(await p.locator('button:has-text("Mode:")').innerText()),'One prompt is the default');
 await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);ok(await p.locator('.page').evaluate(e=>e.classList.contains('fit')),'prompts page fits the window (list scrolls inside)');
 ok(await p.locator('.side .stage:has-text("Results")').count()===1,'stage 4 is called Results in one prompt mode');
-await p.click('.jt-body .jt-row >> text=Copy prompt');const pr=await clip();
+await p.click('.jt-body .jt-row >> text=Copy prompt');const raw=await clipRaw();const pr=promptOf(raw);
 ok(/^PROMPT P01 of 01 · PLAN · ONE PROMPT/.test(pr),'prompt starts with its number: '+pr.split('\n')[0]);
 ok(/ONE ```json code block and NOTHING else/.test(pr)&&/"REPLY": "P01 plan"/.test(pr)&&/Never ask a question/.test(pr),'plan prompt forces code only, with its REPLY line');
 ok(!/VERSION A/.test(pr),'no two-version text in one prompt mode');
@@ -22,12 +23,12 @@ const parts=await p.evaluate(()=>STORE.list().then(a=>AUDIO.plan(a[0]).parts.map
 await pasteIn('The plan',await p.evaluate(ps=>FIX.plan(ps,0),parts));if(await p.locator('.veil').count())await p.click('.modal .x');await p.waitForTimeout(300);
 ok((await p.locator('.jt-body .jt-row').first().innerText()).includes('Done'),'a plan that passes is used straight away');
 const titles=await p.locator('.jt-body .num').allInnerTexts();ok(titles.every((t,i)=>t==='P'+String(i+1).padStart(2,'0')),'every job numbered in order: '+titles.join(' '));
-await p.locator('.jt-body .jt-row',{hasText:'Assets: crate'}).locator('text=Copy prompt').click();const ap=await clip();
+await p.locator('.jt-body .jt-row',{hasText:'Assets: crate'}).locator('text=Copy prompt').click();const ap=await clipP();
 ok(/^PROMPT P02 of \d\d · ASSETS/.test(ap)&&/\/\/ REPLY P02 assets-crate/.test(ap)&&/ONLY the ASSET/.test(ap),'asset prompt: number, REPLY line, only the asset');
 await pasteIn('Assets: crate',await p.evaluate(()=>FIX.asset('crate','#C8402F')));if(await p.locator('.veil').count())await p.click('.modal .x');
 await pasteIn('People: nurse',await p.evaluate(()=>FIX.cast('#2F7F7A')));if(await p.locator('.veil').count())await p.click('.modal .x');
 ok((await p.locator('.jt-body .jt-row',{hasText:'People: nurse'}).innerText()).includes('Done'),'person passes and is used');
-await p.locator('.jt-body .jt-row',{hasText:'Part 2:'}).locator('text=Copy prompt').click();const sp=await clip();
+await p.locator('.jt-body .jt-row',{hasText:'Part 2:'}).locator('text=Copy prompt').click();const sp=await clipP();
 ok(/· SCENE · PART 2 of \d+ · ONE PROMPT/.test(sp)&&/<!-- REPLY P\d\d scene-2 -->/.test(sp)&&/<script data-part="2">/.test(sp),'scene prompt names part 2 and its block');
 // the mistake from the screenshot: part 1 code pasted into part 2, with chat around it
 const fx=await p.evaluate(async()=>{const tpl=await (await fetch('styles/gilded-kasumi/project.html')).text();const P=(await STORE.list())[0];const plan=GK.plan(P);return plan.parts.map(pt=>FIX.scene(tpl,pt,P.timing.words,plan,1))});

@@ -592,6 +592,14 @@
     return GK.compose(P, J.blocks(P)).then(function (t) { download(J.fileName(P), new Blob([t], { type: 'text/html' })); toast('Project file ' + J.stamp(P) + ' is downloaded. Attach it in the Sonnet chat together with the prompt (the number must match).', 'ok', 7000) })
       .catch(function (e) { toast('Could not make the file: ' + e.message, 'bad') });
   }
+  /* a prompt for Sonnet: with the whole project file inside it (one paste, nothing to attach), unless turned off in Settings */
+  function copyPrompt(t, tag) {
+    if (!J.embed()) return copyText(t, 'Prompt ' + tag + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.');
+    return GK.compose(P, J.blocks(P)).then(function (file) {
+      var all = J.withFile(P, file, t);
+      return copyText(all, 'Prompt ' + tag + ' is copied with project file ' + J.stamp(P) + ' inside (' + fmtN(all.length) + ' characters)', 'Open a NEW Sonnet chat and paste. Nothing to attach.');
+    }).catch(function (e) { toast('Could not add the project file to the prompt: ' + e.message + '. Turn off "Project file inside each prompt" in Settings and attach the file instead.', 'bad', 10000) });
+  }
   function copyText(t, what, hint) { return navigator.clipboard.writeText(t).then(function () { toast((what || 'Copied') + '. ' + (hint || 'Paste it into the Sonnet chat.'), 'ok', hint ? 6500 : 4200) }, function () { modal({ title: 'Copy this', body: h('textarea', { class: 'area', style: { minHeight: '260px' } }, t), actions: [] }) }) }
   function needTiming() {
     if (P.timing && P.timing.words && P.timing.words.length) return null;
@@ -648,7 +656,7 @@
     var acts = h('div', { class: 'row' });
     if (redirect && o.onMove) acts.appendChild(h('button', { class: 'btn small primary', onclick: function () { o.onMove(redirect) } }, icon('paste'), 'Save it in ' + J.tag(P, redirect)));
     if (probs.length && !redirect) acts.appendChild(h('button', { class: 'btn small primary', onclick: function () { copyText(REPLY.fixMessage(P, job, probs, o.fixVer || null), 'The fix message for ' + tag + ' is copied', 'Send it in the same Sonnet chat.') } }, icon('copy'), 'Copy fix message'));
-    acts.appendChild(h('button', { class: 'btn small', onclick: function () { copyText(o.promptFn ? o.promptFn() : J.prompt(P, job, J.mode(P)), 'Prompt ' + tag + ' is copied', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt again'));
+    acts.appendChild(h('button', { class: 'btn small', onclick: function () { copyPrompt(o.promptFn ? o.promptFn() : J.prompt(P, job, J.mode(P)), tag) } }, icon('copy'), 'Copy prompt again'));
     acts.appendChild(h('button', { class: 'btn small', onclick: function () { copyText(REPLY.report(P, job, res, probs), 'The details are copied', 'Paste them wherever you need them.') } }, icon('copy'), 'Copy all details'));
     if (o.saved && c.errors && o.onUse) acts.appendChild(h('button', { class: 'btn small', onclick: o.onUse }, icon('check'), 'Use it anyway'));
     box.appendChild(acts);
@@ -751,7 +759,7 @@
     var mode = J.mode(P), single = mode === 'single', L = J.list(P), done = L.filter(function (j) { return J.picked(j) }).length;
     var MODES = [{ id: 'single', label: 'One prompt' }, { id: 'two', label: 'Compare: two chats' }, { id: 'one', label: 'Compare: one chat' }];
     var pg = h('div', { class: 'page fit' }, pageHead(3, 'Prompts', 'Copy a numbered prompt, paste it in a new Sonnet chat with the project file, paste the reply back.',
-      h('button', { class: 'btn', onclick: fileForModel, title: 'Attach this file in every Sonnet chat. Its number changes when a plan, asset or person is picked.' }, icon('download'), 'Project file ' + J.stamp(P))));
+      J.embed() ? h('span', { class: 'chip', title: 'Every Copy prompt already holds the whole project file. Nothing to attach.' }, h('b', null, J.stamp(P)), h('span', null, 'file inside each prompt')) : h('button', { class: 'btn', onclick: fileForModel, title: 'Attach this file in every Sonnet chat. Its number changes when a plan, asset or person is picked.' }, icon('download'), 'Project file ' + J.stamp(P))));
     pg.appendChild(h('div', { class: 'stats compact' }, stat(String(L.length), 'Prompts'), stat(String(done), 'Done', done === L.length ? 'ok' : ''), stat(String(L.length - done), 'To do or fix', L.length - done ? 'warn' : ''), stat(single ? '1 prompt' : '2 versions', 'Per job')));
     var how = single ? '1. Press Copy prompt on a row. 2. Open a NEW Sonnet chat, attach the project file (the F-number must match) and paste. 3. Copy Sonnet’s reply (it is only code) and press Paste reply. The app checks it and uses it. If something is wrong you get a report with a message to send back.'
       : mode === 'two' ? '1. Copy the prompt. 2. Do it in two new Sonnet chats with the project file. 3. Paste each reply as A and B. Then compare them in stage 4.'
@@ -790,7 +798,7 @@
     var acts = h('div', { class: 'jt-acts' });
     if (block) acts.appendChild(h('span', { class: 'muted', style: { fontSize: '12px' } }, block));
     else {
-      acts.appendChild(h('button', { class: 'btn small', title: 'Copy prompt ' + tag, onclick: function () { var t = J.prompt(P, job, mode); copyText(t, 'Prompt ' + tag + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'));
+      acts.appendChild(h('button', { class: 'btn small', title: 'Copy prompt ' + tag, onclick: function () { var t = J.prompt(P, job, mode); copyPrompt(t, tag) } }, icon('copy'), 'Copy prompt'));
       if (single) acts.appendChild(h('button', { class: 'btn small' + (job.A && job.A.check && job.A.check.ok ? '' : ' primary'), onclick: function () { pasteBox(job, 'A') } }, icon('paste'), job.A ? 'Replace reply' : 'Paste reply'));
       else if (mode === 'two') { acts.appendChild(h('button', { class: 'btn small' + (job.A ? '' : ' primary'), onclick: function () { pasteBox(job, 'A') } }, icon('paste'), job.A ? 'Replace A' : 'Paste A')); acts.appendChild(h('button', { class: 'btn small' + (job.A && !job.B ? ' primary' : ''), onclick: function () { pasteBox(job, 'B') } }, icon('paste'), job.B ? 'Replace B' : 'Paste B')) }
       else acts.appendChild(h('button', { class: 'btn small primary', onclick: function () { pasteBox(job, null) } }, icon('paste'), job.A ? 'Replace reply' : 'Paste reply'));
@@ -851,14 +859,14 @@
     var rot = function (n) { return h('span', { style: { display: 'inline-flex', transform: 'rotate(180deg)' } }, n) };
     function navBtn(j, dir, long) {
       var lab = j ? J.tag(P, j) : (dir < 0 ? 'Previous' : 'Next');
-      return h('button', { class: 'btn' + (long ? '' : ' small'), disabled: j ? null : true, title: j ? J.label(P, j) : '', onclick: function () { if (j) openResult(j, PICKBACK) } }, dir < 0 ? rot(icon('chev')) : null, (long ? (dir < 0 ? 'Previous: ' : 'Next: ') : '') + lab, dir > 0 ? icon('chev') : null);
+      return h('button', { class: 'btn' + (long ? '' : ' small'), disabled: j ? null : true, title: j ? J.label(P, j) : '', onclick: function () { if (j) openResult(j, PICKBACK) } }, dir < 0 ? rot(icon('chev')) : null, (long && j ? (dir < 0 ? 'Previous: ' : 'Next: ') : '') + lab, dir > 0 ? icon('chev') : null);
     }
     var pg = h('div', { class: 'page fit' }, h('div', { class: 'titlebar' },
       h('button', { class: 'back', title: 'Back to ' + back.label, 'aria-label': 'Back to ' + back.label, onclick: function () { go(P.id + '/' + back.go) } }, icon('chev')),
       h('div', null, h('h1', null, tag + ' · ' + job.title), h('p', null, J.kindName(job) + ' · result ' + (i + 1) + ' of ' + L.length + ' · ', h('span', { class: st.cls }, st.text))),
       h('div', { class: 'grow' }), navBtn(prev, -1), navBtn(next, 1)));
     if (!(job.A || job.B)) pg.appendChild(h('div', { class: 'card empty' }, 'No reply yet for ' + tag + '.', h('div', { class: 'row', style: { marginTop: '12px', justifyContent: 'center' } },
-      h('button', { class: 'btn', onclick: function () { var t = J.prompt(P, job, J.mode(P)); copyText(t, 'Prompt ' + tag + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'),
+      h('button', { class: 'btn', onclick: function () { var t = J.prompt(P, job, J.mode(P)); copyPrompt(t, tag) } }, icon('copy'), 'Copy prompt'),
       h('button', { class: 'btn primary', onclick: function () { pasteBox(job, 'A') } }, icon('paste'), 'Paste reply'))));
     else if (single) pg.appendChild(singleResult(job));
     else { var pd = pickDetail(job); pd.classList.add('fill', 'scrollbox'); pg.appendChild(pd) }
@@ -888,7 +896,7 @@
     panel.appendChild(tb); panel.appendChild(body); paint();
     panel.appendChild(h('div', { class: 'row result-acts' },
       h('button', { class: 'btn', onclick: function () { pasteBox(job, 'A') } }, icon('paste'), 'Paste a new reply'),
-      h('button', { class: 'btn', onclick: function () { var t = J.prompt(P, job, 'single'); copyText(t, 'Prompt ' + J.tag(P, job) + ' is copied (' + fmtN(t.length) + ' characters)', 'Open a NEW Sonnet chat, attach project file ' + J.stamp(P) + ' and paste.') } }, icon('copy'), 'Copy prompt'),
+      h('button', { class: 'btn', onclick: function () { var t = J.prompt(P, job, 'single'); copyPrompt(t, J.tag(P, job)) } }, icon('copy'), 'Copy prompt'),
       probs.length ? h('button', { class: 'btn', onclick: function () { copyText(REPLY.fixMessage(P, job, probs, null), 'The fix message for ' + J.tag(P, job) + ' is copied', 'Send it in the same Sonnet chat.') } }, icon('copy'), 'Copy fix message') : null,
       h('div', { class: 'grow', style: { flex: 1 } }),
       J.picked(job) ? h('span', { class: 't-ok', style: { fontWeight: 600 } }, 'In use') : h('button', { class: 'btn primary', onclick: function () { usePick(job, v) } }, icon('check'), 'Use this reply')));
@@ -1457,7 +1465,7 @@
         save(true).then(function () { closeMaster(); render(); toast('Part ' + p.id + ' is improved. Earlier versions are kept (Script & audio, More, Undo).', 'ok', 7000) });
       }
       closeImp = modal({ title: 'Improve part ' + p.id + ' at ' + local.toFixed(1) + ' s', body: h('div', null, h('p', { class: 'muted', style: { margin: '0 0 8px', fontSize: '12.5px' } }, 'Video time ' + fmtT(WATCH.t) + '. Write what you want, copy the prompt into a new Sonnet chat with the project file, then paste the reply.'), note,
-        h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn small', onclick: function () { copyText(J.improvePrompt(P, p.id, local, note.value.trim()), 'The improve prompt is copied') } }, icon('copy'), 'Copy prompt'), h('button', { class: 'btn small', onclick: fileForModel }, icon('download'), 'Project file ' + J.stamp(P))), reply, repOut),
+        h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn small', onclick: function () { copyPrompt(J.improvePrompt(P, p.id, local, note.value.trim()), 'IMPROVE part ' + p.id) } }, icon('copy'), 'Copy prompt'), h('button', { class: 'btn small', onclick: fileForModel }, icon('download'), 'Project file ' + J.stamp(P))), reply, repOut),
         actions: [{ label: 'Check and use', primary: true, do: function () {
           repOut.innerHTML = '';
           var r = REPLY.read(P, fake, reply.value, {});
@@ -1532,6 +1540,9 @@
     var calm = h('div', null, seg([{ id: 'on', label: 'Animations on' }, { id: 'off', label: 'Calm (no animations)' }], document.body.classList.contains('calm') ? 'off' : 'on', function (v) { try { localStorage.setItem('studio.calm', v === 'off' ? '1' : '') } catch (e) { } document.body.classList.toggle('calm', v === 'off'); document.querySelector('.veil').remove(); settings() }));
     modal({ title: 'Settings', body: h('div', null,
       h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Gemini key (the automatic critic)'), gk, h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, 'Free at aistudio.google.com, Get API key. It stays only in this browser.')),
+      h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Project file inside each prompt'),
+        (function () { var box = h('div'); function paint() { box.innerHTML = ''; box.appendChild(seg([{ id: 'on', label: 'On: one paste' }, { id: 'off', label: 'Off: attach the file' }], J.embed() ? 'on' : 'off', function (v) { J.setEmbed(v === 'on'); paint(); render(); toast(v === 'on' ? 'Each Copy prompt now holds the whole project file. Nothing to attach.' : 'Prompts no longer hold the file. Download it with "Project file" and attach it.', 'ok') })) } paint(); return box })(),
+        h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, 'On: Copy prompt puts the full project file (rulebook, plan, library) and the prompt in one paste. Sonnet reads the same thing as with an attached file.')),
       h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Freesound key (sound effects)'), h('div', { class: 'row', style: { flexWrap: 'nowrap' } }, fk, h('button', { class: 'btn small', onclick: function (e) { var b = e.currentTarget, k = fk.value.trim(); if (!k) { toast('Paste the Freesound key first.', 'warn'); return } b.disabled = true; SD.testKey(k).then(function (n) { toast('The Freesound key works (' + n + ' test sounds found).', 'ok') }).catch(function (er) { toast(er.message, 'bad', 12000) }).then(function () { b.disabled = false }) } }, 'Test key')), h('div', { class: 'muted', style: { fontSize: '11.5px', marginTop: '6px' } }, 'Free at freesound.org/apiv2/apply after making an account. Only free-to-use (CC0) sounds are taken.')),
       h('div', { class: 'fieldgroup' }, h('span', { class: 'label' }, 'Motion'), calm)),
       actions: [{ label: 'Save', primary: true, do: function () { CR.setKey(gk.value); SD.setFsKey(fk.value); toast('Settings saved.', 'ok'); render() } }] });
