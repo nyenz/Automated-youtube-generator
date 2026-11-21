@@ -17,16 +17,16 @@ await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);ok(awa
 ok(await p.locator('.side .stage:has-text("Results")').count()===1,'stage 4 is called Results in one prompt mode');
 await p.click('.jt-body .jt-row >> text=Copy prompt');const raw=await clipRaw();const pr=promptOf(raw);
 ok(/^<project_file name="[^"]+" number="F\d\d">/.test(raw)&&/id="rulebook"/.test(raw)&&/is ABOVE this prompt/.test(pr),'Copy prompt holds the whole project file: one paste, nothing to attach ('+raw.length+' characters)');
-ok(/^PROMPT P01 of 01 · PLAN · ONE PROMPT/.test(pr),'prompt starts with its number: '+pr.split('\n')[0]);
+ok(/^PROMPT P01 of P01 · PLAN · ONE PROMPT/.test(pr),'prompt starts with its number: '+pr.split('\n')[0]);
 ok(/ONE ```json code block and NOTHING else/.test(pr)&&/"REPLY": "P01 plan"/.test(pr)&&/Never ask a question/.test(pr),'plan prompt forces code only, with its REPLY line');
 ok(!/VERSION A/.test(pr),'no two-version text in one prompt mode');
 ok(/WARDROBE RULES/.test(pr)&&/"signature"/.test(pr)&&/"accent"/.test(pr)&&/"story"/.test(pr),'plan prompt asks every new person for an outfit type, a signature colour and an easy-to-spot detail');
 const parts=await p.evaluate(()=>STORE.list().then(a=>AUDIO.plan(a[0]).parts.map(x=>({id:x.id}))));
 await pasteIn('The plan',await p.evaluate(ps=>FIX.plan(ps,0),parts));if(await p.locator('.veil').count())await p.click('.modal .x');await p.waitForTimeout(300);
 ok((await p.locator('.jt-body .jt-row').first().innerText()).includes('Done'),'a plan that passes is used straight away');
-const titles=await p.locator('.jt-body .num').allInnerTexts();ok(titles.every((t,i)=>t==='P'+String(i+1).padStart(2,'0')),'every job numbered in order: '+titles.join(' '));
+const titles=await p.locator('.jt-body .num').allInnerTexts();{const cnt={};const okN=titles.every(t=>{const L=t[0],n=+t.slice(1);cnt[L]=(cnt[L]||0)+1;return /^[PACS]\d\d$/.test(t)&&(L==='S'||n===cnt[L])});ok(okN&&titles[0]==='P01'&&titles.includes('A01')&&titles.includes('C01')&&titles.includes('S01'),'numbers start at 1 in each group (P, A, C, S): '+titles.join(' '));}
 await p.locator('.jt-body .jt-row',{hasText:'Assets: crate'}).locator('text=Copy prompt').click();const ap=await clipP();
-ok(/^PROMPT P02 of \d\d · ASSETS/.test(ap)&&/\/\/ REPLY P02 assets-crate/.test(ap)&&/ONLY the ASSET/.test(ap),'asset prompt: number, REPLY line, only the asset');
+ok(/^PROMPT A01 of A\d\d · ASSETS/.test(ap)&&/\/\/ REPLY A01 assets-crate/.test(ap)&&/ONLY the ASSET/.test(ap),'asset prompt: number, REPLY line, only the asset');
 await pasteIn('Assets: crate',await p.evaluate(()=>FIX.asset('crate','#C8402F')));if(await p.locator('.veil').count())await p.click('.modal .x');
 await p.locator('.jt-body .jt-row',{hasText:'People: nurse'}).locator('text=Copy prompt').click();const cp=await clipP();ok(/WARDROBE RULES/.test(cp)&&/OUTFIT\(\)/.test(cp)&&/signature colour above/.test(cp),'people prompt: wardrobe rules, new OUTFIT when the type does not fit');
 ok(/CREATIVE BAR/.test(ap),'asset prompt has the creative bar');
@@ -42,7 +42,7 @@ await p.click('button:has-text("Settings")');await p.click('.modal button:has-te
 await pasteIn('People: nurse',await p.evaluate(()=>FIX.cast('#2F7F7A')));if(await p.locator('.veil').count())await p.click('.modal .x');
 ok((await p.locator('.jt-body .jt-row',{hasText:'People: nurse'}).innerText()).includes('Done'),'person passes and is used');
 await p.locator('.jt-body .jt-row',{hasText:'Part 2:'}).locator('text=Copy prompt').click();const sp=await clipP();
-ok(/· SCENE · PART 2 of \d+ · ONE PROMPT/.test(sp)&&/<!-- REPLY P\d\d scene-2 -->/.test(sp)&&/<script data-part="2">/.test(sp),'scene prompt names part 2 and its block');
+ok(/· SCENE · PART 2 of \d+ · ONE PROMPT/.test(sp)&&/^PROMPT S02 of S\d\d · SCENE/.test(sp)&&/<!-- REPLY S02 scene-2 -->/.test(sp)&&/<script data-part="2">/.test(sp),'scene prompt names part 2 and its block');
 // the mistake from the screenshot: part 1 code pasted into part 2, with chat around it
 const fx=await p.evaluate(async()=>{const tpl=await (await fetch('styles/gilded-kasumi/project.html')).text();const P=(await STORE.list())[0];const plan=GK.plan(P);return plan.parts.map(pt=>FIX.scene(tpl,pt,P.timing.words,plan,1))});
 await pasteIn('Part 2:','Here is part 1:\n'+fx[0]+'\nWHAT TO LOOK AT: watch 0 to 2 s.');
@@ -51,7 +51,7 @@ const rep=await p.locator('.modal .rep').innerText();
 ok(/NOT saved/.test(rep),'wrong part is refused');
 ok(/part 1/i.test(rep)&&/part 2/i.test(rep),'the report says it is part 1 and this is part 2');
 ok(await p.locator('.modal button:has-text("Save it in")').count()===1,'offers to save it in the right prompt');
-await p.click('.modal button:has-text("Copy all details")');const det=await clip();ok(det.length>200&&/P\d\d/.test(det),'all details can be copied ('+det.length+' characters)');
+await p.click('.modal button:has-text("Copy all details")');const det=await clip();ok(det.length>200&&/[PACS]\d\d/.test(det),'all details can be copied ('+det.length+' characters)');
 await p.click('.modal button:has-text("Save it in")');for(let k=0;k<40;k++){if(await p.evaluate(()=>STORE.list().then(a=>!!a[0].jobs['scene-1'].A)))break;await p.waitForTimeout(500)}
 ok(await p.evaluate(()=>STORE.list().then(a=>!!a[0].jobs['scene-1'].A)),'moved reply saved in part 1');
 // cut-off reply gives a fix message
@@ -68,10 +68,10 @@ await p.click('.side .stage:has-text("Prompts")');await p.waitForTimeout(700);
 await p.locator('.jt-body .jt-row',{hasText:'Part 2:'}).locator('button:has-text("Preview")').click();await p.waitForTimeout(1500);
 ok(/\/pick\/scene-2$/.test(p.url()),'Preview opens only that result');
 ok(await p.locator('.page .jt-row').count()===0,'no list of other jobs on the preview page');
-ok(/^P\d\d · Part 2/.test(await p.locator('.titlebar h1').innerText()),'title shows the number and name');
+ok(/^S02 · Part 2/.test(await p.locator('.titlebar h1').innerText()),'title shows the number and name');
 await p.waitForSelector('.viewbox img, .viewbox canvas',{timeout:60000}).catch(()=>{});await shot('2-preview');
 ok(await p.locator('.viewbox img, .viewbox canvas').count()>0,'pictures of the result drawn');
-const nx=await p.locator('.titlebar button:has-text("P")').last().innerText();await p.locator('.titlebar button:has-text("P")').last().click();await p.waitForTimeout(800);
+const nx=await p.locator('.titlebar button:has-text("S0")').last().innerText();await p.locator('.titlebar button:has-text("S0")').last().click();await p.waitForTimeout(800);
 ok(/scene-3$/.test(p.url()),'next goes to the next result ('+nx+')');
 await p.click('.titlebar .back');await p.waitForTimeout(700);ok(/\/prompts$/.test(p.url()),'back returns to Prompts');
 await p.click('.side .stage:has-text("Results")');await p.waitForTimeout(600);await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);ok(await p.locator('.jt-body .jt-row').count()===titles.length+parts.length-1||await p.locator('.jt-body .jt-row').count()>3,'Results lists every reply');

@@ -8,7 +8,7 @@
 (function () {
   'use strict';
   var R = {}; window.REPLY = R;
-  var TAG = /REPLY\W{0,6}P(\d+)\s+([^\s"'<>*,]+)(?:\s+([AB])\b)?/i;
+  var TAG = /REPLY\W{0,6}([PACS])(\d+)\s+([^\s"'<>*,]+)(?:\s+([AB])\b)?/i;
   function mk(level) { return function (id, title, detail, fix, x) { return Object.assign({ id: id, level: level, title: title, detail: detail, fix: fix }, x || {}) } }
   var err = mk('error'), warn = mk('warn');
   function pad(n) { return (n < 10 ? '0' : '') + n }
@@ -81,9 +81,9 @@
     /* which prompt is this reply for? */
     var tm = TAG.exec(text), tag = null;
     var im = /REPLY\W{0,6}IMPROVE\s+part-(\d+)/i.exec(text);
-    if (tm) { tag = { no: +tm[1], key: tm[2].replace(/-+$/, ''), ver: tm[3] ? tm[3].toUpperCase() : null }; res.tag = tag }
+    if (tm) { tag = { no: +tm[2], code: tm[1].toUpperCase() + pad(+tm[2]), key: tm[3].replace(/-+$/, ''), ver: tm[4] ? tm[4].toUpperCase() : null }; res.tag = tag }
     else if (im) { tag = { no: 0, key: 'improve-' + im[1], ver: null }; res.tag = tag }
-    found.push('REPLY line: ' + (tag ? (tag.no ? 'P' + pad(tag.no) + ' ' : 'IMPROVE ') + tag.key + (tag.ver ? ' ' + tag.ver : '') : 'none') + '.');
+    found.push('REPLY line: ' + (tag ? (tag.code ? tag.code + ' ' : 'IMPROVE ') + tag.key + (tag.ver ? ' ' + tag.ver : '') : 'none') + '.');
     if (tag && tag.key !== job.id) {
       var other = J().list(P).filter(function (j) { return j.id === tag.key })[0];
       if (other) { res.redirect = other; problems.push(err('wrong-prompt', 'This reply belongs to another prompt', 'Its REPLY line says ' + J().label(P, other) + ', but you are pasting it into ' + label + '.', 'Save it in ' + J().tag(P, other) + ' with the button below, then paste the right reply for ' + me + ' here.', { stop: true })) }

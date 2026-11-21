@@ -863,7 +863,7 @@
     }
     var pg = h('div', { class: 'page fit' }, h('div', { class: 'titlebar' },
       h('button', { class: 'back', title: 'Back to ' + back.label, 'aria-label': 'Back to ' + back.label, onclick: function () { go(P.id + '/' + back.go) } }, icon('chev')),
-      h('div', null, h('h1', null, tag + ' · ' + job.title), h('p', null, J.kindName(job) + ' · result ' + (i + 1) + ' of ' + L.length + ' · ', h('span', { class: st.cls }, st.text))),
+      h('div', null, h('h1', null, tag + ' · ' + job.title), h('p', null, J.kindName(job) + ' · ' + J.no(P, job) + ' of ' + J.total(P, job.kind) + ' · ', h('span', { class: st.cls }, st.text))),
       h('div', { class: 'grow' }), navBtn(prev, -1), navBtn(next, 1)));
     if (!(job.A || job.B)) pg.appendChild(h('div', { class: 'card empty' }, 'No reply yet for ' + tag + '.', h('div', { class: 'row', style: { marginTop: '12px', justifyContent: 'center' } },
       h('button', { class: 'btn', onclick: function () { var t = J.prompt(P, job, J.mode(P)); copyPrompt(t, tag) } }, icon('copy'), 'Copy prompt'),
@@ -1288,7 +1288,7 @@
     var text = c.text ? 'TEXT ON THE IMAGE: exactly "' + c.text + '" and no other words. PLACE: ' + (c.place || 'large, in the upper middle') + '. LOOK: very bold, heavy, rounded sans-serif in capitals, white #FFFDF4 with a thick dark navy outline; the key word in gold #F6C956. Big enough to read on a phone. Spell it exactly.'
       : 'TEXT ON THE IMAGE: none. No letters or words anywhere.';
     return [
-      'IMAGE ' + c.n + ' of 3 · YouTube thumbnail · ' + c.name,
+      'IMAGE T0' + c.n + ' of T03 · YouTube thumbnail · ' + c.name,
       '',
       'FORMAT (most important): a ' + F.shape + ' image, aspect ratio exactly ' + F.ar + ', ' + F.size + '. FULL-BLEED: the artwork fills the whole canvas edge to edge. The sky, wall, water or ground continues right into all four edges and corners. No border, no frame, no bars, no empty area. ' + F.safe,
       '',
@@ -1306,7 +1306,7 @@
   }
   function thumbPrompt() {
     var plan = GK.plan(P), F = thumbFormat();
-    return 'PROMPT T01 · THUMBNAILS · 3 DESIGNS\n' +
+    return 'PROMPT T · THUMBNAILS · 3 DESIGNS (the app numbers them T01, T02, T03)\n' +
       'ROLE: you are the thumbnail designer of a fast-growing YouTube channel. Design 3 thumbnails for this video that make people click AND show honestly what the video delivers.\n\n' +
       'VIDEO: "' + (P.name || plan.title) + '" · ' + (P.format === 'long' ? 'long YouTube video' : 'YouTube Short') + ' · thumbnail ' + F.ar + ', ' + F.size + '.\n' +
       'STYLE: the app adds the full Gilded Kasumi style block and the format rules to every image prompt by itself (cut-paper diorama, gold edges, woodblock sky, mist, the palette). Do NOT describe the style, colours or format. Describe only WHAT is in the picture.\n\n' +
@@ -1333,7 +1333,7 @@
     var howBtn = h('button', { class: 'btn' + (THOWOPEN ? ' on' : ''), onclick: function () { THOWOPEN = !THOWOPEN; howBox.style.display = THOWOPEN ? '' : 'none'; howBtn.classList.toggle('on', THOWOPEN) } }, icon('spark'), 'How it works');
     var pg = h('div', { class: 'page fit' }, pageHead(6, 'Thumbnails', 'Three designs, each made in an image AI. ' + F.ar + ', full frame.',
       cs.length ? howBtn : null,
-      h('button', { class: 'btn', onclick: function () { copyText(thumbPrompt(), 'Thumbnail prompt T01 is copied', 'Paste it in a new Sonnet chat (no file needed).') } }, icon('copy'), 'Copy prompt for Sonnet'),
+      h('button', { class: 'btn', onclick: function () { copyText(thumbPrompt(), 'Thumbnail prompt T is copied', 'Paste it in a new Sonnet chat (no file needed).') } }, icon('copy'), 'Copy prompt for Sonnet'),
       h('button', { class: 'btn' + (cs.length ? '' : ' primary'), onclick: pasteDesigns }, icon('paste'), cs.length ? 'Replace designs' : 'Paste designs')));
     pg.appendChild(howBox);
     if (!cs.length) { pg.appendChild(h('div', { class: 'card empty fill' }, 'No designs yet. Copy the prompt for Sonnet, then paste its reply.')); pg.appendChild(nextBar({ label: 'Sound', go: 'sound' }, { label: 'Next: Watch & export', go: 'export' })); return pg }
@@ -1343,16 +1343,16 @@
       var img = h('div', { class: 'thumbbox ' + (P.format === 'long' ? 'wide' : 'tall') }, h('span', { class: 'muted', style: { fontSize: '12px' } }, 'No picture yet'));
       if (c.has) S.getBlob(P.id + ':thumb:' + c.n).then(function (b) { if (b) { img.innerHTML = ''; img.appendChild(h('img', { src: URL.createObjectURL(b), alt: c.name })) } });
       var fin = h('input', { type: 'file', accept: 'image/*', class: 'hidden-file' });
-      fin.addEventListener('change', function () { var f = fin.files[0]; if (!f) return; S.putBlob(P.id + ':thumb:' + c.n, f).then(function () { c.has = true; save(true).then(render); toast('Picture added to design ' + c.n + '.', 'ok') }) });
+      fin.addEventListener('change', function () { var f = fin.files[0]; if (!f) return; S.putBlob(P.id + ':thumb:' + c.n, f).then(function () { c.has = true; save(true).then(render); toast('Picture added to T0' + c.n + '.', 'ok') }) });
       grid.appendChild(h('div', { class: 'panel thumbcard' + (fav ? ' fav' : '') },
-        h('div', { class: 'row', style: { flexWrap: 'nowrap', alignItems: 'flex-start' } }, h('span', { class: 'num' }, 'T' + c.n), h('div', { style: { minWidth: 0, flex: 1 } }, h('h2', { style: { margin: 0 } }, c.name, fav ? h('span', { class: 't-ok', style: { fontSize: '12px', marginLeft: '8px', fontFamily: 'var(--f-sans)' } }, 'Favourite') : null), h('div', { class: 'sub', style: { margin: '2px 0 0', fontSize: '12px' } }, c.idea))),
+        h('div', { class: 'row', style: { flexWrap: 'nowrap', alignItems: 'flex-start' } }, h('span', { class: 'num' }, 'T0' + c.n), h('div', { style: { minWidth: 0, flex: 1 } }, h('h2', { style: { margin: 0 } }, c.name, fav ? h('span', { class: 't-ok', style: { fontSize: '12px', marginLeft: '8px', fontFamily: 'var(--f-sans)' } }, 'Favourite') : null), h('div', { class: 'sub', style: { margin: '2px 0 0', fontSize: '12px' } }, c.idea))),
         img,
         h('div', { style: { fontSize: '12px', minHeight: '18px' } }, c.text ? [h('span', { class: 'muted' }, 'Text: '), h('b', null, c.text), c.place ? h('span', { class: 'muted' }, ' · ' + c.place) : null] : h('span', { class: 'muted' }, 'No text on the picture')),
         h('div', { class: 'row', style: { gap: '6px' } },
-          h('button', { class: 'btn small primary', title: 'The full image prompt: format, scene, style and text', onclick: function () { copyText(thumbImagePrompt(c), 'Image prompt T' + c.n + ' is copied', 'Paste it in the image AI and set its aspect ratio to ' + F.ar + ' too.') } }, icon('copy'), 'Image prompt T' + c.n),
+          h('button', { class: 'btn small primary', title: 'The full image prompt: format, scene, style and text', onclick: function () { copyText(thumbImagePrompt(c), 'Image prompt T0' + c.n + ' is copied', 'Paste it in the image AI and set its aspect ratio to ' + F.ar + ' too.') } }, icon('copy'), 'Image prompt T0' + c.n),
           h('button', { class: 'btn small', onclick: function () { fin.click() } }, icon('image'), c.has ? 'Replace' : 'Add picture'), fin,
           fav ? null : h('button', { class: 'btn small', title: 'Make this the favourite', onclick: function () { T.fav = c.n; save(true).then(render) } }, icon('check'), 'Favourite?'),
-          c.has ? h('button', { class: 'btn small', title: 'Download', 'aria-label': 'Download', onclick: function () { S.getBlob(P.id + ':thumb:' + c.n).then(function (b) { if (b) download(safeName(P.name) + ' - thumbnail ' + c.n + '.' + ((b.type.split('/')[1] || 'png').replace('jpeg', 'jpg')), b) }) } }, icon('download')) : null)));
+          c.has ? h('button', { class: 'btn small', title: 'Download', 'aria-label': 'Download', onclick: function () { S.getBlob(P.id + ':thumb:' + c.n).then(function (b) { if (b) download(safeName(P.name) + ' - T0' + c.n + '.' + ((b.type.split('/')[1] || 'png').replace('jpeg', 'jpg')), b) }) } }, icon('download')) : null)));
     });
     pg.appendChild(grid);
     pg.appendChild(nextBar({ label: 'Sound', go: 'sound' }, { label: 'Next: Watch & export', go: 'export' }));

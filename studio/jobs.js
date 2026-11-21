@@ -52,9 +52,12 @@
      single = one prompt, one reply (the default).  two = two chats per job, compared.  one = one chat that returns two versions, compared. */
   J.mode = function (P) { return P && (P.abMode === 'two' || P.abMode === 'one') ? P.abMode : 'single' };
   function pad(n) { return (n < 10 ? '0' : '') + n }
-  J.no = function (P, job) { return (P.jobOrder || []).indexOf(job.id) + 1 };
-  J.total = function (P) { return (P.jobOrder || []).length };
-  J.tag = function (P, job) { return job.tagName || 'P' + pad(J.no(P, job)) };                       // P05
+  /* numbering starts at 1 in every group, with the group's letter: P01 the plan, A01.. assets, C01.. people (cast), S01.. scenes (S02 = part 2) */
+  var LETTER = { plan: 'P', assets: 'A', cast: 'C', scene: 'S' };
+  function ofKind(P, kind) { return (P.jobOrder || []).filter(function (id) { var j = P.jobs && P.jobs[id]; return j && j.kind === kind }) }
+  J.no = function (P, job) { return job.kind === 'scene' ? job.part : ofKind(P, job.kind).indexOf(job.id) + 1 };
+  J.total = function (P, kind) { return kind ? ofKind(P, kind).length : (P.jobOrder || []).length };
+  J.tag = function (P, job) { return job.tagName || (LETTER[job.kind] || 'P') + pad(J.no(P, job)) };   // A03
   var KIND = { plan: 'Plan', assets: 'Assets', cast: 'People', scene: 'Scene' };
   J.kindName = function (job) { return KIND[job.kind] || job.kind };
   J.label = function (P, job) { return J.tag(P, job) + ' \u00B7 ' + job.title };    // P05 · Part 2: Black ice
@@ -113,7 +116,7 @@
   var LANG = { plan: 'json', assets: 'js', cast: 'js', scene: 'html' };
   var EXAMPLE = 'The block marked data-example-part="1" is the worked example (Under the Ice), switched off. It is NOT part of this video: copy its shape only. Its people and assets are in the library and may be reused when they fit.';
   function titleLine(P, job, mode) {
-    var t = 'PROMPT ' + J.tag(P, job) + ' of ' + pad(J.total(P)) + ' · ' + J.kindName(job).toUpperCase();
+    var t = 'PROMPT ' + J.tag(P, job) + ' of ' + (LETTER[job.kind] || '') + pad(J.total(P, job.kind)) + ' · ' + J.kindName(job).toUpperCase();
     if (job.kind === 'scene') t += ' · PART ' + job.part + ' of ' + window.GK.plan(P).parts.length;
     if (job.kind === 'assets' || job.kind === 'cast') t += ' · ' + job.items.length + ' ' + (job.kind === 'assets' ? 'asset' : 'person');
     return t + ' · ' + ({ single: 'ONE PROMPT', two: 'COMPARE, CHAT 1 OF 2', one: 'COMPARE, TWO VERSIONS' })[mode];
