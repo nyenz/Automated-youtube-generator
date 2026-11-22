@@ -875,6 +875,27 @@
     return pg;
   }
   var RTAB = 'pics';
+  /* the plan's state sheet as a table: people down, parts across; each cell = conditions at the start, changes inside, feeling */
+  function stateSheet(pl) {
+    var plan = Object.assign({}, GK.plan(P), { state: pl.state, arcs: pl.arcs, world: pl.world, effects: pl.effects }), parts = plan.parts, people = [];
+    Object.keys(pl.state || {}).concat(Object.keys(pl.arcs || {})).forEach(function (n) { if (people.indexOf(n) < 0) people.push(n) });
+    var rows = parts.map(function (p) { return J.stateRow(plan, p.id) });
+    function cTxt(c) { var k = Object.keys(c || {}); return k.length ? k.map(function (x) { var v = c[x]; return x + (v === 1 || v === true ? '' : ' ' + (Array.isArray(v) ? v.join('+') : v)) }).join(', ') : 'clean' }
+    var t = h('table', { class: 'sheet' }, h('thead', null, h('tr', null, h('th', null, 'Person'), parts.map(function (p) { return h('th', null, 'S' + (p.id < 10 ? '0' : '') + p.id, h('div', { class: 'muted', style: { fontWeight: 400, fontSize: '11px' } }, p.title || '')) }))),
+      h('tbody', null, people.map(function (n) {
+        return h('tr', null, h('th', null, n), rows.map(function (r, i) {
+          var inPart = (parts[i].cast || []).indexOf(n) >= 0, f = r.feel[n], d = r.during.filter(function (x) { return x.who === n });
+          return h('td', { class: inPart ? '' : 'off' }, h('div', null, cTxt(r.cond[n])),
+            d.map(function (x) { return h('div', { class: 't-warn' }, (x.word ? '→ at "' + x.word + '": ' : '→ from the start: ') + cTxt(x.set) + (x.why ? ' (' + x.why + ')' : '')) }),
+            f ? h('div', { class: 'muted' }, 'feels ' + f.start + (f.during.length ? ' → ' + f.during.map(function (x) { return x.feel }).join(' → ') : '')) : null);
+        }));
+      })));
+    var box = h('div', null, h('div', { class: 'muted', style: { fontSize: '12px', marginBottom: '8px' } }, 'What each person looks like and feels at the start of each scene, and what changes inside it. Grey cells: the person is not in that scene.'), h('div', { class: 'sheetwrap' }, t));
+    var wl = (pl.world || []).map(function (w) { return 'S' + (w.part < 10 ? '0' : '') + w.part + ': ' + w.fact }), ef = (pl.effects || []).map(function (e) { return 'S' + (e.part < 10 ? '0' : '') + e.part + ': ' + e.cause + ' → ' + e.effect });
+    if (wl.length) box.appendChild(h('div', { style: { marginTop: '10px', fontSize: '12.5px' } }, h('b', null, 'The world: '), wl.join(' · ')));
+    if (ef.length) box.appendChild(h('div', { style: { marginTop: '6px', fontSize: '12.5px' } }, h('b', null, 'Cause and effect: '), ef.join(' · ')));
+    return box;
+  }
   function singleResult(job) {
     var v = job.pick || (job.A ? 'A' : 'B'), ver = job[v], c = ver.check || { problems: [] }, probs = c.problems || [], n = REPLY.counts(probs);
     var part = job.kind === 'scene' ? GK.plan(P).parts.filter(function (x) { return x.id === job.part })[0] : null;
@@ -882,6 +903,7 @@
     panel.appendChild(h('div', { class: 'row' }, h('b', { class: c.ok ? 't-ok' : 't-bad' }, c.ok ? 'Draws and passes the checks' + (c.lintAll ? ' (' + c.lintPass + '/' + c.lintAll + ')' : '') : plural(n.errors || 1, 'problem') + ' to fix'),
       n.notes ? h('span', { class: 't-warn', style: { fontSize: '12.5px' } }, plural(n.notes, 'note')) : null, h('div', { class: 'grow', style: { flex: 1 } }), h('span', { class: 'muted mono', style: { fontSize: '11.5px' } }, 'Reply saved ' + ago(ver.at))));
     var list = [{ id: 'pics', label: job.kind === 'plan' ? 'The plan' : job.kind === 'scene' ? 'Frames' : 'Pictures' }];
+    if (job.kind === 'plan' && ver.plan && (ver.plan.state || ver.plan.arcs)) list.push({ id: 'state', label: 'State sheet' });
     if (probs.length) list.push({ id: 'probs', label: 'Problems', count: String(probs.length) });
     if (part) list.push({ id: 'script', label: 'Script' });
     if (!list.some(function (t) { return t.id === RTAB })) RTAB = 'pics';
@@ -889,6 +911,7 @@
     function paint() {
       body.innerHTML = '';
       if (RTAB === 'probs') body.appendChild(problemPanel(job, { found: ver.found || [], problems: probs }, { saved: true, v: v, inUse: !!J.picked(job), onUse: J.picked(job) ? null : function () { usePick(job, v) } }));
+      else if (RTAB === 'state') body.appendChild(stateSheet(ver.plan));
       else if (RTAB === 'script') body.appendChild(h('div', { class: 'glass' }, h('div', { class: 'mono muted', style: { fontSize: '11.5px', marginBottom: '6px' } }, 'Part ' + part.id + ' · ' + fmtT(part.start) + ' – ' + fmtT(part.end)), h('div', { style: { fontSize: '14px', lineHeight: 1.6 } }, '“' + part.text + '”')));
       else { var view = h('div', { class: 'viewbox' }); body.appendChild(view); fillView(view, job, v) }
     }

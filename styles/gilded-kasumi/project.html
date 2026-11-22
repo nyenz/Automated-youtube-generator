@@ -449,7 +449,7 @@ A face never snaps from one feeling to another. Give each person a **feelings ar
 
 ```js
 const BOY = [[0,'limp'],[T('eyes'),'groggy'],[T('mother'),'hopeful'],[T('smiled'),'happy']];
-place(CAST.boy, x, 0, poseAt('lying', t, feelName(t, BOY)), feelAt(t, BOY), X.who('cold', 1, 'side', COND.boy));
+place(CAST.boy, x, 0, poseAt('lying', t, feelName(t, BOY)), feelAt(t, BOY), X.who('cold', 1, 'side', P.COND.boy));
 ```
 
 - `feelAt(t, keys, blend)` blends each change over `blend` seconds (0.4 if left out). `feelName(t, keys)` gives the feeling in charge, for `poseAt`.
@@ -504,8 +504,9 @@ A feeling moves the body as well as the face. How much depends on the pose: full
 What has happened to a person shows on them, and **stays** until the story changes it. Pass it as the fourth option of `X.who(state, size, view, cond)`:
 
 ```js
-const COND = { boy: { wet:1, cold:1, frost:.6, pale:.5 }, medic: { dirt:.4, sweat:1 } };   // one line per person, at the top of the part
-place(CAST.medic, x, 0, pose, face, X.who('normal', 1, 'side', COND.medic));
+const P = PART({ id:3, ..., COND: { boy: { wet:1, cold:1, frost:.6, pale:.5 }, medic: { dirt:.4, sweat:1 } } });  // the state sheet row at the start of the part
+place(CAST.medic, x, 0, pose, face, X.who('normal', 1, 'side', P.COND.medic));
+const cBoy = t < T('blanket') ? P.COND.boy : { ...P.COND.boy, wet:0, frost:0 };            // a change inside the part happens on its word
 ```
 
 | Condition | Value | What it draws |
@@ -988,7 +989,7 @@ What happened stays happened. The plan keeps one table for the whole video, **pa
 | The world | The ice hole stays broken; footprints and the sled's track stay in the snow |
 | Screen direction | Rescuers travel left to right |
 
-In code, each part starts with its row as a `COND` line (section 6) and draws everyone with it. Check each new shot against the sheet before writing it.
+In the project plan this is `state` (each person's start and every change: part, word, what is set, why), `arcs` (each person's feelings, part by part), `world` (lasting changes to the place) and `effects` (what each big event must show). Each part copies its row into `PART({... COND: {...}})` (section 6), draws everyone with `X.who(state, size, view, P.COND.name)`, switches changes on at their words, and follows the arcs with `feelAt`. Check each new shot against the sheet before writing it.
 
 ### Common mistakes and the fix
 
@@ -1285,7 +1286,7 @@ Run this list before you deliver anything. Fix every failure first, then deliver
 
 - [ ] The continuity ledger matches every shot: time, weather, clothes, props, doors, lights, positions.
 - [ ] What changed stays changed: wet stays wet, a bandage stays on, dirt and rips stay, until the story changes them.
-- [ ] Every person's conditions come from the part's `COND` line, matching the state sheet.
+- [ ] `COND` in `PART({...})` matches the state sheet row; changes inside the part happen on their words.
 - [ ] Faces follow a feelings arc (`feelAt`); nobody snaps from one feeling to another; everyone reacts to big events about 0.3 s late.
 - [ ] Every shot has life: no frozen asset that would move in the real world.
 
@@ -1402,6 +1403,7 @@ What `X` gives you inside `draw`:
 | --- | --- |
 | `X.lay(f, svg, blur)` | One depth layer. `f` = 0.05 sky, 0.14 far, 0.5 middle, 1 subject, 1.7 foreground. `blur` = `'mbBg'` for sky, far and middle, `'mbAll'` for the subject layer, `'mbFg'` for the foreground |
 | `X.m` | The mood now: `X.m.sky[0..2]`, `X.m.gnd[0..1]`, `X.m.light`. Mix far colours from `X.m.sky[2]` so distance follows the light |
+| `COND` in `PART({...})` | The state sheet row at the start of the part: `{boy:{wet:1, cold:1}, medic:{dirt:.4}}`. Read it as `P.COND` |
 | `X.who(state, size, view, cond)` | The options for `place()`: the right light for the mood, the body state (`normal`, `cold`, `wet`), head size 43, the view (`side`, `front` or `back`; side if left out) and the conditions (`{dirt:.5, bandage:'head'}`, section 6) |
 | `feelAt(t, keys)`, `feelName(t, keys)`, `react(t, t0)` | A feelings arc that blends, the feeling in charge for `poseAt`, and a late reaction to an event (section 6) |
 | `LIFE.sway`, `bob`, `flicker`, `blink`, `drift`, `pulse`, `spin` | Small motions for living assets (section 9) |
@@ -1578,6 +1580,7 @@ You get the full script and the narration (or its audio map). You return the fil
 8. **Give each part its job** in the story shape of section 23, and mark the parts that need an explainer picture (section 25).
 9. **List the cast and the assets** each part needs, by name. Use names already in `CAST` and the library when they fit. Give a new name only for a new thing. The same thing has the same name in every part.
 10. **Write the continuity notes**: what each person wears and carries, which way each person moves on screen, the weather, the place, and anything that must stay the same.
+11. **Write the state sheet** (section 10): `state` for every person (start and every change with part, word and reason), `arcs` (feelings part by part), `world` and `effects`.
 11. Remove the `todo` note when every part is planned.
 
 Fields of one part in the plan:
@@ -2862,7 +2865,7 @@ function shot(size,ch,wx,groundY,o){o=o||{};const Q=STAGE.shot[size]||STAGE.shot
 /* ============ a part ============ */
 const PARTS={};
 function PART(d){
-  const P=Object.assign({of:1,title:'',KEY:/^$/,KEYS:[[0,0,60,2],[1,0,60,2.1]],HITS:[],MOODS:[[0,'night',0]],TRACK:[],BIG:null,IN:null,OUT:null,draw:()=>'',over:null,cam:null,missing:[]},d);
+  const P=Object.assign({of:1,title:'',KEY:/^$/,KEYS:[[0,0,60,2],[1,0,60,2.1]],HITS:[],MOODS:[[0,'night',0]],TRACK:[],BIG:null,IN:null,OUT:null,COND:{},draw:()=>'',over:null,cam:null,missing:[]},d);
   P.END=+(P.AUDIO_END-P.AUDIO_START).toFixed(3);
   /* word times: SEG is in FULL-AUDIO seconds; AUDIO_START is taken off here, once, and nowhere else */
   const W=P.WORDS=[];P.SEG.forEach(([a,b,tx])=>{const ws=tx.split(' '),wt=ws.map(w=>w.replace(/[^a-z]/gi,'').length+1.6+(/[,.:]$/.test(w)?2:0)),tot=wt.reduce((x,y)=>x+y,0);let t=a-P.AUDIO_START;ws.forEach((w,i)=>{const dd=(b-a)*wt[i]/tot;W.push({w,t0:t,t1:t+dd});t+=dd;});});

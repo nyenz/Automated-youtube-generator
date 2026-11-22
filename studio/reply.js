@@ -222,6 +222,7 @@
     j.parts.forEach(function (p) { (p && p.assets || []).forEach(function (n) { if (!lib.assets[n] && !ai[n] && noAI.indexOf(n) < 0) noAI.push(n) }); (p && p.cast || []).forEach(function (n) { if (!lib.cast[n] && !ci[n] && noCI.indexOf(n) < 0) noCI.push(n) }) });
     if (noAI.length) problems.push(warn('no-assets-info', 'New assets without a description: ' + noAI.join(', '), 'They are not in the library and have no "assets_info" entry, so the app treats them as medium.', 'Add them to "assets_info" with a note and a level.'));
     if (noCI.length) problems.push(warn('no-cast-info', 'New people without a description: ' + noCI.join(', '), 'They are not in the library and have no "cast_info" entry.', 'Add them to "cast_info" with a note and a level.'));
+    R.stateProblems(j, want).forEach(function (x) { problems.push(x) });
     res.plan = j;
   }
 
@@ -235,6 +236,7 @@
       var snip = e.line && lines[e.line - 1] ? lines[e.line - 1].trim().slice(0, 100) : '';
       out.push(err('script-error', 'Script error' + (e.line ? ' at line ' + e.line + ' of the code' : ''), e.msg + (snip ? '   →   ' + snip : ''), 'Fix this error. It stops the code from drawing.', { line: e.line || null }));
     });
+    if (job.kind === 'scene' && !r.broken) R.sceneStateProblems(P, job, String(ver.code || ''), r.info).forEach(function (x) { out.push(x) });
     (r.lint || []).filter(function (x) { return !x.ok }).forEach(function (x) { out.push(err('lint', 'Check (LINT) failed', x.msg, 'Change the code so LINT() passes this line (rulebook sections 14 to 16).')) });
     (r.cards || []).forEach(function (c) {
       if (c.missing) out.push(err('card-missing', c.name + ' was not made', 'The file has no ' + (job.kind === 'cast' ? 'CAST.' + c.name : "ASSET('" + c.name + "')") + '.', 'Add it with exactly this name.'));
@@ -267,6 +269,47 @@
     if (st) { var n = NUMW[st[1]] || +st[1]; rules.unshift([/./, 'h', n * 570 * .75, n * 570 * 1.3, 'a ' + n + '-storey building is about ' + n * 570 + ' high']) }
     for (var i = 0; i < rules.length; i++) { var r = rules[i]; if (!r[0].test(txt)) continue; var v = r[1] === 'h' ? hh : w; if (v < r[2] || v > r[3]) { var target = Math.round((r[2] + r[3]) / 2); return { title: name + ' looks the wrong size', detail: 'Its box is ' + w + ' wide x ' + hh + ' tall; ' + r[4] + ' (section 4).', fix: r[1] === 'h' ? fixFor(Math.round(w * target / hh), target) : fixFor(target, Math.round(hh * target / w)) } } }
     return null;
+  };
+  /* the plan's state sheet: every person has state and arcs, names come from the lists, each change has a real part, word and reason */
+  R.stateProblems = function (j, want) {
+    var out = [], CONDS = J().CONDS, FEELS = J().FEELS, people = [];
+    (j.parts || []).forEach(function (p) { (p && p.cast || []).forEach(function (n) { if (people.indexOf(n) < 0) people.push(n) }) });
+    if (!people.length) return out;
+    var st = j.state || {}, arcs = j.arcs || {};
+    if (!j.state) out.push(warn('no-state', 'The plan has no state sheet', 'Without "state" the scenes cannot keep injuries, dirt, wet clothes and changes of clothes the same from part to part.', 'Add "state" with every person, their start and every change (part, word, set, why).'));
+    if (!j.arcs) out.push(warn('no-arcs', 'The plan has no feelings arcs', 'Without "arcs" faces may not match the moment or may jump between feelings.', 'Add "arcs" with every person: the feeling at the start of each part they are in and where it changes.'));
+    var noSt = people.filter(function (n) { return j.state && !st[n] }), noArc = people.filter(function (n) { return j.arcs && !arcs[n] });
+    if (noSt.length) out.push(warn('state-missing-person', 'No state for ' + noSt.join(', '), 'Every person who appears needs a line in "state", even if nothing happens to them ({"start": {}, "changes": []}).', 'Add ' + noSt.join(', ') + ' to "state".'));
+    if (noArc.length) out.push(warn('arcs-missing-person', 'No feelings arc for ' + noArc.join(', '), 'Every person who appears needs a feelings arc.', 'Add ' + noArc.join(', ') + ' to "arcs".'));
+    var badC = [], badP = [], noWhy = [], badF = [];
+    Object.keys(st).forEach(function (n) { var e = st[n] || {};
+      Object.keys(e.start || {}).forEach(function (k) { if (CONDS.indexOf(k) < 0) badC.push(n + ': ' + k) });
+      (e.changes || []).forEach(function (c) { Object.keys(c.set || {}).forEach(function (k) { if (CONDS.indexOf(k) < 0) badC.push(n + ': ' + k) });
+        if (want.indexOf(c.part) < 0) badP.push(n + ' (part ' + c.part + ')'); if (!c.why) noWhy.push(n + ' in part ' + c.part) }) });
+    Object.keys(arcs).forEach(function (n) { (arcs[n] || []).forEach(function (k) { if (FEELS.indexOf(k.feel) < 0) badF.push(n + ': ' + k.feel); if (want.indexOf(k.part) < 0) badP.push(n + ' (part ' + k.part + ')') }) });
+    if (badC.length) out.push(warn('state-bad-condition', 'Unknown conditions: ' + badC.slice(0, 6).join(', '), 'The engine only draws these conditions: ' + CONDS.join(', ') + '.', 'Use only those names (for example "dirt" for mud, "pale" for shock).'));
+    if (badF.length) out.push(warn('arcs-bad-feeling', 'Unknown feelings: ' + badF.slice(0, 6).join(', '), 'The engine only has these feelings: ' + FEELS.join(', ') + '.', 'Pick the nearest feeling from that list.'));
+    if (badP.length) out.push(warn('state-bad-part', 'Changes in parts that do not exist: ' + badP.slice(0, 6).join(', '), 'The video has parts ' + want.join(', ') + '.', 'Use only those part numbers.'));
+    if (noWhy.length) out.push(warn('state-no-why', 'Changes without a reason: ' + noWhy.slice(0, 6).join(', '), 'Every change needs its cause ("why"), so the scene shows it happening.', 'Add "why" to each change.'));
+    return out;
+  };
+  /* a built part against its state sheet row: COND must hold what happened before it, and the arcs' feelings must be used */
+  R.sceneStateProblems = function (P, job, code, info) {
+    var out = [], plan = GK().plan(P); if (!plan.state) return out;
+    var row = J().stateRow(plan, job.part), me = ((info && info.built) || []).filter(function (b) { return b.id === job.part })[0], got = me && me.COND;
+    var who = Object.keys(row.cond).filter(function (n) { var c = Object.assign({}, row.cond[n]); delete c.outfit; return Object.keys(c).length });
+    if (!who.length) return out;
+    if (!got || !Object.keys(got).length) { out.push(err('no-cond', 'COND is missing in PART({...})', 'By part ' + job.part + ' the state sheet says: ' + who.map(function (n) { return n + ' ' + JSON.stringify(row.cond[n]) }).join('; ') + '. Without COND the people are drawn clean, as if nothing had happened.', 'Add COND:' + J().condLiteral(row) + ' inside PART({...}) and draw everyone with X.who(state, size, view, P.COND.name).')); return out }
+    var miss = [];
+    who.forEach(function (n) { var want = row.cond[n], have = got[n] || {};
+      Object.keys(want).forEach(function (k) { if (k === 'outfit') return; var w = want[k], h = have[k];
+        if (k === 'bandage') { var wl = [].concat(w), hl = [].concat(h || []); wl.forEach(function (b) { if (hl.indexOf(b) < 0) miss.push(n + ' bandage ' + b) }) }
+        else if (!h) miss.push(n + ' ' + k) }) });
+    if (miss.length) out.push(warn('state-mismatch', 'Part ' + job.part + ' forgets what happened: ' + miss.join(', '), 'The state sheet says these are true at the start of part ' + job.part + ', but COND in the part does not have them.', 'Use COND:' + J().condLiteral(row) + ' in PART({...}).'));
+    var noFeel = [];
+    Object.keys(row.feel).forEach(function (n) { var f = row.feel[n]; [f.start].concat(f.during.map(function (d) { return d.feel })).forEach(function (x) { if (x && code.indexOf("'" + x + "'") < 0 && code.indexOf('"' + x + '"') < 0 && noFeel.indexOf(n + ' ' + x) < 0) noFeel.push(n + ' ' + x) }) });
+    if (noFeel.length) out.push(warn('arc-missing', 'Feelings from the arcs are not used: ' + noFeel.join(', '), 'The plan says these feelings belong in part ' + job.part + ', but the code never names them.', 'Follow the arcs with feelAt(t, [[0,\'feeling\'], [T(\'word\'),\'next feeling\']]).'));
+    return out;
   };
   /* true when every line of a reply without ``` marks is code (the first line is the REPLY line, a comment or code) */
   function looksLikeCode(text) {
