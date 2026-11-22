@@ -439,6 +439,25 @@ Brow tilt: plus means inner ends down (angry), minus means inner ends up (sad or
 | relief | -8, 3 | softly closed | small open smile | breath cloud | shoulders drop, head back |
 | thinking | 6, 2 | looking up and away | pressed line |  | finger to the chin |
 | limp | 0, 0 | closed | slightly open |  | none (unconscious) |
+| groggy | -6, -1 | half open 0.42, looking down | flat, slightly down |  | head heavy, shoulders low (waking up, dazed, drugged) |
+| wince | 18, 0 | squeezed shut | gritted, half open |  | a sharp short flinch, fist to the hurt place (a sudden pain) |
+| hopeful | -10, 5 | open 1.08, looking up | small closed smile |  | chest lifts a little (waiting for good news) |
+
+### Feelings change gradually, and people react
+
+A face never snaps from one feeling to another. Give each person a **feelings arc** and let the engine blend it:
+
+```js
+const BOY = [[0,'limp'],[T('eyes'),'groggy'],[T('mother'),'hopeful'],[T('smiled'),'happy']];
+place(CAST.boy, x, 0, poseAt('lying', t, feelName(t, BOY)), feelAt(t, BOY), X.who('cold', 1, 'side', COND.boy));
+```
+
+- `feelAt(t, keys, blend)` blends each change over `blend` seconds (0.4 if left out). `feelName(t, keys)` gives the feeling in charge, for `poseAt`.
+- Real feelings move in steps: shocked, then afraid, then relieved. Never jump from happy to crying in one key.
+- **Everyone reacts.** When something big happens (a shout, a crash, the heart restarting), every person in the shot reacts about 0.3 s later: a head turn, a step back, a hand to the mouth. `react(t, eventTime)` gives 0 before and 1 after, already late by 0.3 s, so `easePose(calm, startled, react(t, T('crack')))` does it.
+- **Eyes go to what matters**: the patient, the screen, the danger, the person speaking. Nobody stares at nothing.
+- Pain shows on the face **and** the body: wince or pain, a hand on the hurt place, slow moves, `limpWalk` for a hurt leg.
+- Cold shows: `cold` state, blue lips, breath cloud, shiver, arms wrapped.
 
 ### Hands
 
@@ -460,6 +479,7 @@ Four shapes only: `relaxed`, `fist`, `open`, `point`. The pose or the feeling pi
 | lying | Flat on the back, head to the left |
 | fall | Tipped over, arms and legs flailing |
 | cheer | Both arms up in a V |
+| limpWalk | Walking on a hurt leg: slow, the back leg stays stiff, the body dips on each step |
 
 The worked example adds six more for its scene: `kneelHold`, `kneelCheck`, `runCarry`, `float`, `shout`, `haul`. Add a new pose the same way, as one entry with these fields:
 
@@ -479,15 +499,33 @@ Blend between two poses with `easePose(poseA, poseB, k)` so nobody snaps from on
 
 A feeling moves the body as well as the face. How much depends on the pose: fully when standing, about half when walking, a little when running or carrying, and not at all in fixed poses such as kneel or lying. `poseAt(name, t, feeling, state)` does this for you, so always pass the feeling.
 
-### Body states
+### Body states and conditions
 
-| State | What changes |
-| --- | --- |
-| normal | Nothing |
-| cold | Skin goes 62% toward pale blue-grey #B4C4DA, lips blue, a breath cloud, a fast small shiver, shoulders up, arms wrapped when standing |
-| wet | Clothes and hair about 30% darker, drips |
+What has happened to a person shows on them, and **stays** until the story changes it. Pass it as the fourth option of `X.who(state, size, view, cond)`:
 
-A state stays on from shot to shot until the story changes it.
+```js
+const COND = { boy: { wet:1, cold:1, frost:.6, pale:.5 }, medic: { dirt:.4, sweat:1 } };   // one line per person, at the top of the part
+place(CAST.medic, x, 0, pose, face, X.who('normal', 1, 'side', COND.medic));
+```
+
+| Condition | Value | What it draws |
+| --- | --- | --- |
+| cold | 1 | Skin 62% toward pale blue-grey, blue lips, breath cloud, fast small shiver, shoulders up, arms wrapped when standing (same as the `cold` state) |
+| wet | 1 | Clothes and hair about 30% darker, drips (same as the `wet` state). `cold` and `wet` can be on together |
+| frost | 0 to 1 | White frost specks on the hair, hat and shoulders |
+| pale | 0 to 1 | Skin drained toward grey (shock, blood loss, very ill) |
+| sweat | 1 | A sweat drop, whatever the feeling |
+| dirt | 0 to 1 | Brown dirt or mud patches on the coat, legs and cheek; muddy boots (a fall, a crash, a long walk, a rescue in mud) |
+| soot | 0 to 1 | Dark grey smudges on the coat, legs and face (a fire, smoke, an explosion) |
+| torn | 0 to 1 | Rips in the coat and the trousers at the knee (a fall, an attack, a crash) |
+| bruise | 0 to 1 | A blue-purple mark on the cheek |
+| blood | 0 to 1 | A small dark red stain (on a bandage, the coat or a thin line from the forehead). Simple paper shapes, never gory |
+| bandage | `'head'`, `'armF'`, `'armB'`, `'legF'`, `'legB'` or a list | A cream wrap with a gold edge on that place (F = the arm or leg nearer the camera) |
+| sling | 1 | The near arm held across the body in a cream sling |
+
+- Marks sit in the same place in every shot, because they are placed from the person's name.
+- A change of clothes (a hospital gown, a dry blanket) is a new cast entry made from the old one: `CAST.boyGown = {...CAST.boy, kind:'gown', coat:'#A9B9D0', coatLen:58, hat:'grey'}`. `kind:'gown'` draws the gown's pattern and neckline.
+- Conditions follow cause and effect: out of the water means wet and cold; a crash means dirt, torn and maybe a bruise; a fire means soot; a medic's treatment brings a bandage. Section 10 says how to track them across parts.
 
 ### Light on a person
 
@@ -516,7 +554,7 @@ CAST.medic = { name:'Medic', scale:1, headK:1, skin:'#E5BE98', hair:'#3A2416',
 ```
 
 - **Tell people apart by one hat or hair shape and one coat colour** that nobody else in the video has.
-- `kind` picks the trims on the coat (stripes, zip, belt, scarf, stethoscope). `coatLen` is how far the coat hangs below the hip.
+- `kind` picks the trims on the coat (stripes, zip, belt, scarf, stethoscope; `gown` for a hospital gown). `coatLen` is how far the coat hangs below the hip.
 - Hats and hair today: `beanie`, `cap`, `bun`, `grey` (short hair). Add a new one inside `person()` next to these, using the same head box.
 - Wardrobe, hair and props follow the story's own time and place.
 - True stories: show real people's skin tone and most recognisable features accurately and with respect.
@@ -838,11 +876,30 @@ Far things look slower because the scale `f` shrinks their movement. Let the pro
 
 Never skip the middle of an action. A person does not vanish outside a car and appear inside it.
 
-### Background life
+### Background life: every scene is alive
 
-- Trees sway less than one degree. Boats bob about 2 units and tilt about 1.5 degrees. Mist drifts. Cloth moves with the wind direction on the light sheet.
+A still picture with a moving camera looks fake. Every shot has small life in it, and every asset that would move in the real world moves by itself.
+
+- **People:** they blink, breathe and shift a little even when standing (the engine does this). Feelings arcs and reactions keep faces changing (section 6).
+- **Nature:** trees sway less than one degree, mist drifts, water ripples, snow and rain fall, leaves and grass move, clouds pass, birds cross far away.
+- **Machines and lights:** monitor lines run, beacons flash, lamps and fires flicker, screens glow, fans and wheels turn, clock hands move, smoke rises.
 - Give these loops different lengths (for example 4.5 s, 5.6 s, 7 s) so they never line up into a visible pulse.
 - Background life must never pull the eye away from the subject.
+- Complete stillness only on purpose: a freeze frame, the frozen moment of shock, a thing that is truly still (a board lying on the ground, a wall).
+
+Assets get their clock from `LIFE.t(o)` (the frame's time, or `o.t` if the part passes one), so they move even when a part forgets to pass `t`. The helpers keep every model's motion the same:
+
+| Helper | Gives | Use it for |
+| --- | --- | --- |
+| `LIFE.sway(t, amp, speed, phase)` | a gentle back and forth | trees, lamps, flags, hanging things, hair in wind |
+| `LIFE.bob(t, amp, speed, phase)` | up and down | boats, floating things, idling engines |
+| `LIFE.flicker(t, phase)` | strength 0.72 to 1, uneven | flames, old bulbs, screens, candles |
+| `LIFE.blink(t, period, on, phase)` | true while lit | LEDs, beacons, cursors, warning lights |
+| `LIFE.drift(t, speed, length, phase)` | 0 to length, looping | mist, clouds, smoke, snow, bubbles |
+| `LIFE.pulse(t, bpm, phase)` | 1 on the beat, fading | heartbeats, alarms, a glowing button |
+| `LIFE.spin(t, turnsPerSecond, phase)` | degrees | wheels, fans, clock hands, propellers |
+
+Use the asset's `x` (or a number from its name) as the phase, so two trees side by side never move together.
 
 ### Viewer comfort rules
 
@@ -913,18 +970,25 @@ The whole picture must make sense from the first frame to the last: every object
 - A camera move has a reason: to follow, to reveal, or to end.
 - A glow needs a light source. A shadow needs a light and a surface.
 
-### The continuity ledger
+### The continuity ledger (the state sheet)
 
-Keep a small table for the whole video and update it at every shot. Check each new shot against it.
+What happened stays happened. The plan keeps one table for the whole video, **part by part**, and every part draws exactly what its row says. A change is allowed only at the moment the story causes it, and the row says why.
 
 | Track | Example |
 | --- | --- |
 | Time of day and weather | Early morning, clear, light wind from the left |
 | Light | Low sun, behind and left of the subject |
-| Each character | Position, facing, clothes, what is in each hand, mood, any injury or wetness |
-| Each vehicle and door | Parked, engine off, driver door closed |
-| Lights | Lantern off, headlights off |
-| Screen direction | Hero travels left to right |
+| Each character's conditions | Part 2: boy wet, cold, frost .6, pale .5 (pulled from the water). Part 4: blanket over him (wrapped by the medic) |
+| Each character's injuries | Part 3: medic bandage armF, blood .3 (cut on the ice); stays to the end |
+| Each character's place and facing | Boy on the board, head to the left; medic kneeling at his right |
+| What each person holds | Medic: thermometer in the near hand until part 3 |
+| Each character's feeling | Part 1 afraid, part 2 determined, part 5 relief |
+| Each vehicle and door | Ambulance parked, engine on, back door open |
+| Lights | Beacon flashing, lantern off |
+| The world | The ice hole stays broken; footprints and the sled's track stay in the snow |
+| Screen direction | Rescuers travel left to right |
+
+In code, each part starts with its row as a `COND` line (section 6) and draws everyone with it. Check each new shot against the sheet before writing it.
 
 ### Common mistakes and the fix
 
@@ -1220,7 +1284,10 @@ Run this list before you deliver anything. Fix every failure first, then deliver
 ### Continuity
 
 - [ ] The continuity ledger matches every shot: time, weather, clothes, props, doors, lights, positions.
-- [ ] What changed stays changed.
+- [ ] What changed stays changed: wet stays wet, a bandage stays on, dirt and rips stay, until the story changes them.
+- [ ] Every person's conditions come from the part's `COND` line, matching the state sheet.
+- [ ] Faces follow a feelings arc (`feelAt`); nobody snaps from one feeling to another; everyone reacts to big events about 0.3 s late.
+- [ ] Every shot has life: no frozen asset that would move in the real world.
 
 ### Technical
 
@@ -1335,7 +1402,9 @@ What `X` gives you inside `draw`:
 | --- | --- |
 | `X.lay(f, svg, blur)` | One depth layer. `f` = 0.05 sky, 0.14 far, 0.5 middle, 1 subject, 1.7 foreground. `blur` = `'mbBg'` for sky, far and middle, `'mbAll'` for the subject layer, `'mbFg'` for the foreground |
 | `X.m` | The mood now: `X.m.sky[0..2]`, `X.m.gnd[0..1]`, `X.m.light`. Mix far colours from `X.m.sky[2]` so distance follows the light |
-| `X.who(state, size, view)` | The options for `place()`: the right light for the mood, the body state (`normal`, `cold`, `wet`), head size 43, and the view (`side`, `front` or `back`; side if left out) |
+| `X.who(state, size, view, cond)` | The options for `place()`: the right light for the mood, the body state (`normal`, `cold`, `wet`), head size 43, the view (`side`, `front` or `back`; side if left out) and the conditions (`{dirt:.5, bandage:'head'}`, section 6) |
+| `feelAt(t, keys)`, `feelName(t, keys)`, `react(t, t0)` | A feelings arc that blends, the feeling in charge for `poseAt`, and a late reaction to an event (section 6) |
+| `LIFE.sway`, `bob`, `flicker`, `blink`, `drift`, `pulse`, `spin` | Small motions for living assets (section 9) |
 | `STAGE.W`, `STAGE.H`, `STAGE.cx`, `STAGE.cy` | The stage size and camera centre: 540, 960, 270, 610 on the vertical stage and 960, 540, 480, 352 on the wide stage. Use these, never the bare numbers, for anything full-screen |
 | `X.full(svg, verticalBlur)` | A full-screen place with no camera layers (under water, inside a pipe). Set `X.sky = false`, and `X.grade = false` and `X.vig = .8` if it has its own dark light |
 | `X.x, X.y, X.s, X.vx, X.vy, X.t` | Camera position, zoom, speed, and the clock |
@@ -1585,10 +1654,12 @@ ASSET('sled', { band: 'subject', note: 'small red sled with a curled runner', bo
 ```
 
 `box` is `[x, y, width, height]` around the drawing, for the asset sheet. `demo` is the options the sheet draws. Add `dark: 1` if it is pale and needs a dark card.
+
+**Every asset is alive or says why not.** Add `alive: 'sway'` (or `drift`, `blink`, `glow`, `ripple`, `pulse`, `spin`) and move the part that would move in the real world, with the clock from `LIFE.t(o)` and the helpers of section 9: leaves sway, a screen glows, a light blinks, water ripples, a flag waves. Only a thing that is truly still takes `still: 'lies flat on the ground'` instead. Keep the motion small and slow; it must not pull the eye from the subject.
 7. **Sheet check.** Open the Assets tab. The asset must read at card size, sit inside its card, and look like it belongs beside the others: same line weight, same corner softness, same amount of detail.
 8. **Scale check.** Stand it next to a person in a test frame. A door is taller than a person. A sled reaches the knee.
 
-Assets take options, never a state of their own. An asset that moves (a wheel turning, a light blinking) takes `t` as an option.
+Assets take options, never a state of their own. An asset that moves (a wheel turning, a light blinking) reads its clock with `LIFE.t(o)`, so a part may pass `t` but does not have to.
 
 ### Improving an asset (MODE: IMPROVE on an asset, or DETAIL)
 
@@ -1767,7 +1838,8 @@ Check these in order and fix what fails:
 3. **Do the feet stand on the ground?** `groundY` is the ground line of the subject layer. No floating, no sinking.
 4. **Do hands meet things?** Put a prop at `handPos(...)`. A carried person sits in the carrier's arms, not beside them.
 5. **Is there small life?** Blink, breath, a sway. Nobody is frozen unless the story says so.
-6. **Does the state carry?** Wet stays wet, cold stays cold, a lost hat stays lost, across parts too.
+6. **Does the state carry?** Wet stays wet, cold stays cold, a lost hat stays lost, a bandage stays on, dirt and rips stay, across parts too. Use the conditions of section 6 from the state sheet.
+6b. **Does the face follow the story?** A feelings arc that blends, pain where there is pain, reactions to big moments about 0.3 s late, eyes on what matters.
 7. **Is the framing kind to the face?** Use `shot()`. The head is whole. The eyes are in the top half of the frame.
 
 ## 19. Improving a scene (MODE: IMPROVE)
@@ -2169,8 +2241,9 @@ What the words mean:
 | 4 | The project file: shared scene engine, asset library, `shot()`, parts that join, the board and its checks. Procedures for projects, assets, people, scene improvement and long videos (sections 14 to 21). Exact timing, story shape, staging inside the side view, instruments and explainer pictures, formats, delivery rules, the user guide (sections 22 to 28) |
 | 5 | Front and back views for people. A wide 16:9 stage chosen in the plan. Steps for Whisper word times |
 | 6 | The LOOKS library: new hair, hats and outfits plug in without changing the engine. Cast tab shows every person from three sides. Checks for new looks. A procedure for improving people and looks |
+| 7 | Conditions that stay from shot to shot (dirt, soot, torn, frost, bruise, blood, bandage, sling, pale, sweat) and a hospital gown. Feelings arcs that blend, late reactions, three new feelings (groggy, wince, hopeful) and a limping walk. Every scene alive: `LIFE` motion helpers, `alive` or `still` on every asset, and the library assets now move. The state sheet in section 10 |
 
-Known limits of version 6: no view from above and no three-quarter view of people. No animal engine (animals are assets). The wide stage has not yet been used for a full video. Word times are exact only when word times are supplied (Whisper, section 22).
+Known limits of version 7: no view from above and no three-quarter view of people. No animal engine (animals are assets). The wide stage has not yet been used for a full video. Word times are exact only when word times are supplied (Whisper, section 22).
 
 </script>
 <script type="application/json" id="project">
@@ -2366,7 +2439,7 @@ const CAST={
 };
 /* ============ the LOOKS library: new hair, hats and outfits plug in here (rulebook section 18) ============ */
 /* built-in looks are drawn inside person(); new ones are added with HAIR() and OUTFIT() in the cast block */
-const LOOKS={hair:{},outfit:{},builtinHair:['bun','grey','beanie','cap'],builtinOutfit:['medic','boy','mother','doctor']};
+const LOOKS={hair:{},outfit:{},builtinHair:['bun','grey','beanie','cap'],builtinOutfit:['medic','boy','mother','doctor','gown']};
 function HAIR(name,d){LOOKS.hair[name]=d;}
 function OUTFIT(name,d){LOOKS.outfit[name]=d;}
 function lookHair(ch,view,layer,g){const d=LOOKS.hair[ch.hat];if(!d||!d[view]||typeof d[view][layer]!=='function')return '';try{return d[view][layer](g)||'';}catch(e){console.warn('hair '+ch.hat+': '+e.message);return '';}}
@@ -2389,7 +2462,10 @@ const FACES={
  exhausted:{b:[-8,-2],e:.5,eye:'open',ps:1,look:[.1,.9],m:{kind:'open',c:-.3,o:.28},blush:.7,extra:['sweat','breath'],body:{torso:12,head:14,sh:-4,aF:[8,-4],aB:[-2,-4]}},
  relief:{b:[-8,3],e:1,eye:'closed',ps:1,look:[0,0],m:{kind:'open',c:.6,o:.3},blush:.7,extra:['breath'],body:{torso:-2,head:-7,sh:-4}},
  thinking:{b:[6,2],e:.9,eye:'open',ps:1,look:[.7,-.7],m:{kind:'line',c:-.1,o:0},blush:.3,body:{head:-6,aF:[-34,-122],hF:'point'}},
- limp:{b:[0,0],e:1,eye:'closed',ps:1,look:[0,0],m:{kind:'open',c:-.1,o:.12},blush:0,body:{}}
+ limp:{b:[0,0],e:1,eye:'closed',ps:1,look:[0,0],m:{kind:'open',c:-.1,o:.12},blush:0,body:{}},
+ groggy:{b:[-6,-1],e:.42,eye:'open',ps:1,look:[.2,.4],m:{kind:'line',c:-.25,o:0},blush:.15,body:{torso:6,head:9,sh:-2}},
+ wince:{b:[18,0],e:1,eye:'squeeze',ps:1,look:[0,0],m:{kind:'grit',c:0,o:.5},blush:.4,body:{torso:6,head:6,sh:6,aF:[-20,-80],hF:'fist'}},
+ hopeful:{b:[-10,5],e:1.08,eye:'open',ps:1,look:[.5,-.3],m:{kind:'line',c:.35,o:0},blush:.5,body:{torso:-2,head:-4}}
 };
 /* ============ poses (joint angles in degrees; + turns a hanging limb backward) ============ */
 const TH=64,SH=62,GROUND=TH+SH+12;
@@ -2408,12 +2484,67 @@ const POSES={
  cheer:{root:[0,0],torso:-4,head:-8,aF:[-128,-36],aB:[136,-30],lF:[-6,2],lB:[7,0],hF:'open',hB:'open'}
 };
 let UID=0;
+/* ============ life: small motions that keep every asset alive (rulebook section 9, Background life) ============ */
+let NOW=0;   // the clock of the frame being drawn; the scene engine sets it every frame
+const LIFE={
+ t:o=>o&&o.t!=null?o.t:NOW,                                                   // the clock inside an asset: LIFE.t(o)
+ sway:(t,amp,spd,ph)=>amp*Math.sin(t*(spd||1.3)+(ph||0)),                     // trees, lamps, flags, hanging things (degrees or units)
+ bob:(t,amp,spd,ph)=>amp*Math.sin(t*(spd||2)+(ph||0)),                        // floating, idling engines, breathing objects
+ flicker:(t,ph)=>.86+.14*Math.sin(t*17+(ph||0))*Math.sin(t*7.3+1.7*(ph||0)),  // flames, old bulbs, screens: a 0.72 to 1 strength
+ blink:(t,per,on,ph)=>((t+(ph||0))%(per||1.2))<(on||.15),                     // LEDs, beacons, cursors: true while lit
+ drift:(t,spd,len,ph)=>{const L=len||100;return (((t*(spd||10)+(ph||0))%L)+L)%L;}, // mist, clouds, smoke, snow: 0 to len, looping
+ pulse:(t,bpm,ph)=>{const x=((t*(bpm||72)/60)+(ph||0))%1;return Math.exp(-x*9);},// heartbeats, alarms: 1 on the beat, fading
+ spin:(t,rps,ph)=>((t*(rps||.5)*360)+(ph||0))%360                              // wheels, fans, clock hands: degrees
+};
+/* ============ conditions: injuries, dirt and wear that stay from shot to shot (rulebook section 6, Conditions) ============ */
+// X.who(state, size, view, cond)  cond = {wet, cold, dirt, soot, torn, frost, bruise, blood, pale (0 to 1), sweat:1, sling:1, bandage:'head'|'armF'|'armB'|'legF'|'legB' or a list}
+function condOf(o){const c=Object.assign({},(o&&o.cond)||{});if(o&&o.state)String(o.state).split(/[\s,+]+/).forEach(w=>{if(w==='wet'||w==='cold')c[w]=1;});
+  if(c.bandage&&!Array.isArray(c.bandage))c.bandage=[c.bandage];return c;}
+function seedOf(str){let h=7;for(const q of String(str||''))h=(h*31+q.charCodeAt(0))>>>0;return ()=>{h=(h*1103515245+12345)>>>0;return (h>>>8)/16777216;};}
+const COLD_C={dirt:'#6B5434',soot:'#2A2730',blood:'#9E2A1C',bruise:'#6E4A7A',frost:'#EEF6FF',band:'#F3E4BE'};
+/* marks on the coat: dirt and soot patches, rips, a small stain, frost on the shoulders. Positions come from the person's name, so they never move between shots */
+function condTorso(C,ch,L,R,T,B,adj){const rnd=seedOf(ch.name+'|t');let s='';const W=R-L,H=B-T;
+  const blob=(col,a,y0,y1)=>{const x=L+W*(.12+.76*rnd()),y=T+H*(y0+(y1-y0)*rnd()),rx=5+9*rnd(),ry=3.5+6*rnd(),r=Math.round(rnd()*180);return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" transform="rotate(${r} ${x.toFixed(1)} ${y.toFixed(1)})" fill="${col}" opacity="${a.toFixed(2)}"/>`;};
+  if(C.dirt){const n=Math.round(2+4*C.dirt);for(let i=0;i<n;i++)s+=blob(adj(COLD_C.dirt),.28+.42*C.dirt,.35,.95);}
+  if(C.soot){const n=Math.round(2+4*C.soot);for(let i=0;i<n;i++)s+=blob(adj(COLD_C.soot),.3+.45*C.soot,.15,.9);}
+  const rip=(x,y,w,h,fill)=>{let d='';const n=9;for(let i=0;i<n;i++){const a=i/n*Math.PI*2,j=i%2?.55:1;d+=(i?'L':'M')+(x+Math.cos(a)*w*j*(.8+.3*rnd())).toFixed(1)+','+(y+Math.sin(a)*h*j*(.8+.3*rnd())).toFixed(1);}
+    return `<path d="${d}Z" fill="${fill}" stroke="${adj(mix(ch.coat,P.cream,.55))}" stroke-width="1.1" stroke-linejoin="round"/>`;};
+  if(C.torn){const n=C.torn>.5?2:1;for(let i=0;i<n;i++)s+=rip(L+W*(.25+.5*rnd()),B-8-H*.3*rnd(),6+4*rnd(),4+3*rnd(),adj(mix(ch.coat,'#131A38',.62)));}
+  if(C.blood){const x=L+W*(.55+.25*rnd()),y=T+H*(.3+.3*rnd()),r=4+5*C.blood;s+=`<path d="M${x},${y-r}q${r*1.2},${r*.3} ${r*.6},${r*1.3}q-${r*.5},${r*.5} -${r*1.2},${r*.1}q-${r*.5},-${r*.9} ${r*.6},-${r*1.4}Z" fill="${adj(COLD_C.blood)}" opacity="${(.55+.35*C.blood).toFixed(2)}"/>`;}
+  if(C.frost){for(let i=0;i<9;i++){const x=L+W*rnd(),y=T+4+10*rnd();s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(1+1.6*rnd()).toFixed(1)}" fill="${COLD_C.frost}" opacity="${(.5+.4*C.frost).toFixed(2)}"/>`;}}
+  return s;}
+/* marks on a limb, in the limb's own frame (y runs down the limb from the joint) */
+function condLimb(C,ch,key,len,w,adj){const rnd=seedOf(ch.name+'|'+key);let s='';
+  if(C.bandage&&C.bandage.includes(key)){const y=len*.35,h=Math.max(10,len*.32);s+=`<rect x="${(-w/2-1.5).toFixed(1)}" y="${y.toFixed(1)}" width="${(w+3).toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${adj(COLD_C.band)}" stroke="${P.gold}" stroke-width=".9"/><path d="M${(-w/2).toFixed(1)},${(y+h*.35).toFixed(1)}l${w},${(-h*.12).toFixed(1)}M${(-w/2).toFixed(1)},${(y+h*.7).toFixed(1)}l${w},${(-h*.12).toFixed(1)}" stroke="${adj(mix(COLD_C.band,'#131A38',.25))}" stroke-width="1"/>`;
+    if(C.blood)s+=`<circle cx="${(w*.1).toFixed(1)}" cy="${(y+h*.5).toFixed(1)}" r="${(2+2*C.blood).toFixed(1)}" fill="${adj(COLD_C.blood)}" opacity=".7"/>`;}
+  if(C.dirt&&rnd()<.4+C.dirt*.6)s+=`<ellipse cx="${((rnd()-.5)*w*.4).toFixed(1)}" cy="${(len*(.45+.4*rnd())).toFixed(1)}" rx="${(w*.32).toFixed(1)}" ry="${(4+4*rnd()).toFixed(1)}" fill="${adj(COLD_C.dirt)}" opacity="${(.25+.4*C.dirt).toFixed(2)}"/>`;
+  if(C.soot&&rnd()<.4+C.soot*.6)s+=`<ellipse cx="${((rnd()-.5)*w*.4).toFixed(1)}" cy="${(len*(.3+.5*rnd())).toFixed(1)}" rx="${(w*.3).toFixed(1)}" ry="${(4+4*rnd()).toFixed(1)}" fill="${adj(COLD_C.soot)}" opacity="${(.3+.4*C.soot).toFixed(2)}"/>`;
+  if(C.torn&&key.startsWith('leg')&&rnd()<.5+C.torn*.5){let d='';for(let i=0;i<8;i++){const a=i/8*Math.PI*2,j=i%2?.55:1;d+=(i?'L':'M')+(Math.cos(a)*w*.3*j).toFixed(1)+','+(3+Math.sin(a)*5*j).toFixed(1);}s+=`<path d="${d}Z" fill="${adj(ch.skin)}" stroke="${adj(P.cream)}" stroke-width=".9" stroke-linejoin="round"/>`;}
+  return s;}
+/* marks on the head, in head units k(v) (radius 1, centre 0,0; side view faces +x) */
+function condHead(C,ch,k,view,adj){let s='';const fr=view==='front',bk=view==='back',cx=v=>fr?k(v-.55):k(v);
+  if(C.bandage&&C.bandage.includes('head')){s+=`<path d="M${k(-1.02)},${k(-.62)}Q0,${k(-.86)} ${k(1.02)},${k(-.62)}L${k(1.04)},${k(-.36)}Q0,${k(-.58)} ${k(-1.04)},${k(-.36)}Z" fill="${adj(COLD_C.band)}" stroke="${P.gold}" stroke-width="1"/>`;
+    if(!fr)s+=`<path d="M${k(-1.02)},${k(-.5)}l${k(-.28)},${k(.18)}l${k(.08)},${k(.1)}Z M${k(-1.02)},${k(-.46)}l${k(-.2)},${k(.34)}l${k(.1)},${k(.04)}Z" fill="${adj(COLD_C.band)}" stroke="${P.gold}" stroke-width=".8"/>`;
+    if(C.blood)s+=`<circle cx="${fr?k(.3):k(.55)}" cy="${k(-.52)}" r="${k(.07+.05*C.blood)}" fill="${adj(COLD_C.blood)}" opacity=".7"/>`;}
+  if(bk)return s;
+  if(C.bruise)s+=`<ellipse cx="${fr?k(-.55):k(.62)}" cy="${k(.24)}" rx="${k(.17)}" ry="${k(.12)}" fill="${COLD_C.bruise}" opacity="${(.25+.35*C.bruise).toFixed(2)}"/>`;
+  if(C.blood&&!(C.bandage&&C.bandage.includes('head')))s+=`<path d="M${fr?k(.45):k(.6)},${k(-.62)}q${k(.08)},${k(.06)} ${k(.02)},${k(.2)}q${k(-.02)},${k(.12)} ${k(-.02)},${k(.22)}" fill="none" stroke="${adj(COLD_C.blood)}" stroke-width="${k(.06)}" stroke-linecap="round" opacity="${(.5+.3*C.blood).toFixed(2)}"/>`;
+  if(C.dirt)s+=`<ellipse cx="${fr?k(.55):k(.3)}" cy="${k(.42)}" rx="${k(.16)}" ry="${k(.09)}" fill="${adj(COLD_C.dirt)}" opacity="${(.2+.35*C.dirt).toFixed(2)}"/>`;
+  if(C.soot)s+=`<ellipse cx="${fr?k(-.2):k(.1)}" cy="${k(-.3)}" rx="${k(.22)}" ry="${k(.1)}" fill="${adj(COLD_C.soot)}" opacity="${(.25+.35*C.soot).toFixed(2)}"/><ellipse cx="${fr?k(.5):k(.75)}" cy="${k(.35)}" rx="${k(.12)}" ry="${k(.08)}" fill="${adj(COLD_C.soot)}" opacity="${(.25+.3*C.soot).toFixed(2)}"/>`;
+  if(C.frost){const rnd=seedOf(ch.name+'|f');for(let i=0;i<10;i++){const a=Math.PI*(1.05+.9*rnd());s+=`<circle cx="${k(Math.cos(a)*.95)}" cy="${k(Math.sin(a)*.95)}" r="${k(.04+.04*rnd())}" fill="${COLD_C.frost}" opacity="${(.55+.4*C.frost).toFixed(2)}"/>`;}}
+  return s;}
+/* the hospital gown (kind:'gown'): pale with a small pattern and a tie */
+function gownTrims(ch,c,cl,front){let s='';const d=mix(c,'#131A38',.22);for(let y=-80;y<cl-6;y+=22)for(let x=-24;x<=28;x+=18)s+=`<circle cx="${x+(y%44?9:0)}" cy="${y}" r="1.6" fill="${d}" opacity=".7"/>`;
+  s+=front?`<path d="M-14,-101L0,-82L14,-101" fill="none" stroke="${d}" stroke-width="2.5"/>`:`<path d="M10,-101L22,-86" fill="none" stroke="${d}" stroke-width="2.5"/><path d="M-30,-60l-8,6M-30,-60l-6,9" stroke="${d}" stroke-width="2"/>`;return s;}
 /* ============ the character: one function draws everyone ============ */
 function person(ch,pz,fc,o){
-  // pz: numeric pose, fc: numeric face, o:{light,state,headR,t}
-  const u='c'+(UID++),defs=[],ids={},L=o.light,cold=o.state==='cold',wet=o.state==='wet',t=o.t||0;
+  // pz: numeric pose, fc: numeric face, o:{light,state,headR,t,cond}
+  const u='c'+(UID++),defs=[],ids={},L=o.light,C=condOf(o),cold=!!C.cold,wet=!!C.wet,t=o.t||0;
+  if(C.sling)pz=Object.assign({},pz,{aF:[-6,-96],hF:'relaxed'});
+  if(C.sweat&&!(fc.extra||[]).includes('sweat'))fc=Object.assign({},fc,{extra:(fc.extra||[]).concat('sweat')});
   const adj=c=>L==='night'?mix(c,'#0C1630',.42):c;
-  const cloth=c=>adj(wet?mix(c,'#16223E',.3):c), skin=adj(cold?mix(ch.skin,'#B4C4DA',.62):ch.skin), hair=adj(wet?mix(ch.hair,'#101626',.3):ch.hair);
+  const sk0=cold?mix(ch.skin,'#B4C4DA',.62):ch.skin;
+  const cloth=c=>adj(wet?mix(c,'#16223E',.3):c), skin=adj(C.pale?mix(sk0,'#E6E0D6',C.pale*.45):sk0), hair=adj(wet?mix(ch.hair,'#101626',.3):ch.hair);
   const RIM=L==='night'?'#FFD98A':'#FFEFC2';
   function F(c,a,soft){const q=Math.round(a/10)*10,key=c+'|'+q+(soft?'s':'');if(!ids[key]){const id=u+'g'+defs.length;ids[key]=id;
     const lit=mix(c,L==='night'?'#FFD080':'#FFF1CF',L==='night'?.34:.24),sh=mix(c,'#131A38',.32);
@@ -2430,7 +2561,7 @@ function person(ch,pz,fc,o){
   /* legs */
   function leg(hx,ang,knee,a0,back){const c=back?dk(cloth(ch.legs)):cloth(ch.legs),a1=a0+ang,a2=a1+knee;
     const boot=f=>`<path d="M-12,${SH-12}L11,${SH-12}L25,${SH+3}Q30,${SH+12} 20,${SH+12}L-12,${SH+12}Z" fill="${f}"/>`;
-    return `<g transform="translate(${hx} 0) rotate(${ang.toFixed(1)})">${draw(capS(27,TH),c,a1)}<g transform="translate(0 ${TH}) rotate(${knee.toFixed(1)})">${draw(capS(23,SH-8),c,a2)}${draw(boot,back?dk(adj(ch.boots)):adj(ch.boots),a2)}</g></g>`;}
+    return `<g transform="translate(${hx} 0) rotate(${ang.toFixed(1)})">${draw(capS(27,TH),c,a1)}<g transform="translate(0 ${TH}) rotate(${knee.toFixed(1)})">${draw(capS(23,SH-8),c,a2)}${condLimb(C,ch,back?'legB':'legF',SH-8,23,adj)}${draw(boot,back?dk(adj(C.dirt?mix(ch.boots,'#5A4632',C.dirt*.45):ch.boots)):adj(C.dirt?mix(ch.boots,'#5A4632',C.dirt*.45):ch.boots),a2)}</g></g>`;}
   /* hands: one shape per job */
   const HANDS={
     relaxed:f=>`<path d="M-9,40Q-12,56 -6,63Q4,67 9,58L9,40Z" fill="${f}"/><path d="M6,43Q16,46 14,56Q9,58 7,52Z" fill="${f}"/>`,
@@ -2442,7 +2573,7 @@ function person(ch,pz,fc,o){
   /* arms */
   function arm(sx,ang,elb,a0,back,sh,hk){const c=back?dk(cloth(ch.coat)):cloth(ch.coat),a1=a0+ang,a2=a1+elb,hc=ch.mitt?cloth(ch.mitt):skin,kind=ch.mitt?'mitten':(hk||'relaxed');
     const cuff=`<rect x="-10.5" y="34" width="21" height="7" rx="2" fill="${mix(c,'#FFF1CF',.18)}"/>`;
-    return `<g transform="translate(${sx} ${(-88-sh).toFixed(1)}) rotate(${ang.toFixed(1)})">${draw(capS(21,48),c,a1)}<g transform="translate(0 48) rotate(${elb.toFixed(1)})">${draw(capS(19,36),c,a2)}${draw(HANDS[kind],hc,a2,true)}<path d="${HLINES[kind]}" stroke="${mix(hc,'#5A2C22',.55)}" stroke-width="1.3" stroke-linecap="round" fill="none"/>${cuff}</g></g>`;}
+    return `<g transform="translate(${sx} ${(-88-sh).toFixed(1)}) rotate(${ang.toFixed(1)})">${draw(capS(21,48),c,a1)}<g transform="translate(0 48) rotate(${elb.toFixed(1)})">${draw(capS(19,36),c,a2)}${draw(HANDS[kind],hc,a2,true)}<path d="${HLINES[kind]}" stroke="${mix(hc,'#5A2C22',.55)}" stroke-width="1.3" stroke-linecap="round" fill="none"/>${cuff}${condLimb(C,ch,back?'armB':'armF',34,19,adj)}</g></g>`;}
   /* head + face */
   function head(a){const r=o.headR*ch.headK,cy=-8-r*.94,cx=5,k=v=>(v*r).toFixed(1);let s='';
     s+=draw(f=>`<rect x="-9" y="-14" width="20" height="18" fill="${f}"/>`,mix(skin,'#131A38',.18),a);
@@ -2491,6 +2622,7 @@ function person(ch,pz,fc,o){
     if(ex.includes('shout'))s+=`<path d="M${k(1.25)},${k(.36)}l${k(.3)},${k(-.12)}M${k(1.3)},${k(.56)}l${k(.34)},0M${k(1.25)},${k(.76)}l${k(.3)},${k(.12)}" stroke="${INK}" stroke-width="${k(.06)}" stroke-linecap="round" opacity="${(.5+.5*Math.sin(t*14)).toFixed(2)}"/>`;
     if(cold&&fc.eye!=='closed'||ex.includes('breath')){const p=(t*.5)%1;s+=`<g fill="#FBF3DC" opacity="${(.75*(1-p)).toFixed(2)}" transform="translate(${k(1.2+p*.7)} ${k(.5-p*.3)})"><circle r="${k(.12+p*.12)}"/><circle cx="${k(.2)}" cy="${k(-.08)}" r="${k(.1+p*.1)}"/><circle cx="${k(.1)}" cy="${k(.1)}" r="${k(.08+p*.08)}"/></g>`;}
     if(wet)s+=`<path d="M${k(-.5)},${k(.9)}q4,9 0,13q-4,-4 0,-13Z" fill="#CFE6F5" transform="translate(0 ${((t*30)%26).toFixed(1)})" opacity=".8"/>`;
+    s+=condHead(C,ch,k,'side',adj);
     s+=lookHair(ch,'side','top',G);
     return s+'</g>';}
   /* torso */
@@ -2500,13 +2632,15 @@ function person(ch,pz,fc,o){
     if(ch.kind==='boy')s+=`<path d="M4,-100V${cl}" stroke="${mix(c,'#131A38',.35)}" stroke-width="2.5"/><rect x="12" y="-36" width="18" height="16" rx="3" fill="${mix(c,'#131A38',.2)}"/><path d="M-22,-102Q4,-90 30,-102L30,-88Q4,-78 -22,-88Z" fill="${cloth(P.cream)}" stroke="${P.gold}" stroke-width="1"/>`;
     if(ch.kind==='mother')s+=`<rect x="-35" y="-22" width="74" height="9" fill="${mix(c,'#7A3B22',.3)}"/><path d="M-22,-104Q4,-92 30,-104L32,-84Q4,-72 -24,-84Z" fill="${cloth(P.red)}" stroke="${P.gold}" stroke-width="1"/><path d="M14,-84L22,-40L8,-40Z" fill="${cloth(P.red)}"/>`;
     if(ch.kind==='doctor')s+=`<path d="M4,-100L-10,-60L4,-40L4,${cl}" fill="none" stroke="${mix(c,'#131A38',.3)}" stroke-width="2.5"/><path d="M-12,-98Q-20,-50 6,-46Q30,-50 24,-98" fill="none" stroke="${P.gold}" stroke-width="3"/><circle cx="6" cy="-42" r="6" fill="${P.gold}"/>`;
+    if(ch.kind==='gown')s+=gownTrims(ch,c,cl,false);
     s+=lookOutfit(ch,'side',{view:'side',ch,a,c,cl,sd:mix(c,'#131A38',.32),draw,cloth,adj,skin,hair,t,light:L});
+    s+=condTorso(C,ch,-34,38,-100,cl,adj);
     return s;}
   const a0=pz.root[1];
   let body=leg(-7,pz.lB[0],pz.lB[1],a0,true)+
     `<g transform="rotate(${pz.torso.toFixed(1)})">${arm(-5,pz.aB[0],pz.aB[1],a0+pz.torso,true,pz.sh||0,pz.hB)}</g>`+
     leg(7,pz.lF[0],pz.lF[1],a0,false)+
-    `<g transform="rotate(${pz.torso.toFixed(1)})">${torso(a0+pz.torso)}<g transform="translate(2 -102) rotate(${pz.head.toFixed(1)})">${head(a0+pz.torso+pz.head)}</g>${arm(5,pz.aF[0],pz.aF[1],a0+pz.torso,false,pz.sh||0,pz.hF)}</g>`;
+    `<g transform="rotate(${pz.torso.toFixed(1)})">${torso(a0+pz.torso)}<g transform="translate(2 -102) rotate(${pz.head.toFixed(1)})">${head(a0+pz.torso+pz.head)}</g>${arm(5,pz.aF[0],pz.aF[1],a0+pz.torso,false,pz.sh||0,pz.hF)}${C.sling?`<path d="M-4,-102L50,-46L4,-34Z" fill="${cloth(P.cream)}" stroke="${P.gold}" stroke-width="1.2"/>`:''}</g>`;
   const sh=cold?Math.sin(t*46)*1.3:0;
   return {defs:defs.join(''),body:`<g transform="translate(${sh.toFixed(2)} ${pz.root[0].toFixed(1)}) rotate(${a0.toFixed(1)})">${body}</g>`};
 }
@@ -2519,7 +2653,8 @@ function place(ch,x,groundY,pz,fc,o,flip){const s=ch.scale*(o.size||1),ly=Math.a
 const lerp=(a,b,k)=>a+(b-a)*k;
 function poseAt(name,t,feel,state){const p=JSON.parse(JSON.stringify(POSES[name]));p.sh=0;p.hF=p.hF||'relaxed';p.hB=p.hB||'relaxed';
   if(p.walk){const w=p.walk,ph=t*w.speed,sn=Math.sin(ph),cs=Math.cos(ph);p.lF=[-w.amp*sn,w.knee*Math.pow(Math.max(0,cs),1.4)];p.lB=[w.amp*sn,w.knee*Math.pow(Math.max(0,-cs),1.4)];
-    if(!w.lockF)p.aF=[w.arm*sn,-w.bend-10*Math.max(0,sn)];if(!w.lockB)p.aB=[-w.arm*sn,-w.bend-10*Math.max(0,-sn)];p.root=[-w.bob*(1-Math.abs(sn)),0];p.head+=Math.sin(ph*2)*1.5;p.torso+=Math.sin(ph*2)*1.2;}
+    if(!w.lockF)p.aF=[w.arm*sn,-w.bend-10*Math.max(0,sn)];if(!w.lockB)p.aB=[-w.arm*sn,-w.bend-10*Math.max(0,-sn)];p.root=[-w.bob*(1-Math.abs(sn)),0];p.head+=Math.sin(ph*2)*1.5;p.torso+=Math.sin(ph*2)*1.2;
+    if(w.limp){p.lB=[w.amp*.55*sn,4];p.root=[-w.bob*Math.max(0,-sn),0];p.torso+=5*Math.max(0,-sn);p.head+=3*Math.max(0,-sn);}}
   else if(p.pump){const q=Math.max(0,Math.sin(t*11));p.torso+=5*q;p.aF=[p.aF[0]-3*q,p.aF[1]];p.aB=[p.aB[0]-3*q,p.aB[1]];p.root=[p.root[0]+2*q,0];}
   else if(p.flail){const q=Math.sin(t*9);p.aF=[p.aF[0]+16*q,p.aF[1]-10*q];p.aB=[p.aB[0]-14*q,p.aB[1]+8*q];p.lF=[p.lF[0]+12*q,p.lF[1]];p.lB=[p.lB[0]-10*q,p.lB[1]];p.root=[p.root[0]+3*Math.sin(t*4),p.root[1]+3*Math.sin(t*3)];}
   else{const b=Math.sin(t*2.1);p.torso+=b*.7;p.sh+=b*.9;p.root=[p.root[0]+b*.5,p.root[1]];}
@@ -2536,6 +2671,12 @@ function faceAt(name,t,cur,k){const g=FACES[name],bl=(t%3.6)<.13?0:1;
   if(g.talk){tg.b=[g.b[0],g.b[1]+3*Math.sin(t*2.7)];}
   if(!cur)return tg;
   return {b:tg.b.map((v,i)=>lerp(cur.b[i],v,k)),e:lerp(cur.e,tg.e,Math.max(k,.5)),ps:lerp(cur.ps,tg.ps,k),look:tg.look.map((v,i)=>lerp(cur.look[i],v,k)),blush:lerp(cur.blush,tg.blush,k),m:{kind:tg.m.kind,c:lerp(cur.m.c,tg.m.c,k),o:lerp(cur.m.o,tg.m.o,k)},eye:tg.eye,extra:tg.extra};}
+/* a feelings arc: keys [[time,'feeling'],...]; each change blends over bl seconds (default 0.4), so faces never snap */
+function feelAt(t,keys,bl){bl=bl||.4;let i=0;while(i<keys.length-1&&t>=keys[i+1][0])i++;const cur=keys[i],prev=keys[i-1];
+  if(!prev||t>=cur[0]+bl)return faceAt(cur[1],t);return faceAt(cur[1],t,faceAt(prev[1],t),sm((t-cur[0])/bl));}
+function feelName(t,keys){let i=0;while(i<keys.length-1&&t>=keys[i+1][0])i++;return keys[i][1];}   // the feeling in charge, for poseAt
+/* a reaction: 0 before the event, rising to 1 just after it. People react about 0.3 s late, never on the same frame */
+function react(t,t0,delay,dur){return sm((t-t0-(delay==null?.3:delay))/(dur||.35));}
 /* ===================================================================== */
 /* PART A1 - FRONT AND BACK VIEWS (do not rewrite; chosen with view:)     */
 /* place(ch, x, groundY, pose, face, X.who(state, size, 'front'))         */
@@ -2544,9 +2685,12 @@ function faceAt(name,t,cur,k){const g=FACES[name],bl=(t%3.6)<.13?0:1;
 /* Lying, falling and floating bodies are always drawn from the side.     */
 /* ===================================================================== */
 function personFV(ch,pz,fc,o){
-  const back=o.view==='back',u='c'+(UID++),defs=[],ids={},L=o.light,cold=o.state==='cold',wet=o.state==='wet',t=o.t||0;
+  const back=o.view==='back',u='c'+(UID++),defs=[],ids={},L=o.light,C=condOf(o),cold=!!C.cold,wet=!!C.wet,t=o.t||0;
+  if(C.sling)pz=Object.assign({},pz,{aF:[-6,-96],hF:'relaxed'});
+  if(C.sweat&&!(fc.extra||[]).includes('sweat'))fc=Object.assign({},fc,{extra:(fc.extra||[]).concat('sweat')});
   const adj=c=>L==='night'?mix(c,'#0C1630',.42):c;
-  const cloth=c=>adj(wet?mix(c,'#16223E',.3):c), skin=adj(cold?mix(ch.skin,'#B4C4DA',.62):ch.skin), hair=adj(wet?mix(ch.hair,'#101626',.3):ch.hair);
+  const sk0=cold?mix(ch.skin,'#B4C4DA',.62):ch.skin;
+  const cloth=c=>adj(wet?mix(c,'#16223E',.3):c), skin=adj(C.pale?mix(sk0,'#E6E0D6',C.pale*.45):sk0), hair=adj(wet?mix(ch.hair,'#101626',.3):ch.hair);
   const RIM=L==='night'?'#FFD98A':'#FFEFC2';
   function F(c,a,soft){const q=Math.round(a/10)*10,key=c+'|'+q+(soft?'s':'');if(!ids[key]){const id=u+'g'+defs.length;ids[key]=id;
     const lit=mix(c,L==='night'?'#FFD080':'#FFF1CF',L==='night'?.34:.24),sh=mix(c,'#131A38',.32);
@@ -2561,10 +2705,10 @@ function personFV(ch,pz,fc,o){
   const capS=(w,len)=>f=>`<rect x="${-w/2}" y="${-w/2}" width="${w}" height="${(len+w).toFixed(1)}" rx="${w/2}" fill="${f}"/>`;
   const dk=c=>mix(c,'#131A38',.16),cs=a=>Math.cos(a*Math.PI/180),sn=a=>Math.sin(a*Math.PI/180),mixn=(a,b,k)=>a+(b-a)*k,sst=(a,b,x)=>{x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x);};
   /* legs: the same joint angles as the side view, seen from the front (a forward swing shortens the leg) */
-  function leg(hx,ang,knee,rear){const c=rear?dk(cloth(ch.legs)):cloth(ch.legs),bc=rear?dk(adj(ch.boots)):adj(ch.boots);
+  function leg(hx,ang,knee,rear){const c=rear?dk(cloth(ch.legs)):cloth(ch.legs),b0=C.dirt?mix(ch.boots,'#5A4632',C.dirt*.45):ch.boots,bc=rear?dk(adj(b0)):adj(b0);
     const th=Math.max(6,TH*cs(ang)),sv=Math.max(4,SH*cs(ang+knee)),out=Math.sign(hx)*Math.min(1,Math.abs(sn(ang)))*8;
     const boot=f=>`<path d="M-13,-12L13,-12L16,5Q16,12 10,12L-10,12Q-16,12 -16,5Z" fill="${f}"/>`;
-    return `<g transform="translate(${(hx+out).toFixed(1)} 0)">${draw(capS(27,th),c,0)}<g transform="translate(${(-out*.5).toFixed(1)} ${th.toFixed(1)})">${draw(capS(23,Math.max(2,sv-8)),c,0)}<g transform="translate(0 ${sv.toFixed(1)})">${draw(boot,bc,0)}<path d="M-9,7H9" stroke="${mix(bc,'#131A38',.35)}" stroke-width="2" stroke-linecap="round"/></g></g></g>`;}
+    return `<g transform="translate(${(hx+out).toFixed(1)} 0)">${draw(capS(27,th),c,0)}<g transform="translate(${(-out*.5).toFixed(1)} ${th.toFixed(1)})">${draw(capS(23,Math.max(2,sv-8)),c,0)}${condLimb(C,ch,hx<0!==back?'legF':'legB',Math.max(2,sv-8),23,adj)}<g transform="translate(0 ${sv.toFixed(1)})">${draw(boot,bc,0)}<path d="M-9,7H9" stroke="${mix(bc,'#131A38',.35)}" stroke-width="2" stroke-linecap="round"/></g></g></g>`;}
   const HANDS={
     relaxed:f=>`<path d="M-9,40Q-12,56 -6,63Q4,67 9,58L9,40Z" fill="${f}"/><path d="M6,43Q16,46 14,56Q9,58 7,52Z" fill="${f}"/>`,
     fist:f=>`<path d="M-10,40Q-13,52 -8,58Q0,63 9,58Q13,50 10,40Z" fill="${f}"/><path d="M-2,50Q8,46 12,52Q6,58 -2,55Z" fill="${f}"/>`,
@@ -2576,7 +2720,7 @@ function personFV(ch,pz,fc,o){
     const Lu=mixn(48*Math.max(.3,cs(a)),48,w);let Lf=mixn(36*cs(a+e),36,w);if(Math.abs(Lf)<10)Lf=Lf<0?-10:10;
     const r1=-side*(5+w*Math.min(165,A*.95)),r2=-side*w*Math.min(120,Math.abs(e))*.85+side*(1-w)*Math.abs(sn(a+e))*16+(Lf<0?180:0),len=Math.abs(Lf);
     const cuff=`<rect x="-10.5" y="34" width="21" height="7" rx="2" fill="${mix(c,'#FFF1CF',.18)}"/>`;
-    return `<g transform="translate(${side*38} ${(-88-sh).toFixed(1)}) rotate(${r1.toFixed(1)})">${draw(capS(21,Lu),c,r1)}<g transform="translate(0 ${Lu.toFixed(1)}) rotate(${r2.toFixed(1)})">${draw(capS(19,len),c,r1+r2)}<g transform="translate(0 ${(len-36).toFixed(1)}) scale(${side<0?-1:1} 1)">${draw(HANDS[kind],hc,r1+r2,true)}${cuff}</g></g></g>`;}
+    return `<g transform="translate(${side*38} ${(-88-sh).toFixed(1)}) rotate(${r1.toFixed(1)})">${draw(capS(21,Lu),c,r1)}<g transform="translate(0 ${Lu.toFixed(1)}) rotate(${r2.toFixed(1)})">${draw(capS(19,len),c,r1+r2)}${condLimb(C,ch,side===(back?1:-1)?'armF':'armB',len,19,adj)}<g transform="translate(0 ${(len-36).toFixed(1)}) scale(${side<0?-1:1} 1)">${draw(HANDS[kind],hc,r1+r2,true)}${cuff}</g></g></g>`;}
   /* head */
   function head(){const r=o.headR*ch.headK,cy=-8-r*.94,k=v=>(v*r).toFixed(1);let s='';
     s+=draw(f=>`<rect x="-10" y="-14" width="20" height="18" fill="${f}"/>`,mix(skin,'#131A38',.18),0);
@@ -2601,7 +2745,7 @@ function personFV(ch,pz,fc,o){
       s+=`<path d="M${k(-1)},${k(-.44)}Q0,${k(-.68)} ${k(1)},${k(-.44)}" fill="none" stroke="${P.gold}" stroke-width="${k(.09)}"/>`;
       if(!back)s+=`<path d="M${k(-.8)},${k(-.47)}Q0,${k(-.66)} ${k(.8)},${k(-.47)}Q${k(.74)},${k(-.22)} 0,${k(-.27)}Q${k(-.74)},${k(-.22)} ${k(-.8)},${k(-.47)}Z" fill="${adj(P.night)}"/>`;}
     s+=lookHair(ch,G.view,'over',G);
-    if(back){s+=lookHair(ch,'back','top',G);if(wet)s+=`<path d="M${k(-.5)},${k(.9)}q4,9 0,13q-4,-4 0,-13Z" fill="#CFE6F5" transform="translate(0 ${((t*30)%26).toFixed(1)})" opacity=".8"/>`;return s+'</g>';}
+    if(back){s+=condHead(C,ch,k,'back',adj);s+=lookHair(ch,'back','top',G);if(wet)s+=`<path d="M${k(-.5)},${k(.9)}q4,9 0,13q-4,-4 0,-13Z" fill="#CFE6F5" transform="translate(0 ${((t*30)%26).toFixed(1)})" opacity=".8"/>`;return s+'</g>';}
     /* face: two eyes, both brows, mouth in the centre */
     const bq=(.3*fc.blush*(cold?.3:1)).toFixed(2);
     s+=`<ellipse cx="${k(-.6)}" cy="${k(.36)}" rx="${k(.15)}" ry="${k(.09)}" fill="#D9685A" opacity="${bq}"/><ellipse cx="${k(.6)}" cy="${k(.36)}" rx="${k(.15)}" ry="${k(.09)}" fill="#D9685A" opacity="${bq}"/>`;
@@ -2629,6 +2773,7 @@ function personFV(ch,pz,fc,o){
     if(ex.includes('shout'))s+=`<path d="M${k(1.22)},${k(.36)}l${k(.3)},${k(-.12)}M${k(1.27)},${k(.56)}l${k(.34)},0M${k(1.22)},${k(.76)}l${k(.3)},${k(.12)}M${k(-1.22)},${k(.36)}l${k(-.3)},${k(-.12)}M${k(-1.27)},${k(.56)}l${k(-.34)},0M${k(-1.22)},${k(.76)}l${k(-.3)},${k(.12)}" stroke="${INK}" stroke-width="${k(.06)}" stroke-linecap="round" opacity="${(.5+.5*Math.sin(t*14)).toFixed(2)}"/>`;
     if(cold&&fc.eye!=='closed'||ex.includes('breath')){const p=(t*.5)%1;s+=`<g fill="#FBF3DC" opacity="${(.75*(1-p)).toFixed(2)}" transform="translate(${k(.3+p*.5)} ${k(.72-p*.3)})"><circle r="${k(.12+p*.12)}"/><circle cx="${k(.2)}" cy="${k(-.08)}" r="${k(.1+p*.1)}"/><circle cx="${k(.1)}" cy="${k(.1)}" r="${k(.08+p*.08)}"/></g>`;}
     if(wet)s+=`<path d="M${k(-.5)},${k(.9)}q4,9 0,13q-4,-4 0,-13Z" fill="#CFE6F5" transform="translate(0 ${((t*30)%26).toFixed(1)})" opacity=".8"/>`;
+    s+=condHead(C,ch,k,'front',adj);
     s+=lookHair(ch,'front','top',G);
     return s+'</g>';}
   /* torso, with each person's own trims seen from the front or the back */
@@ -2642,7 +2787,9 @@ function personFV(ch,pz,fc,o){
       s+=back?`<path d="M-6,-84L-12,-46L4,-46Z" fill="${cloth(P.red)}"/>`:`<path d="M10,-84L18,-40L4,-40Z" fill="${cloth(P.red)}"/><path d="M0,-74V${cl}" stroke="${sd}" stroke-width="2" opacity=".6"/>`;}
     if(ch.kind==='doctor'){if(back)s+=`<path d="M0,-96V${cl}" stroke="${sd}" stroke-width="2" opacity=".6"/><path d="M-14,-99Q0,-90 14,-99" fill="none" stroke="${P.gold}" stroke-width="3"/>`;
       else s+=`<path d="M-15,-101L0,-54L15,-101M0,-54V${cl}" fill="none" stroke="${sd}" stroke-width="2.5"/><path d="M-13,-99Q-22,-50 0,-46Q22,-50 13,-99" fill="none" stroke="${P.gold}" stroke-width="3"/><circle cx="0" cy="-42" r="6" fill="${P.gold}"/>`;}
+    if(ch.kind==='gown')s+=gownTrims(ch,c,cl,!back);
     s+=lookOutfit(ch,back?'back':'front',{view:back?'back':'front',ch,a:0,c,cl,sd,draw,cloth,adj,skin,hair,t,light:L});
+    s+=condTorso(C,ch,-35,35,-100,cl,adj);
     return s;}
   /* build: in the front view the leg that swings forward is nearer; in the back view it is the other way round */
   const lean=(1-cs(pz.torso))*96,nod=sn(pz.head)*5,shv=pz.sh||0;
@@ -2652,7 +2799,7 @@ function personFV(ch,pz,fc,o){
   const fwd=a=>sst(40,70,Math.abs(a))<.5,up=`translate(0 ${lean.toFixed(1)})`;
   let body=(fNear?lb+lf:lf+lb)+`<g transform="${up}">`;
   if(back)body+=(fwd(pz.aF[0])?aF:'')+(fwd(pz.aB[0])?aB:'')+torso()+(fwd(pz.aF[0])?'':aF)+(fwd(pz.aB[0])?'':aB);
-  else body+=torso()+aB+aF;
+  else body+=torso()+aB+aF+(C.sling?`<path d="M-24,-100L30,-42L-6,-34Z" fill="${cloth(P.cream)}" stroke="${P.gold}" stroke-width="1.2"/>`:'');
   body+=`<g transform="translate(0 ${(-102+nod).toFixed(1)})">${head()}</g></g>`;
   const shk=cold?Math.sin(t*46)*1.3:0;
   return {defs:defs.join(''),body:`<g transform="translate(${shk.toFixed(2)} ${pz.root[0].toFixed(1)})">${body}</g>`};
@@ -2678,6 +2825,7 @@ POSES.kneelCheck={root:[GROUND-TH-12,0],torso:40,head:22,aF:[22,12],aB:[-34,-14]
 POSES.runCarry={root:[0,0],torso:9,head:-4,aF:[-40,-74],aB:[-34,-78],lF:[0,0],lB:[0,0],walk:{amp:40,knee:74,arm:0,bend:0,speed:10,bob:8,lockB:1,lockF:1},hF:'open',hB:'open'};
 POSES.float={root:[-40,-66],torso:-6,head:-14,aF:[-118,-30],aB:[150,-22],lF:[-18,30],lB:[26,46],hF:'open',hB:'open'};
 POSES.shout={root:[0,0],torso:11,head:-6,aF:[-98,-16],aB:[16,-28],lF:[-10,4],lB:[12,2],hF:'point',hB:'fist'};
+POSES.limpWalk={root:[0,0],torso:8,head:2,aF:[0,-18],aB:[0,-18],lF:[0,0],lB:[0,0],walk:{amp:18,knee:26,arm:12,bend:16,speed:3.6,bob:8,limp:1},act:.4};
 POSES.haul={root:[70,0],torso:30,head:6,aF:[-70,-20],aB:[-60,-26],lF:[-74,132],lB:[-58,122],hF:'fist',hB:'fist'};
 /* where the front hand is, in world units (to put a prop in the hand) */
 function handPos(ch,x,gy,pz,size,flip){const s=ch.scale*size,d=flip?-1:1,rot=(vx,vy,a)=>{a*=Math.PI/180;return [vx*Math.cos(a)-vy*Math.sin(a),vx*Math.sin(a)+vy*Math.cos(a)];};
@@ -2723,7 +2871,7 @@ function PART(d){
   /* camera: keys are [time, x, y, zoom], eased; zoom blends by ratio */
   P.camAt=t=>{const K=P.KEYS;let i=0;while(i<K.length-2&&t>=K[i+1][0])i++;const a=K[i],b=K[i+1],u=sm((t-a[0])/(b[0]-a[0]));
     const c={x:a[1]+(b[1]-a[1])*u,y:a[2]+(b[2]-a[2])*u,s:a[3]*Math.pow(b[3]/a[3],u)};return P.cam?P.cam(t,c)||c:c;};
-  P.render=function(t){t=clamp(t,0,P.END);UID=0;
+  P.render=function(t){t=clamp(t,0,P.END);UID=0;NOW=t;
     const c=P.camAt(t),c0=P.camAt(Math.max(0,t-1/60)),m=moodAt(P,t);
     const IN=P.IN||(P.id===1?'dip':'whip'),OUT=P.OUT||(P.id===P.of?'none':'whip');
     /* joins: a whip slides the picture out to the left under blur and the next part in from the right, so two parts read as one move */
@@ -2741,7 +2889,7 @@ function PART(d){
     const X={t,x:c.x,y:c.y,s:c.s,m,vx,vy,sky:true,grade:true,vig:m.vig,_vb:0,
       lay(f,inner,blur){const sc=f>1?c.s*f:1+(c.s-1)*f;return `<g ${blur&&bl[blur]?`filter="url(#${blur})"`:''}><g transform="translate(${STAGE.cx} ${STAGE.cy}) scale(${sc.toFixed(4)}) translate(${(-c.x*f).toFixed(2)} ${(c.y*f).toFixed(2)})">${inner}</g></g>`;},
       full(inner,by){by=ON.blur?by||0:0;X._vb=by;return `<g ${by>.6?'filter="url(#vb)"':''}>${inner}</g>`;},
-      who(state,size,view){return {light:m.light,state:state||'normal',headR:43,t,size:size||1,view:view||'side'};}};
+      who(state,size,view,cond){return {light:m.light,state:state||'normal',headR:43,t,size:size||1,view:view||'side',cond:cond||null};}};
     const body=P.draw(t,X);
     let o=`<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${m.sky[0]}"/><stop offset=".45" stop-color="${m.sky[1]}"/><stop offset=".7" stop-color="${m.sky[2]}"/></linearGradient>
   <linearGradient id="gnd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${m.gnd[0]}"/><stop offset=".35" stop-color="${m.gnd[1]}"/></linearGradient>
@@ -2834,26 +2982,26 @@ CAST.teacher={name:'Teacher',scale:.96,headK:1,skin:'#B9835C',hair:'#1E1410',coa
 /* spec: band = which depth layers it may stand on, box = [x,y,w,h] of    */
 /* the drawing for the asset sheet, demo = the options the sheet draws.   */
 /* ===================================================================== */
-ASSET('pine',{band:'far, middle',note:'layered pine. h = height. c = colour (mix with the sky for distance)',box:[-90,-260,180,270],demo:{x:0,h:250,c:'#17382C'}},
- ({x=0,h=200,c='#17382C'})=>`<path d="M${x},${-h}L${x+h*.24},${-h*.55}L${x+h*.12},${-h*.55}L${x+h*.34},${-h*.2}L${x+h*.06},${-h*.2}L${x+h*.06},0L${x-h*.06},0L${x-h*.06},${-h*.2}L${x-h*.34},${-h*.2}L${x-h*.12},${-h*.55}L${x-h*.24},${-h*.55}Z" fill="${c}"/>`);
-ASSET('hills',{band:'far',note:'one soft ridge, 1800 wide, filled down to the bottom. c = colour (mix the low sky with indigo)',box:[-900,-260,1800,330],demo:{c:'#52608E'}},
+ASSET('pine',{band:'far, middle',note:'layered pine. h = height. c = colour (mix with the sky for distance). alive: sways under 1 degree from its base',box:[-90,-260,180,270],demo:{x:0,h:250,c:'#17382C'},alive:'sway'},
+ ({x=0,h=200,c='#17382C',...o})=>`<path transform="rotate(${LIFE.sway(LIFE.t(o),.8,1.1,x*.013).toFixed(2)} ${x} 0)" d="M${x},${-h}L${x+h*.24},${-h*.55}L${x+h*.12},${-h*.55}L${x+h*.34},${-h*.2}L${x+h*.06},${-h*.2}L${x+h*.06},0L${x-h*.06},0L${x-h*.06},${-h*.2}L${x-h*.34},${-h*.2}L${x-h*.12},${-h*.55}L${x-h*.24},${-h*.55}Z" fill="${c}"/>`);
+ASSET('hills',{band:'far',note:'one soft ridge, 1800 wide, filled down to the bottom. c = colour (mix the low sky with indigo)',box:[-900,-260,1800,330],demo:{c:'#52608E'},still:'far land does not move; the mist and sky over it give the life'},
  ({c='#52608E'})=>`<path d="M-900,0V-120Q-600,-230 -300,-150T300,-170T900,-130V0Z" fill="${c}"/><rect x="-900" y="-4" width="1800" height="700" fill="${c}"/>`);
-ASSET('mist',{band:'far, middle',note:'two soft mist bars (kasumi). never touches the ground of the subject layer',box:[-440,-110,980,70],demo:{},dark:1},
- ({x=0,y=0,k=1})=>`<g transform="translate(${x} ${y})" opacity="${k}"><rect x="-420" y="-98" width="520" height="20" rx="10" fill="#FBF3DC" opacity=".5"/><rect x="60" y="-64" width="460" height="16" rx="8" fill="#FBF3DC" opacity=".42"/></g>`);
-ASSET('moon',{band:'sky',note:'moon with halo and a gold ring. anchored at its centre',box:[-130,-130,260,260],demo:{x:0,y:0},dark:1},
- ({x=0,y=0,k=1})=>`<g opacity="${k}"><circle cx="${x}" cy="${y}" r="120" fill="#DCE6FF" opacity=".16"/><circle cx="${x}" cy="${y}" r="40" fill="#F3EAC8"/><circle cx="${x}" cy="${y}" r="52" fill="none" stroke="#D9B45A" stroke-width="1.4" opacity=".7"/></g>`);
-ASSET('lowSun',{band:'sky',note:'red sun with a warm glow. anchored at its centre. k = strength 0 to 1',box:[-160,-160,320,320],demo:{x:0,y:0},dark:1},
- ({x=0,y=0,k=1})=>`<circle cx="${x}" cy="${y}" r="150" fill="#FFD9A0" opacity="${(.5*k).toFixed(2)}"/><circle cx="${x}" cy="${y}" r="46" fill="#C8402F" opacity="${k.toFixed(2)}"/>`);
-ASSET('ambulance',{band:'subject',note:'side view, open lit back door on the right. 330 wide, 268 tall',box:[-270,-280,370,290],demo:{x:0}},
- ({x=0})=>`<g transform="translate(${x} 0)"><rect x="-250" y="-250" width="330" height="214" rx="16" fill="#E9DFC6" stroke="#D9B45A" stroke-width="2"/><rect x="-250" y="-150" width="330" height="22" fill="#C8402F"/><rect x="24" y="-232" width="50" height="190" rx="4" fill="#FFE2A0"/><rect x="-232" y="-226" width="92" height="60" rx="6" fill="#2F4A7A"/><circle cx="-180" cy="-36" r="34" fill="#10182C"/><circle cx="-180" cy="-36" r="14" fill="#D9B45A"/><circle cx="20" cy="-36" r="34" fill="#10182C"/><circle cx="20" cy="-36" r="14" fill="#D9B45A"/><rect x="-110" y="-268" width="46" height="18" rx="6" fill="#C8402F"/></g>`);
-ASSET('sled',{band:'subject',note:'small red sled with a curled runner',box:[-70,-40,150,50],demo:{x:0}},
+ASSET('mist',{band:'far, middle',note:'two soft mist bars (kasumi). never touches the ground of the subject layer. alive: the bars drift apart slowly',box:[-440,-110,980,70],demo:{},dark:1,alive:'drift'},
+ ({x=0,y=0,k=1,...o})=>{const t=LIFE.t(o),d1=LIFE.sway(t,16,.21,x*.01),d2=LIFE.sway(t,12,.17,2+x*.01);return `<g transform="translate(${x} ${y})" opacity="${k}"><rect x="${(-420+d1).toFixed(1)}" y="-98" width="520" height="20" rx="10" fill="#FBF3DC" opacity=".5"/><rect x="${(60+d2).toFixed(1)}" y="-64" width="460" height="16" rx="8" fill="#FBF3DC" opacity=".42"/></g>`;});
+ASSET('moon',{band:'sky',note:'moon with halo and a gold ring. anchored at its centre. alive: the halo breathes',box:[-130,-130,260,260],demo:{x:0,y:0},dark:1,alive:'glow'},
+ ({x=0,y=0,k=1,...o})=>`<g opacity="${k}"><circle cx="${x}" cy="${y}" r="${(120+LIFE.bob(LIFE.t(o),5,.6)).toFixed(1)}" fill="#DCE6FF" opacity=".16"/><circle cx="${x}" cy="${y}" r="40" fill="#F3EAC8"/><circle cx="${x}" cy="${y}" r="52" fill="none" stroke="#D9B45A" stroke-width="1.4" opacity=".7"/></g>`);
+ASSET('lowSun',{band:'sky',note:'red sun with a warm glow. anchored at its centre. k = strength 0 to 1. alive: the glow breathes',box:[-160,-160,320,320],demo:{x:0,y:0},dark:1,alive:'glow'},
+ ({x=0,y=0,k=1,...o})=>`<circle cx="${x}" cy="${y}" r="${(150+LIFE.bob(LIFE.t(o),6,.5)).toFixed(1)}" fill="#FFD9A0" opacity="${(.5*k).toFixed(2)}"/><circle cx="${x}" cy="${y}" r="46" fill="#C8402F" opacity="${k.toFixed(2)}"/>`);
+ASSET('ambulance',{band:'subject',note:'side view, open lit back door on the right. 330 wide, 268 tall. alive: roof beacon flashes, door light flickers softly',box:[-270,-280,370,290],demo:{x:0},alive:'blink'},
+ ({x=0,...o})=>`<g transform="translate(${x} 0)"><rect x="-250" y="-250" width="330" height="214" rx="16" fill="#E9DFC6" stroke="#D9B45A" stroke-width="2"/><rect x="-250" y="-150" width="330" height="22" fill="#C8402F"/><rect x="24" y="-232" width="50" height="190" rx="4" fill="#FFE2A0"/><rect x="-232" y="-226" width="92" height="60" rx="6" fill="#2F4A7A"/><circle cx="-180" cy="-36" r="34" fill="#10182C"/><circle cx="-180" cy="-36" r="14" fill="#D9B45A"/><circle cx="20" cy="-36" r="34" fill="#10182C"/><circle cx="20" cy="-36" r="14" fill="#D9B45A"/><rect x="-110" y="-268" width="46" height="18" rx="6" fill="#C8402F"/><rect x="-110" y="-268" width="46" height="18" rx="6" fill="#FF8A6A" opacity="${LIFE.blink(LIFE.t(o),.9,.38)?'.85':'0'}"/><rect x="24" y="-232" width="50" height="190" rx="4" fill="#FFF3C8" opacity="${(.25*(LIFE.flicker(LIFE.t(o),1)-.72)/.28).toFixed(2)}"/></g>`);
+ASSET('sled',{band:'subject',note:'small red sled with a curled runner',box:[-70,-40,150,50],demo:{x:0},still:'a sled resting on the ice; it moves only when pulled'},
  ({x=0})=>`<g transform="translate(${x} 0)"><path d="M-52,-4H40Q56,-4 56,-20" fill="none" stroke="#3A2416" stroke-width="5" stroke-linecap="round"/><rect x="-46" y="-22" width="84" height="8" rx="3" fill="#C8402F" stroke="#D9B45A"/></g>`);
-ASSET('board',{band:'subject',note:'red rescue board lying on the ground, 270 long',box:[-150,-30,300,40],demo:{x:0}},
+ASSET('board',{band:'subject',note:'red rescue board lying on the ground, 270 long',box:[-150,-30,300,40],demo:{x:0},still:'lies flat on the ground'},
  ({x=0})=>`<rect x="${x-135}" y="-10" width="270" height="10" rx="5" fill="#C8402F" stroke="#D9B45A" stroke-width="1.2"/>`);
-ASSET('iceHole',{band:'subject',note:'broken hole in pond ice with bright cracked edges. anchored at its centre',box:[-190,-40,380,110],demo:{x:0,y:0},dark:1},
- ({x=0,y=0})=>`<g transform="translate(${x} ${y})"><ellipse cx="0" cy="0" rx="170" ry="40" fill="#060B18"/><path d="M-168,-4l40,-22l34,18l44,-26l52,20l50,-22l48,24l42,-14l28,22" fill="none" stroke="#EAF2FF" stroke-width="5" stroke-linejoin="round"/><path d="M-140,22l48,10l60,-6l70,12l64,-10l46,4" fill="none" stroke="#B9C9E4" stroke-width="4"/></g>`);
-ASSET('thermoGun',{band:'prop',note:'hand-held infrared thermometer with a screen. val = the number shown. anchored at the grip',box:[-50,-50,100,110],demo:{x:0,y:0,val:7},dark:1},
- ({x=0,y=0,val=7,unit='°C'})=>`<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(-24)"><path d="M-6,8L14,8L10,30L-2,30Z" fill="#2A2F3E"/><rect x="-30" y="-22" width="62" height="34" rx="8" fill="#F3E4BE" stroke="#D9B45A" stroke-width="1.5"/><rect x="-22" y="-16" width="46" height="21" rx="3" fill="#10182C"/><text x="1" y="-.5" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="700" font-size="12.5" fill="#BFF3D0">${val.toFixed(1)}${unit}</text><circle cx="27" cy="6" r="2.4" fill="#C8402F"/><path d="M4,30L7,44" stroke="#FF5A48" stroke-width="1.2" opacity=".8"/></g><circle cx="${(x+20).toFixed(1)}" cy="${(y+44).toFixed(1)}" r="3" fill="#FF5A48" opacity=".9"/>`);
+ASSET('iceHole',{band:'subject',note:'broken hole in pond ice with bright cracked edges. anchored at its centre. alive: the dark water ripples',box:[-190,-40,380,110],demo:{x:0,y:0},dark:1,alive:'ripple'},
+ ({x=0,y=0,...o})=>`<g transform="translate(${x} ${y})"><ellipse cx="0" cy="0" rx="170" ry="40" fill="#060B18"/>${[0,1,2].map(i=>{const p=LIFE.drift(LIFE.t(o),.35,1,i/3);return `<ellipse cx="${(i*30-30)}" cy="4" rx="${(30+90*p).toFixed(1)}" ry="${(6+18*p).toFixed(1)}" fill="none" stroke="#3E5A86" stroke-width="2" opacity="${(.55*(1-p)).toFixed(2)}"/>`;}).join('')}<path d="M-168,-4l40,-22l34,18l44,-26l52,20l50,-22l48,24l42,-14l28,22" fill="none" stroke="#EAF2FF" stroke-width="5" stroke-linejoin="round"/><path d="M-140,22l48,10l60,-6l70,12l64,-10l46,4" fill="none" stroke="#B9C9E4" stroke-width="4"/></g>`);
+ASSET('thermoGun',{band:'prop',note:'hand-held infrared thermometer with a screen. val = the number shown. anchored at the grip. alive: the red laser dot pulses',box:[-50,-50,100,110],demo:{x:0,y:0,val:7},dark:1,alive:'pulse'},
+ ({x=0,y=0,val=7,unit='°C',...o})=>`<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(-24)"><path d="M-6,8L14,8L10,30L-2,30Z" fill="#2A2F3E"/><rect x="-30" y="-22" width="62" height="34" rx="8" fill="#F3E4BE" stroke="#D9B45A" stroke-width="1.5"/><rect x="-22" y="-16" width="46" height="21" rx="3" fill="#10182C"/><text x="1" y="-.5" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="700" font-size="12.5" fill="#BFF3D0">${val.toFixed(1)}${unit}</text><circle cx="27" cy="6" r="2.4" fill="#C8402F"/><path d="M4,30L7,44" stroke="#FF5A48" stroke-width="1.2" opacity=".8"/></g><circle cx="${(x+20).toFixed(1)}" cy="${(y+44).toFixed(1)}" r="${(2.6+1.4*LIFE.pulse(LIFE.t(o),110)).toFixed(2)}" fill="#FF5A48" opacity=".9"/>`);
 </script>
 <script data-part="1">
 /* ===================================================================== */

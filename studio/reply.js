@@ -239,7 +239,8 @@
     (r.cards || []).forEach(function (c) {
       if (c.missing) out.push(err('card-missing', c.name + ' was not made', 'The file has no ' + (job.kind === 'cast' ? 'CAST.' + c.name : "ASSET('" + c.name + "')") + '.', 'Add it with exactly this name.'));
       else if (c.error) out.push(err('card-error', c.name + ' does not draw', c.error, 'Fix the drawing code of ' + c.name + '. It must draw with its demo values.'));
-      else if (job.kind === 'assets' && c.box) { var it = (job.items || []).filter(function (x) { return x.name === c.name })[0], sz = R.sizeCheck(c.name, it ? it.note : '', c.box, c.band); if (sz) out.push(warn('size', sz.title, sz.detail, sz.fix)) }
+      else if (job.kind === 'assets' && c.box) { var it = (job.items || []).filter(function (x) { return x.name === c.name })[0], sz = R.sizeCheck(c.name, it ? it.note : '', c.box, c.band); if (sz) out.push(warn('size', sz.title, sz.detail, sz.fix));
+        if (c.moves === false && !c.still) out.push(warn('still-asset', c.name + ' does not move', 'The app drew ' + c.name + ' at two moments and it looked exactly the same' + (c.alive ? ', although its spec says alive: \'' + c.alive + '\'' : '') + '. A frozen asset makes the scene look fake (section 9).', 'Give ' + c.name + ' a small motion with the clock LIFE.t(o) and a LIFE helper (sway, bob, flicker, blink, drift, pulse, spin) and add alive: \'...\' to its spec. If it truly never moves (a board lying on the ground), add still: \'the reason\' to its spec instead.')) }
     });
     return out;
   };
@@ -252,7 +253,7 @@
   };
   R.sizeCheck = function (name, note, box, band) {
     var w = Math.round(box[2]), hh = Math.round(box[3]), txt = (name + ' ' + (note || '')).toLowerCase(), want = R.planSize(note);
-    function fixFor(W, H) { return 'Set the box of ' + name + ' to [' + Math.round(-W / 2) + ', ' + (-H) + ', ' + W + ', ' + H + '] and draw it to fill that size (1 unit = 1 cm; an adult is 185 tall).' }
+    function fixFor(W, H) { return 'Set the box of ' + name + ' to [' + Math.round(-W / 2) + ', ' + (-H) + ', ' + W + ', ' + H + '] and draw it to fill that size (about 190 units = 1 metre; an adult is 340 tall).' }
     if (want) {
       var off = Math.max(Math.abs(w - want.w) / want.w, Math.abs(hh - want.h) / want.h);
       if (off > .3) return { title: name + ' is the wrong size', detail: 'Its box is ' + w + ' wide x ' + hh + ' tall, but the plan says ' + want.w + ' wide x ' + want.h + ' tall (' + Math.round(off * 100) + '% off). Next to people it will look ' + (hh < want.h ? 'too small' : 'too big') + '.', fix: fixFor(want.w, want.h) };
@@ -261,9 +262,9 @@
     if (/sky|far/.test(band || '')) return null;
     var st = txt.match(/\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|single)[ -](?:storey|story|floor)/);
     var rules = [
-      [/\bdoor/, 'h', 180, 260, 'a door is about 210 high'], [/\b(car|taxi|sedan)\b/, 'w', 400, 520, 'a car is 450 to 480 long'], [/street ?lamp|lamp ?post/, 'h', 330, 480, 'a street lamp is about 400 high'],
-      [/\btree\b/, 'h', 450, 1200, 'a tree is 600 to 1000 high'], [/\b(boat|canoe)\b/, 'w', 180, 400, 'a small boat is 220 to 330 wide'], [/\b(bench)\b/, 'h', 70, 110, 'a bench is about 90 high'], [/\b(bed)\b/, 'h', 40, 110, 'a bed is about 60 high'], [/\b(rickshaw|tuk ?tuk)\b/, 'h', 150, 220, 'a rickshaw is about 180 high']];
-    if (st) { var n = NUMW[st[1]] || +st[1]; rules.unshift([/./, 'h', n * 300 * .75, n * 300 * 1.3, 'a ' + n + '-storey building is about ' + n * 300 + ' high']) }
+      [/\bdoor/, 'h', 340, 490, 'a door is about 400 high'], [/\b(car|taxi|sedan)\b/, 'w', 760, 990, 'a car is about 860 long'], [/street ?lamp|lamp ?post/, 'h', 620, 910, 'a street lamp is about 760 high'],
+      [/\btree\b/, 'h', 850, 2300, 'a tree is 1100 to 1900 high'], [/\b(boat|canoe)\b/, 'w', 340, 760, 'a small boat is 420 to 630 wide'], [/\b(bench)\b/, 'h', 130, 210, 'a bench is about 170 high'], [/\b(bed)\b/, 'h', 80, 210, 'a bed is about 110 high'], [/\b(rickshaw|tuk ?tuk)\b/, 'h', 290, 420, 'a rickshaw is about 340 high']];
+    if (st) { var n = NUMW[st[1]] || +st[1]; rules.unshift([/./, 'h', n * 570 * .75, n * 570 * 1.3, 'a ' + n + '-storey building is about ' + n * 570 + ' high']) }
     for (var i = 0; i < rules.length; i++) { var r = rules[i]; if (!r[0].test(txt)) continue; var v = r[1] === 'h' ? hh : w; if (v < r[2] || v > r[3]) { var target = Math.round((r[2] + r[3]) / 2); return { title: name + ' looks the wrong size', detail: 'Its box is ' + w + ' wide x ' + hh + ' tall; ' + r[4] + ' (section 4).', fix: r[1] === 'h' ? fixFor(Math.round(w * target / hh), target) : fixFor(target, Math.round(hh * target / w)) } } }
     return null;
   };
