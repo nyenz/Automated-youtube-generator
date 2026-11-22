@@ -39,7 +39,7 @@
       if (i === n - 1) p.out = 'none'; else if (!p.out) p.out = 'dip';
       if (i > 0) p.in = base.parts[i - 1].out;
     });
-    ['continuity', 'chapters', 'places', 'assets_info', 'cast_info'].forEach(function (k) { if (mp[k] != null) base[k] = mp[k] });
+    ['continuity', 'chapters', 'places', 'assets_info', 'cast_info', 'state', 'arcs', 'world', 'effects'].forEach(function (k) { if (mp[k] != null) base[k] = mp[k] });
     if (!mp.parts) base.todo = 'Run MODE: PROJECT to fill in place, time, moods, cast, assets, joins and beats for every part. The times and words are already final.';
     return base;
   };
@@ -94,7 +94,7 @@
         if (m.cmd === 'info') {
           var built = Object.keys(PARTS).map(Number).sort(function (a, b) { return PARTS[a].AUDIO_START - PARTS[b].AUDIO_START });
           var L = {}; try { L = LINT() } catch (er) { L = { project: [{ ok: false, msg: 'The checks could not run: ' + er.message }] } }
-          out = { built: built.map(function (id) { var P = PARTS[id]; return { id: id, END: P.END, AUDIO_START: P.AUDIO_START, AUDIO_END: P.AUDIO_END, title: P.title || '', IN: P.IN, OUT: P.OUT, HITS: (P.HITS || []).slice() } }),
+          out = { built: built.map(function (id) { var P = PARTS[id]; return { id: id, END: P.END, AUDIO_START: P.AUDIO_START, AUDIO_END: P.AUDIO_END, title: P.title || '', IN: P.IN, OUT: P.OUT, HITS: (P.HITS || []).slice(), COND: (function () { try { return JSON.parse(JSON.stringify(P.COND || null)) } catch (e2) { return null } })() } }),
             lint: L, assets: Object.keys(ASSETS), cast: Object.keys(CAST), errors: window.__ERR || [], stage: { W: STAGE.W, H: STAGE.H, name: STAGE.name },
             timeline: (function () { try { return TIMELINE() } catch (er) { return [] } })() };
         } else if (m.cmd === 'frame') {

@@ -545,3 +545,11 @@ body { font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0; 
 .titlerow .num { font: 600 12px/1 var(--f-mono); padding: 5px 7px; border-radius: 6px; background: var(--field); border: 1px solid var(--line-2); }
 .titlerow b { font-size: 13.5px; overflow-wrap: anywhere; }
 .result-box > .tabs, .result-box > .row, .result-box > .result-acts { flex: none; }
+/* state sheet table */
+.sheetwrap { overflow: auto; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; }
+table.sheet { border-collapse: collapse; width: 100%; font-size: 12px; }
+table.sheet th, table.sheet td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.08); border-right: 1px solid rgba(255,255,255,.06); text-align: left; vertical-align: top; min-width: 120px; }
+table.sheet thead th { position: sticky; top: 0; background: var(--sf-2, #1d1d21); font: 700 11px var(--f-mono); color: var(--on-dark); }
+table.sheet tbody th { font-weight: 700; color: var(--on-dark); white-space: nowrap; min-width: 80px; }
+table.sheet td.off { opacity: .38; }
+table.sheet td > div + div { margin-top: 3px; }

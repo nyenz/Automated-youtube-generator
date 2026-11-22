@@ -24,6 +24,12 @@ ok(/WARDROBE RULES/.test(pr)&&/"signature"/.test(pr)&&/"accent"/.test(pr)&&/"sto
 const parts=await p.evaluate(()=>STORE.list().then(a=>AUDIO.plan(a[0]).parts.map(x=>({id:x.id}))));
 await pasteIn('The plan',await p.evaluate(ps=>FIX.plan(ps,0),parts));if(await p.locator('.veil').count())await p.click('.modal .x');await p.waitForTimeout(300);
 ok((await p.locator('.jt-body .jt-row').first().innerText()).includes('Done'),'a plan that passes is used straight away');
+// the state sheet: a plan with state and arcs (one unknown condition on purpose)
+await pasteIn('The plan',await p.evaluate(ps=>{const t=FIX.plan(ps,0);const j=JSON.parse(t.replace(/```json\n|\n```/g,''));j.state={boy:{start:{},changes:[{part:1,word:'',set:{wet:1,cold:1},why:'pulled from the water'}]},nurse:{start:{},changes:[{part:2,word:'x',set:{dirt:.5,bandage:'armF',mud:1},why:'slips on the ice'}]},medic:{start:{},changes:[]}};j.arcs={boy:[{part:1,feel:'limp'},{part:3,word:'w',feel:'groggy',why:'warmth'}],nurse:[{part:2,feel:'worried'}],medic:[{part:1,feel:'determined'}]};j.world=[{part:1,fact:'the ice hole stays broken'}];return '```json\n'+JSON.stringify(j)+'\n```'},parts));if(await p.locator('.veil').count())await p.click('.modal .x');
+ok(await p.evaluate(()=>STORE.list().then(a=>{const pr=a[0].jobs.plan.A.check.problems||[];return pr.some(x=>x.id==='state-bad-condition')&&!pr.some(x=>x.id==='no-state')})),'plan state sheet read; an unknown condition (mud) is flagged');
+await p.locator('.jt-body .jt-row',{hasText:'The plan'}).locator('button:has-text("Preview")').click();await p.waitForTimeout(1200);await p.click('.tabs button:has-text("State sheet")');await p.waitForTimeout(500);
+ok((await p.locator('table.sheet tbody tr').count())===3&&/wet, cold/.test(await p.locator('table.sheet').innerText()),'plan result has a State sheet tab: people x scenes');
+await p.screenshot({path:SP+'/o-state.png'});await p.click('.titlebar .back');await p.waitForTimeout(600);await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);
 const titles=await p.locator('.jt-body .num').allInnerTexts();{const cnt={};const okN=titles.every(t=>{const L=t[0],n=+t.slice(1);cnt[L]=(cnt[L]||0)+1;return /^[PACS]\d\d$/.test(t)&&(L==='S'||n===cnt[L])});ok(okN&&titles[0]==='P01'&&titles.includes('A01')&&titles.includes('C01')&&titles.includes('S01'),'numbers start at 1 in each group (P, A, C, S): '+titles.join(' '));}
 await p.locator('.jt-body .jt-row',{hasText:'Assets: crate'}).locator('text=Copy prompt').click();const ap=await clipP();
 ok(/^PROMPT A01 of A\d\d · ASSETS/.test(ap)&&/\/\/ REPLY A01 assets-crate/.test(ap)&&/ONLY the ASSET/.test(ap),'asset prompt: number, REPLY line, only the asset');
@@ -46,6 +52,7 @@ await p.click('button:has-text("Settings")');await p.click('.modal button:has-te
 await pasteIn('People: nurse',await p.evaluate(()=>FIX.cast('#2F7F7A')));if(await p.locator('.veil').count())await p.click('.modal .x');
 ok((await p.locator('.jt-body .jt-row',{hasText:'People: nurse'}).innerText()).includes('Done'),'person passes and is used');
 await p.locator('.jt-body .jt-row',{hasText:'Part 2:'}).locator('text=Copy prompt').click();const sp=await clipP();
+ok(/STATE SHEET ROW FOR PART 2/.test(sp)&&/COND:\{boy:\{wet:1, cold:1\}/.test(sp)&&/nurse: \[0,'worried'\]/.test(sp)&&/the ice hole stays broken/.test(sp),'scene prompt carries its state sheet row (COND, arcs, world)');
 ok(/· SCENE · PART 2 of \d+ · ONE PROMPT/.test(sp)&&/^PROMPT S02 of S\d\d · SCENE/.test(sp)&&/<!-- REPLY S02 scene-2 -->/.test(sp)&&/<script data-part="2">/.test(sp),'scene prompt names part 2 and its block');
 // the mistake from the screenshot: part 1 code pasted into part 2, with chat around it
 const fx=await p.evaluate(async()=>{const tpl=await (await fetch('styles/gilded-kasumi/project.html')).text();const P=(await STORE.list())[0];const plan=GK.plan(P);return plan.parts.map(pt=>FIX.scene(tpl,pt,P.timing.words,plan,1))});
@@ -58,12 +65,14 @@ ok(await p.locator('.modal button:has-text("Save it in")').count()===1,'offers t
 await p.click('.modal button:has-text("Copy all details")');const det=await clip();ok(det.length>200&&/[PACS]\d\d/.test(det),'all details can be copied ('+det.length+' characters)');
 await p.click('.modal button:has-text("Save it in")');for(let k=0;k<40;k++){if(await p.evaluate(()=>STORE.list().then(a=>!!a[0].jobs['scene-1'].A)))break;await p.waitForTimeout(500)}
 ok(await p.evaluate(()=>STORE.list().then(a=>!!a[0].jobs['scene-1'].A)),'moved reply saved in part 1');
+ok(await p.evaluate(()=>STORE.list().then(a=>((a[0].jobs['scene-1'].A.check||{}).problems||[]).every(x=>x.id!=='no-cond'))),'part 1: nothing has happened yet, so no COND is needed');
 // cut-off reply gives a fix message
 await pasteIn('Part 2:',fx[1].slice(0,Math.floor(fx[1].length*.6)));
 const rep2=await p.locator('.modal .rep').innerText();ok(/NOT saved|needs a fix/.test(rep2)&&/(cut off|not closed|incomplete|ends)/i.test(rep2),'a cut-off reply is explained');
 await p.click('.modal .x');await p.waitForTimeout(300);
 for(let i=1;i<fx.length;i++){await pasteIn('Part '+(i+1)+':',fx[i]);if(await p.locator('.veil').count())await p.click('.modal .x');}
 ok(await p.evaluate(()=>STORE.list().then(a=>JOBS.list(a[0]).every(j=>j.A))),'every job has its one reply');
+ok(await p.evaluate(()=>STORE.list().then(a=>{const pr=(a[0].jobs['scene-3'].A.check||{}).problems||[];const x=pr.find(q=>q.id==='no-cond');return x&&/COND:\{boy:\{wet:1, cold:1\}/.test(x.fix)})),'a scene that forgets COND is caught, with the exact COND to add');
 const open=await p.evaluate(()=>STORE.list().then(a=>JOBS.list(a[0]).filter(j=>!JOBS.picked(j)).map(j=>j.id)));
 for(const id of open){await p.goto('http://localhost:8125/#'+(await p.evaluate(()=>STORE.list().then(a=>a[0].id)))+'/pick/'+id);await p.waitForTimeout(900);await p.click('.panel button:has-text("Use this reply")');await p.waitForTimeout(500)}
 ok(await p.evaluate(()=>STORE.list().then(a=>JOBS.list(a[0]).every(j=>JOBS.picked(j)))),'every job in use ('+open.length+' through "Use this reply")');
