@@ -17,12 +17,27 @@ const E=await p.evaluate(()=>{
     scale:(t,X)=>scene(t,X)+X.lay(1,ZOOM.scale(t,1,{x:0,y:0,h:900,ref:'bus',label:'5 m'}))};
   const L0=LINT();o.lint0=L0['part 1'].every(r=>r.ok);let id=80;for(const m in modes){const P=PART({id:++id,of:1,AUDIO_START:0,AUDIO_END:5,SEG:[[0,5,'shot test words']],KEYS:[[0,0,40,1.2],[5,0,40,1.3]],draw:(t,X)=>modes[m](t,X)});
     try{const a=P.render(.5),b=P.render(1.7),c=P.render(2.6);o[m]={err:null,moved:a!==b,len:b.length,ids:(b.match(/id="z\d+"/g)||[]).length,c:c.length};}catch(e){o[m]={err:e.message};}}
+  const more={frame:(t,X)=>scene(t,X)+FRAME.show('tv',inner(t),{x:270,y:300,w:300,text:'NEWS'}),framePull:(t,X)=>{const b=FRAME.box('tv',270,300,300);return ZOOM.pull(t,1,1.2,inner(t),scene(t,X)+FRAME.show('tv',inner(t),b),b)},
+    kinds:(t,X)=>FRAME.KINDS.map((k,i)=>FRAME.show(k,inner(t),{x:100+(i%4)*110,y:200+Math.floor(i/4)*300,w:90,text:'x'})).join(''),
+    waterline:(t,X)=>MOVE.waterline(t,1,1.2,scene(t,X),inner(t),{from:900,to:-40}),through:(t,X)=>MOVE.through(t,1,1.2,scene(t,X),inner(t)),wall:(t,X)=>MOVE.through(t,1,1.2,scene(t,X),inner(t),{dir:'right',edge:'wall'}),wipe:(t,X)=>MOVE.wipe(t,1,1.2,scene(t,X),inner(t)),morph:(t,X)=>MOVE.morph(t,1,1.2,scene(t,X),inner(t)),
+    flashback:(t,X)=>TIME.flashback(t,1,3,scene(t,X)),date:(t,X)=>scene(t,X)+TIME.card(t,1,3,'March 1999',{sub:'Norway'}),calendar:(t,X)=>scene(t,X)+TIME.calendar(t,1,1.2,['MON 3','TUE 4','WED 5']),clock:(t,X)=>scene(t,X)+TIME.clock(t,1,1.2,9,33),
+    counter:(t,X)=>scene(t,X)+TIME.counter(t,1,1.2,1950,2024),rewind:(t,X)=>scene(TIME.back(t,1,1.2,3),X)+TIME.rewind(t,1,1.2),timeline:(t,X)=>scene(t,X)+TIME.timeline(t,1,1.2,{marks:['1990','2000','2024']}),
+    map:(t,X)=>scene(t,X)+PLACE.map(t,1,1.2,{points:[[.2,.3,'A'],[.8,.4,'B']]}),place:(t,X)=>scene(t,X)+PLACE.card(t,1,3,'Oslo','Norway'),globe:(t,X)=>PLACE.globe(t,1,1.2,{pinAt:[.2,-.2]}),
+    tag:(t,X)=>{const sp=X.screen(-40,-340);return scene(t,X)+SHOW.tag(t,1,3,{name:'Dr. Hansen',role:'doctor',x:sp[0],y:sp[1]})},callout:(t,X)=>scene(t,X)+SHOW.callout(t,1,3,{x:300,y:500,text:'7 C'}),gauge:(t,X)=>scene(t,X)+SHOW.gauge(t,1,3,{min:0,max:40,from:37,value:14}),
+    split:(t,X)=>SHOW.split(t,1,scene(t,X),inner(t),{labels:['A','B']}),inset:(t,X)=>SHOW.inset(t,1,3,scene(t,X),inner(t)),diagram:(t,X)=>scene(t,X)+SHOW.draw(t,1,1,['M10,10 L300,300']),spot:(t,X)=>scene(t,X)+SHOW.spot(t,1,3,{x:300,y:500}),iris:(t,X)=>scene(t,X)+SHOW.iris(t,1,1.2,{}),
+    slow:(t,X)=>scene(SHOW.slowT(t,1,3,.3),X),match:(t,X)=>SHOW.match(t,1.6,scene(t,X),inner(t)),shake:(t,X)=>SHOW.shake(t,1.5,scene(t,X),14),hush:(t,X)=>scene(t,X)+SHOW.hush(t,1,3),
+    page:(t,X)=>TURN.go('page',t,1,1.2,scene(t,X),inner(t)),fold:(t,X)=>TURN.go('fold',t,1,1.2,scene(t,X),inner(t)),flats:(t,X)=>TURN.go('flats',t,1,1.2,scene(t,X),inner(t)),ink:(t,X)=>TURN.go('ink',t,1,1.2,scene(t,X),inner(t))};
+  o.more={};for(const m in more){const P=PART({id:++id,of:1,AUDIO_START:0,AUDIO_END:5,SEG:[[0,5,'shot test words']],KEYS:[[0,0,40,1.2],[5,0,40,1.3]],draw:(t,X)=>more[m](t,X)});
+    try{const a=P.render(.5),b=P.render(1.7);o.more[m]=a!==b?'ok':'still';}catch(e){o.more[m]='error: '+e.message;}}
+  o.keys=MOVE.keys('crane',1,3,[0,60,2]).length===2&&MOVE.keys('crane',1,3,[0,60,2])[1][3]<2;
+  o.backT=Math.abs(TIME.back(2.2,1,1.2,3)-(1-3))<.01&&TIME.back(.5,1,1.2,3)===.5&&SHOW.slowT(2,1,3,.5)===1.5;
+  {const J=PART({id:++id,of:3,AUDIO_START:0,AUDIO_END:5,SEG:[[0,5,'join test words']],IN:'ink',OUT:'page',draw:(t,X)=>scene(t,X)});const s0=J.render(.05),s1=J.render(2),s2=J.render(4.95);o.joins=s0.length>s1.length&&s2.length>s1.length&&/#F3E4BE/.test(s2);}
   o.diveEnd=ZOOM.dive(5,1,1.2,'OUT','IN',{})==='IN'&&ZOOM.dive(0,1,1.2,'OUT','IN',{})==='OUT';
   o.pullEnds=ZOOM.pull(0,1,1.2,'IN','OUT',{})==='IN'&&ZOOM.pull(5,1,1.2,'IN','OUT',{})==='OUT';
   o.xrayClosed=ZOOM.xray(4,1,3,'OUT','IN',{})==='OUT';
   o.refs=Object.keys(ZOOM.REFS).every(n=>ZOOM.ref(n,0,0).length>40);
   o.lint=o.lint0;
-  o.rule=/## 30\. Special shots/.test(document.getElementById('rulebook').textContent)&&/\| 8 \| Special shots/.test(document.getElementById('rulebook').textContent);
+  o.rule=/## 30\. Special shots/.test(document.getElementById('rulebook').textContent)&&/\| 8 \| Special shots/.test(document.getElementById('rulebook').textContent)&&/## 33\. Explaining and emphasis/.test(document.getElementById('rulebook').textContent)&&/\| 9 \| Frames/.test(document.getElementById('rulebook').textContent);
   return o;});
 for(const m of ['dive','pull','xray','cutaway','lens','exploded','scale'])ok(E[m]&&!E[m].err&&E[m].moved&&E[m].len>500,'engine: ZOOM.'+m+' draws and moves'+(E[m]&&E[m].err?' ('+E[m].err+')':''));
 ok(E.dive.ids>=1&&E.xray.ids>=1,'engine: windows use their own clip ids');
@@ -31,7 +46,11 @@ ok(E.pullEnds,'engine: a pull starts inside and ends outside');
 ok(E.xrayClosed,'engine: the x-ray window closes at its end time');
 ok(E.refs,'engine: every grey reference thing draws');
 ok(E.lint,'engine: the worked example still passes LINT');
-ok(E.rule,'rulebook: section 30 and the version 8 entry');
+for(const m in E.more)ok(E.more[m]==='ok','engine (sections 31 to 33): '+m+' draws and moves'+(E.more[m]!=='ok'?' ('+E.more[m]+')':''));
+ok(E.keys,'engine: MOVE.keys gives camera keys for a crane');
+ok(E.backT,'engine: rewind and slow motion clocks');
+ok(E.joins,'engine: paper joins (ink in, page out) are drawn by the engine');
+ok(E.rule,'rulebook: sections 30 to 33 and the version 8 and 9 entries');
 
 // ---------- 2. the app ----------
 const promptOf=t=>t.includes('</project_file>')?t.slice(t.indexOf('</project_file>')+15).trim():t;
@@ -43,7 +62,7 @@ await p.fill('textarea',fs.readFileSync(SP+'/script-long.txt','utf8'));await p.s
 await p.addScriptTag({path:SP+'/fixtures.js'});
 await p.click('.nextbar >> text=Next: Prompts');await p.waitForTimeout(800);await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);
 await p.click('.jt-body .jt-row >> text=Copy prompt');const pp=await clipP();
-ok(/SPECIAL SHOTS \(section 30\)/.test(pp)&&/"shots": \[\{"part": 2/.test(pp)&&/dive \(dive in\)/.test(pp),'plan prompt: special shots rules and the "shots" field');
+ok(/SPECIAL SHOTS \(sections 30 to 33\)/.test(pp)&&/"shots": \[\{"part": 2/.test(pp)&&/zoom and inside views/.test(pp)&&/flashback/.test(pp)&&/paper join: page, fold, flats, ink/.test(pp),'plan prompt: special shots rules, groups, joins and the "shots" field');
 const parts=await p.evaluate(()=>STORE.list().then(a=>AUDIO.plan(a[0]).parts.map(x=>({id:x.id}))));
 const plan=await p.evaluate(ps=>{const t=FIX.plan(ps,0),j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));j.shots=[{part:2,word:'pulse',shot:'dive',what:'into the chest to the slow heart'},{part:3,word:'ice',shot:'teleport',what:'x'}];return '```json\n'+JSON.stringify(j)+'\n```'},parts);
 await pasteIn('The plan',plan);

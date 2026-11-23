@@ -224,6 +224,8 @@
     if (noCI.length) problems.push(warn('no-cast-info', 'New people without a description: ' + noCI.join(', '), 'They are not in the library and have no "cast_info" entry.', 'Add them to "cast_info" with a note and a level.'));
     R.stateProblems(j, want).forEach(function (x) { problems.push(x) });
     R.shotPlanProblems(j, want, GK().plan(P)).forEach(function (x) { problems.push(x) });
+    var badJ = []; j.parts.forEach(function (p) { if (!p) return; ['in', 'out'].forEach(function (k) { if (p[k] && p[k] !== 'none' && J().JOINS.indexOf(p[k]) < 0) badJ.push('part ' + p.id + ' ' + k + ': ' + p[k]) }) });
+    if (badJ.length) problems.push(warn('bad-join', 'Unknown joins: ' + badJ.slice(0, 5).join(', '), 'The engine has these joins: ' + J().JOINS.join(', ') + '.', 'Use only those names.'));
     res.plan = j;
   }
 
@@ -320,8 +322,8 @@
     var bad = L.filter(function (x) { return !x || !S[x.shot] }).map(function (x) { return x && x.shot || '?' }), badP = L.filter(function (x) { return x && S[x.shot] && want.indexOf(+x.part) < 0 }).map(function (x) { return x.part });
     if (bad.length) out.push(warn('shots-unknown', 'Unknown special shots: ' + bad.join(', '), 'The engine has these special shots: ' + Object.keys(S).join(', ') + ' (section 30).', 'Use only those names.'));
     if (badP.length) out.push(warn('shots-bad-part', 'Special shots in parts that do not exist: ' + badP.join(', '), 'The video has parts ' + want.join(', ') + '.', 'Use only those part numbers.'));
-    var len = (plan && plan.audio && plan.audio.length) || 0, max = Math.max(1, Math.ceil(len / 15)), n = L.filter(function (x) { return x && S[x.shot] }).length;
-    if (len && n > max) out.push(warn('shots-many', plural(n, 'special shot') + ' for a ' + Math.round(len) + ' s video', 'At most one every 15 seconds (' + max + ' here), or they stop feeling special.', 'Keep the ' + max + ' strongest.'));
+    var len = (plan && plan.audio && plan.audio.length) || 0, max = Math.max(1, Math.ceil(len / 15)), n = L.filter(function (x) { return x && S[x.shot] && S[x.shot][2] === 'big' }).length;
+    if (len && n > max) out.push(warn('shots-many', plural(n, 'zoom, frame or going-under shot') + ' for a ' + Math.round(len) + ' s video', 'At most one of these every 15 seconds (' + max + ' here), or they stop feeling special.', 'Keep the ' + max + ' strongest.'));
     return out;
   };
   R.shotProblems = function (P, id, code) {

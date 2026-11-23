@@ -60,24 +60,10 @@
     { id: 'free', label: 'Free note', hint: 'only what you write', checks: [] }
   ];
   W.type = function (id) { return W.TYPES.filter(function (t) { return t.id === id })[0] };
-  W.SHOTS = [
-    ['dive', 'Dive in', 'the camera moves right into a detail (an object, an eye, a screen) until it fills the frame, then the new view takes over'],
-    ['xray', 'X-ray / inside view', 'show what is inside (bones, organs, the parts of a machine) through a see-through outer layer'],
-    ['cutaway', 'Cutaway', 'a cut-open side view of a building, a body or an object'],
-    ['lens', 'Magnifying lens', 'a round lens moves over the scene and shows it bigger inside the circle'],
-    ['pullback', 'Pull back / reveal', 'start close on one detail, then pull far back to reveal the bigger picture'],
-    ['exploded', 'Exploded view', 'the pieces of an object float apart to show how it is built'],
-    ['scale', 'Scale comparison', 'put the thing next to something everyone knows (a person, a bus) to show its size'],
-    ['frame', 'Frame within a frame', 'start inside a TV, phone, newspaper, photo or window, then pull out to show the people watching it'],
-    ['seamless', 'Seamless move', 'one continuous move from above the water to below it, through a wall or into the ground'],
-    ['flashback', 'Flashback', 'the past in greys with a soft edge, then the colour comes back'],
-    ['time', 'Time passing', 'a date card, a calendar flip or a clock spin shows time going by'],
-    ['map', 'Map line', 'a line draws across a map from one place to the next'],
-    ['split', 'Split screen', 'two moments or places side by side'],
-    ['spot', 'Spotlight', 'the scene darkens except one circle on the key thing']
-  ];
+  /* every special shot the engine has (rulebook sections 30 to 33), from the app's shot table */
+  W.SHOTS = Object.keys(window.JOBS.SHOTS).map(function (k) { var d = window.JOBS.SHOTS[k][1], i = d.indexOf(':'); return [k, d.slice(0, i), d.slice(i + 1).trim()] });
   /* the engine call for each shot (rulebook section 30); shots without one are built from the engine layers */
-  W.CALL = { dive: 'ZOOM.dive(t, T(\'word\'), 1.2, outer, inner, {x, y, r})', xray: 'ZOOM.xray(t, t0, t1, outside, inside, {x, y, r}) with ZOOM.bones(...) for a person', cutaway: 'ZOOM.cutaway(t, t0, t1, front, inside, {x, y, w, h, from})', lens: 'ZOOM.lens(t, t0, t1, scene, {path, r, k})', pullback: 'ZOOM.pull(t, t0, dur, inner, outer, {x, y, w, h})', exploded: 'ZOOM.exploded(t, t0, pieces) inside X.lay(1, ...)', scale: 'ZOOM.scale(t, t0, {x, y, h, ref, label}) inside X.lay(1, ...)', frame: 'ZOOM.pull(t, t0, dur, inner, outer, {x, y, w, h}) with the window on the screen, page or photo', seamless: 'ZOOM.dive with a box window, or a vertical whip (section 8)' };
+  W.CALL = {}; Object.keys(window.JOBS.SHOTS).forEach(function (k) { W.CALL[k] = window.JOBS.SHOTS[k][0] + '(...)' });
   W.shot = function (id) { return W.SHOTS.filter(function (s) { return s[0] === id })[0] || W.SHOTS[0] };
   W.LEVEL = { bad: 'problem', warn: 'needs a look', info: 'idea' };
 
@@ -177,7 +163,7 @@
     L.push('WHAT TO IMPROVE (do every point; each one must be visible on screen' + (whole ? '' : ', mainly inside the moment') + ')');
     (item.types || []).forEach(function (id) {
       var t = W.type(id); if (!t || !t.checks.length) return;
-      L.push((++k) + '. ' + t.label.toUpperCase() + (id === 'special' ? ': ' + W.shot(item.shot)[1] + ' (' + W.shot(item.shot)[2] + ')' + (W.CALL[item.shot] ? '. Use ' + W.CALL[item.shot] + ' (rulebook section 30)' : '') : ''));
+      L.push((++k) + '. ' + t.label.toUpperCase() + (id === 'special' ? ': ' + W.shot(item.shot)[1] + ' (' + W.shot(item.shot)[2] + ')' + (W.CALL[item.shot] ? '. Use ' + W.CALL[item.shot] + ' (rulebook sections 30 to 33)' : '') : ''));
       t.checks.forEach(function (c) { L.push('   - ' + c) });
     });
     if ((item.picks || []).length) {
