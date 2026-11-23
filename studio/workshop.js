@@ -76,6 +76,8 @@
     ['split', 'Split screen', 'two moments or places side by side'],
     ['spot', 'Spotlight', 'the scene darkens except one circle on the key thing']
   ];
+  /* the engine call for each shot (rulebook section 30); shots without one are built from the engine layers */
+  W.CALL = { dive: 'ZOOM.dive(t, T(\'word\'), 1.2, outer, inner, {x, y, r})', xray: 'ZOOM.xray(t, t0, t1, outside, inside, {x, y, r}) with ZOOM.bones(...) for a person', cutaway: 'ZOOM.cutaway(t, t0, t1, front, inside, {x, y, w, h, from})', lens: 'ZOOM.lens(t, t0, t1, scene, {path, r, k})', pullback: 'ZOOM.pull(t, t0, dur, inner, outer, {x, y, w, h})', exploded: 'ZOOM.exploded(t, t0, pieces) inside X.lay(1, ...)', scale: 'ZOOM.scale(t, t0, {x, y, h, ref, label}) inside X.lay(1, ...)', frame: 'ZOOM.pull(t, t0, dur, inner, outer, {x, y, w, h}) with the window on the screen, page or photo', seamless: 'ZOOM.dive with a box window, or a vertical whip (section 8)' };
   W.shot = function (id) { return W.SHOTS.filter(function (s) { return s[0] === id })[0] || W.SHOTS[0] };
   W.LEVEL = { bad: 'problem', warn: 'needs a look', info: 'idea' };
 
@@ -117,6 +119,7 @@
     });
     (pp.cast || []).forEach(function (n) { if (!has(code, n, 'CAST')) add('cast:' + n, 'warn', 'logic', n + ' is planned here but never drawn', 'The plan puts ' + n + ' in part ' + id + ', but the code never draws CAST.' + n + '.', 'Draw ' + n + ' with place(CAST.' + n + ', ...) where the words need them.') });
     (pp.assets || []).forEach(function (n) { if (!has(code, n, 'A')) add('asset:' + n, 'warn', 'logic', n + ' is planned here but never drawn', 'The plan lists ' + n + ' for part ' + id + ', but the code never calls A.' + n + '(...).', 'Draw A.' + n + '({...}) where the words mention it.') });
+    if (window.REPLY && window.REPLY.shotProblems) window.REPLY.shotProblems(P, id, code).forEach(function (p) { add('shot:' + p.title, 'warn', 'special', p.title, p.detail, p.fix) });
     var faces = W.facesIn(code);
     if ((pp.cast || []).length && faces.length < 2 && !/feelAt\s*\(/.test(code)) add('faces-flat', 'warn', 'faces', 'Faces barely change', 'The code uses ' + (faces.length ? 'only the face "' + faces[0] + '"' : 'no named face') + ' for everyone in this part.', 'Give each person faces that follow the words and the feelings arc (feelAt with T(\'word\') keys).');
     if ((pp.cast || []).length >= 2 && !/\breact\s*\(/.test(code)) add('no-react', 'info', 'faces', 'Nobody reacts', 'There are ' + pp.cast.length + ' people in this part, but no one reacts to what happens (no react()).', 'Let the others react on the big word: a head turn, a step back, a hand to the mouth.');
@@ -174,7 +177,7 @@
     L.push('WHAT TO IMPROVE (do every point; each one must be visible on screen' + (whole ? '' : ', mainly inside the moment') + ')');
     (item.types || []).forEach(function (id) {
       var t = W.type(id); if (!t || !t.checks.length) return;
-      L.push((++k) + '. ' + t.label.toUpperCase() + (id === 'special' ? ': ' + W.shot(item.shot)[1] + ' (' + W.shot(item.shot)[2] + ')' : ''));
+      L.push((++k) + '. ' + t.label.toUpperCase() + (id === 'special' ? ': ' + W.shot(item.shot)[1] + ' (' + W.shot(item.shot)[2] + ')' + (W.CALL[item.shot] ? '. Use ' + W.CALL[item.shot] + ' (rulebook section 30)' : '') : ''));
       t.checks.forEach(function (c) { L.push('   - ' + c) });
     });
     if ((item.picks || []).length) {
