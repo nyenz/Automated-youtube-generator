@@ -620,6 +620,7 @@
   function checkVersion(job, ver, statics) {
     if (job.kind === 'plan') { ver.check = finishCheck(statics, [], null); return Promise.resolve(ver) }
     return CR.inspect(P, job, ver === job.A ? 'A' : 'B').then(function (r) {
+      if (job.kind === 'scene' && r && r.info) { var me = (r.info.built || []).filter(function (b) { return b.id === job.part })[0]; if (me && me.CAM0) ver.cam = { start: me.CAM0, end: me.CAMEND } }
       ver.check = finishCheck(statics, REPLY.runProblems(P, job, ver, r), r); return ver;
     }).catch(function (e) {
       ver.check = finishCheck(statics, [{ id: 'check-failed', level: 'error', title: 'The check could not run', detail: e.message, fix: 'Paste the reply again. If it keeps failing, the code may hang the page.' }], null); return ver;

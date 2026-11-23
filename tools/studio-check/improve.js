@@ -63,7 +63,7 @@ await shot('2-issues');
 await p.click('.ws-cell >> nth=0');await p.waitForTimeout(300);await p.keyboard.press('Home');await p.waitForTimeout(400);
 await p.click('.ws-tabs button:has-text("Improve")');await p.waitForTimeout(400);
 ok(/S01/.test(await p.locator('.ws-moment').innerText())&&/“/.test(await p.locator('.ws-quote').innerText()),'Improve shows the moment and its words');
-ok(await p.locator('.ws-types .chip').count()===9,'nine kinds of improvement');
+ok(await p.locator('.ws-types .chip').count()===10,'ten kinds of improvement');
 await p.click('.ws-types .chip:has-text("Faces and acting")');await p.click('.ws-types .chip:has-text("Special shot")');await p.waitForTimeout(200);
 await p.click('.ws-shot .btn');await p.click('.menu button:has-text("X-ray")');await p.waitForTimeout(200);ok(/X-ray/.test(await p.locator('.ws-shot').innerText()),'special shot can be picked');
 await p.click('text=checks that go into the prompt');await p.waitForTimeout(200);ok((await p.locator('.ws-body .howbox li').count())>=10,'the checks of the chosen kinds can be seen');

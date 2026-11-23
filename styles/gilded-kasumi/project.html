@@ -21,7 +21,7 @@
 
 Nov 14, 2026 · @nyenz david
 
-**Version 6.** This version replaces the calm camera with a fast, flying camera modelled on a short that reached 5 million views. It adds expressive jointed people, motion blur, micro shake and light that follows the story. Sections 6 and 8 are rewritten, sections 7, 9, 11 and 13 are extended, and section 14 is new. Version 4 turns the file into a project file. The camera, blur, shake, light, captions and joins now live in a shared engine, things live in a shared asset library, and a video is planned once and built as separate parts that join by themselves (sections 14 to 21). Sections 22 to 28 cover exact timing, story shape, staging, instruments and explainer pictures, formats, delivery and a guide for the user. Version 5 adds front and back views for people (section 18), a wide 16:9 stage (section 26) and the steps for Whisper word times (section 22). Version 6 adds the LOOKS library, so any model can add new hair, hats and outfits (section 18). Version 7 adds conditions, feelings arcs and living scenes (sections 6, 9 and 10). Version 8 adds special shots: zoom into a thing, pull back, x-ray and inside views, cutaways, a lens, exploded views and size comparisons (section 30). Version 9 adds frames within the frame and seamless moves (section 31), time and place tools (section 32), and explaining tools with paper transitions (section 33).
+**Version 6.** This version replaces the calm camera with a fast, flying camera modelled on a short that reached 5 million views. It adds expressive jointed people, motion blur, micro shake and light that follows the story. Sections 6 and 8 are rewritten, sections 7, 9, 11 and 13 are extended, and section 14 is new. Version 4 turns the file into a project file. The camera, blur, shake, light, captions and joins now live in a shared engine, things live in a shared asset library, and a video is planned once and built as separate parts that join by themselves (sections 14 to 21). Sections 22 to 28 cover exact timing, story shape, staging, instruments and explainer pictures, formats, delivery and a guide for the user. Version 5 adds front and back views for people (section 18), a wide 16:9 stage (section 26) and the steps for Whisper word times (section 22). Version 6 adds the LOOKS library, so any model can add new hair, hats and outfits (section 18). Version 7 adds conditions, feelings arcs and living scenes (sections 6, 9 and 10). Version 8 adds special shots: zoom into a thing, pull back, x-ray and inside views, cutaways, a lens, exploded views and size comparisons (section 30). Version 9 adds frames within the frame and seamless moves (section 31), time and place tools (section 32), and explaining tools with paper transitions (section 33). **Version 10 adds the main principle, one take (section 34): the camera never cuts, it travels through one world.**
 
 ## 1. How to use this rulebook
 
@@ -744,8 +744,9 @@ The camera follows one list of keys for a whole place: `[time, x, y, s]`.
 | Dive or rise | A vertical whip of 0.25 s, down or up, that ends in a new place | Going under, going in, leaving a place |
 | Special shots | `ZOOM.dive`, `ZOOM.pull`, `ZOOM.xray` and the other calls of section 30 | Going inside a thing, showing the inside, showing size, at most one every 15 seconds |
 
-- **Joins are whips, not cuts.** Inside one place, never cut. Between two places, swap the place at the middle of a whip, hidden by the blur.
-- A hard cut is allowed only for a jump in time or a planned shock, at most once every 20 seconds.
+- **One take (section 34).** The camera travels to every new place or passes through something in the world. Inside one place, never cut.
+- **Joins are carries or whips, not cuts.** Between two places, swap the place at the middle of a whip, hidden by the blur.
+- A hard cut is allowed only for a jump in time or a new chapter, at most once in any 60 seconds (one take, section 34).
 - Keep screen direction. Someone travelling left keeps travelling left through the whip into the next beat.
 - When someone looks or travels one way, keep them off-centre with the open space in front of them.
 - No camera rotation or roll, ever.
@@ -1276,6 +1277,7 @@ Run this list before you deliver anything. Fix every failure first, then deliver
 - [ ] Motion blur is only on fast things, along their direction of travel.
 - [ ] Subject on a third, horizon off the middle, space in front of movement, key things inside the margins.
 - [ ] Every special shot (section 30) starts on its word, comes from the plan's `"shots"` when there are any, and joins back without a cut.
+- [ ] One take (section 34): no cut inside the part; every change of place is travel or passing through; a `carry` part starts exactly where the part before ended.
 
 ### Motion and comfort
 
@@ -1363,7 +1365,7 @@ Everything lives in this one file. It is the rulebook, the plan, the engine, the
 - **Micro shake.** The always-on drift and your hits `[time, strength]`.
 - **Light.** You give `[time, mood name, fade seconds]`. The engine blends sky, ground, colour wash, light on people and dark corners.
 - **Captions.** Built from `SEG`. One or two words, gold for key words, same size and place in every part.
-- **Joins.** The start and end of every part: `dip` (to and from dark), `whip` (slides out left under blur, next part slides in from the right) or a paper join, `page`, `fold`, `flats` or `ink` (section 33).
+- **Joins.** The start and end of every part: `carry` (the next part starts exactly where this one ends, section 34), `dip` (to and from dark), `whip` (slides out left under blur, next part slides in from the right) or a paper join, `page`, `fold`, `flats` or `ink` (section 33).
 - **Framing.** `shot(size, person, x, groundY)` returns a camera key that frames a person the approved way, so a head is never cut off.
 
 Because the engine owns these, every part from every model moves, blurs, shakes, lights and captions the same way. That is the point. If you write your own version of any of them, the part fails.
@@ -1581,7 +1583,7 @@ You get the full script and the narration (or its audio map). You return the fil
 4. **Give each part its audio times.** `start` of part 1 is 0. `start` of every other part is the END of the long pause before its first word. `end` of a part equals `start` of the next. The last part ends at the audio length. Parts touch. No gaps, no overlap.
 5. **Do the number check** of section 15 on every part.
 6. **Write the fields** of every part (below).
-7. **Decide every join.** Same place and time flowing on: `whip`. A jump in time or place: `dip`. A chapter change or a jump into an explainer picture: a paper join, `page`, `fold`, `flats` or `ink` (section 33). The `out` of a part must be the same word as the `in` of the next. The first part has `in: dip`. The last part has `out: none`.
+7. **Decide every join, one take first (section 34).** Same place flowing on: `carry`. A short trip to somewhere near: `whip`. A jump in time or place: `dip`. A chapter change or a jump into an explainer picture: a paper join, `page`, `fold`, `flats` or `ink` (section 33). The `out` of a part must be the same word as the `in` of the next. The first part has `in: dip`. The last part has `out: none`.
 8. **Give each part its job** in the story shape of section 23, and mark the parts that need an explainer picture (section 25).
 9. **List the cast and the assets** each part needs, by name. Use names already in `CAST` and the library when they fit. Give a new name only for a new thing. The same thing has the same name in every part.
 10. **Write the continuity notes**: what each person wears and carries, which way each person moves on screen, the weather, the place, and anything that must stay the same.
@@ -2252,8 +2254,9 @@ What the words mean:
 | 7 | Conditions that stay from shot to shot (dirt, soot, torn, frost, bruise, blood, bandage, sling, pale, sweat) and a hospital gown. Feelings arcs that blend, late reactions, three new feelings (groggy, wince, hopeful) and a limping walk. Every scene alive: `LIFE` motion helpers, `alive` or `still` on every asset, and the library assets now move. The state sheet in section 10 |
 | 8 | Special shots: zoom and inside views (section 30). `ZOOM.dive`, `pull`, `xray`, `cutaway`, `lens`, `exploded`, `scale`, the x-ray skeleton `ZOOM.bones` and the grey reference things. The plan can ask for them with `"shots"` |
 | 9 | Frames within the frame and seamless moves (section 31: `FRAME.show`, `MOVE.waterline`, `through`, `wipe`, `morph`, `keys`), time and place (section 32: `TIME`, `PLACE`), explaining and emphasis tools and paper transitions (section 33: `SHOW`, `TURN`, joins `page`, `fold`, `flats`, `ink`) |
+| 10 | One take (section 34): the camera never cuts. `PASS.water`, `PASS.ground`, `PASS.wall` and `PASS.into` carry the camera through the world, the `carry` join makes parts continue the same shot, `LINT()` checks carry joins, and cut-like changes are limited to one in any 60 seconds |
 
-Known limits of version 9: no view from above and no three-quarter view of people. No animal engine (animals are assets). The wide stage has not yet been used for a full video. Word times are exact only when word times are supplied (Whisper, section 22).
+Known limits of version 10: no view from above and no three-quarter view of people. No animal engine (animals are assets). The wide stage has not yet been used for a full video. Word times are exact only when word times are supplied (Whisper, section 22).
 
 ## 30. Special shots: zoom and inside views
 
@@ -2280,7 +2283,7 @@ Rules:
 
 1. **The words decide.** A dive happens on the word that names the inside ("inside", "cells", "the screen showed"); an x-ray on "bone", "broken", "heart"; a scale on the number.
 2. **The inside view is a full picture.** It paints its own background over the whole stage (a `rect` of `STAGE.W` x `STAGE.H`) and has its own life (moving cells, a beating heart, drifting dust). Set `X.sky = false` while only the inside shows.
-3. **Keep the point still.** For a dive, `x, y` is where the thing is on screen at `t0`; the camera keys hold still during the dive (the call does the zoom).
+3. **Fly there first (one take, section 34).** Push the camera in towards the thing before `t0`, then dive. Use `PASS.into` (or `X.screen(...)` for `x, y`), so the window opens from where the thing really is on screen.
 4. **Come back the same way.** After a dive, return with a `pull` into the same window, or join to the next beat with a whip. Never cut back.
 5. **Continuity holds inside.** The hurt arm in the x-ray is the same arm the state sheet bandaged; the inside of the house matches the outside.
 6. **One special shot at a time.** Never put an x-ray inside a lens inside a dive.
@@ -2327,7 +2330,7 @@ Dive into a frame the same way with `ZOOM.dive(t, t0, dur, room, news, b)`. A fr
 | Crane up or down, vertical pan, parallax push | `...MOVE.keys('crane', t0, t1, [x, y, zoom], {by})` inside `P.KEYS`; also `'drop'`, `'pan'`, `'push'` | Rising over a place to show where we are, dropping into a scene, sliding up a tall thing, a slow push in where the layers move at different speeds |
 | Morph | `MOVE.morph(t, t0, dur, a, b)` | One picture melts into the next |
 
-Rules: the move starts on its word; the two pictures should share something (the water line, the wall, the same person) so the eye follows; never more than one seamless move in a row.
+Rules: **in a world you can travel through, use the `PASS` calls of section 34 instead**: the camera's own keys carry it under the water, into the ground or through the wall. `MOVE.waterline`, `MOVE.through` and `MOVE.wipe` are screen-only fallbacks for explainer pictures. The move starts on its word; the two pictures should share something (the water line, the wall, the same person) so the eye follows; never more than one seamless move in a row.
 
 ## 32. Time and place
 
@@ -2376,9 +2379,50 @@ Tools that make an idea clear and make the big moment land. Screen px unless the
 | Flats (paper bands slide across) | `TURN.go('flats', ...)` | `'flats'` |
 | Ink wash | `TURN.go('ink', ...)` | `'ink'` |
 
-A paper join is for a chapter change or a jump into an explainer picture; the `out` of a part and the `in` of the next are the same word, as with `whip` and `dip`. The engine draws the join by itself.
+A paper join breaks the one take (section 34): use it only for a new chapter or a jump into an explainer picture, at most one in any 60 seconds, never inside a scene. Morph, match cut and split screen count the same way. the `out` of a part and the `in` of the next are the same word, as with `whip` and `dip`. The engine draws the join by itself.
 
 Rules: at most two explaining tools on screen at once; each one says something the words are saying now; never cover a face or the caption line.
+
+## 34. One take: the camera never cuts
+
+This is the main principle of the whole style, and it rules every section above. **The video is one continuous camera flying through one connected world.** There are almost no cuts. Every change of place is a journey the viewer can follow: the camera flies to the spot, then goes through. To go under water, the camera travels to the lake, sinks to the surface and passes through it while the world above slides up out of view. Because the layers move at different speeds as the camera travels, the flat paper world feels almost 3D.
+
+### How to change place, best first
+
+1. **Travel.** Fly along the world to the next thing (track, push, pan). The new place was already there, further along.
+2. **Pass through.** Go through something that is in the world, with the camera's own keys:
+   - water: `PASS.water(t, X, above, below, {level})`
+   - the ground: `PASS.ground(t, X, above, below, {level, depth})`
+   - a wall: `PASS.wall(t, X, left, right, {at, thick})`
+   - a window, a screen, an eye, a keyhole: `PASS.into(t, X, t0, dur, outer, inner, {wx, wy, r})`, after the camera has flown up to it
+3. **Rise and drop.** Crane up over the place (`MOVE.keys('crane', ...)`), whip across the sky, drop down somewhere else.
+4. **Whip.** A fast blurred move along the world to the next subject. This is the join for parts that are close in place.
+5. **Cut-like changes, rarely.** `dip`, the paper transitions (`page`, `fold`, `flats`, `ink`), `MOVE.morph`, `SHOW.match` and `SHOW.split` break the take. Use them only for a real jump in time or a new chapter, **at most one in any 60 seconds**.
+
+### The calls that follow the camera
+
+| Call | What the camera does | What you see |
+| --- | --- | --- |
+| `PASS.water(t, X, above, below, {level, f, water})` | Lower the camera in `P.KEYS` (smaller `y`) with the surface in the frame | The surface (a wavy line at the world height `level`) rises up the screen; under it, the water view with light rays and bubbles; then only the water view. Raise the camera to come up |
+| `PASS.ground(t, X, above, below, {level, depth, colors})` | Lower the camera | A band of earth `depth` units thick rises past; under it, the underground view |
+| `PASS.wall(t, X, left, right, {at, thick, colors})` | Move the camera along `x` | A brick wall at world `x = at` slides past; behind it, the next room |
+| `PASS.into(t, X, t0, dur, outer, inner, {wx, wy, f, r} or {w, h})` | Push in towards the thing in `P.KEYS` before `t0` | The window opens from where the thing really is on screen, and the inside fills the frame |
+
+Build `above` and `below` (or `left` and `right`) with `X.lay(...)`, so both move with the same camera. The other world is drawn where it really is: the lake bed under the lake, the next room next to this one.
+
+### Parts join as one take: the `carry` join
+
+When the next part continues in the same place, the plan joins them with `"out": "carry"` and `"in": "carry"`. A carry join draws nothing: **the first frame of the next part is exactly the last frame of the part before.** The app tells each scene prompt where the camera stopped (`x`, `y`, zoom) and what is on screen. The next part's first key is that camera, `[0, x, y, zoom]`, and it carries on the same move in the same place. `LINT()` checks that the camera matches across every carry join.
+
+Use joins in this order: `carry` (the same place flowing on), `whip` (a short trip to somewhere near), `dip` or a paper join (a jump in time or a new chapter only).
+
+### Rules
+
+1. No hard cut inside a part, ever. Between parts, at most one cut-like join in any 60 seconds.
+2. Every special shot of sections 30 to 33 starts from the camera's journey. Fly up to the eye before diving into it. Push in on the TV before pulling out of the news. Sink to the water before going under.
+3. Overlays (cards, tags, callouts, gauges, counters, maps, the flashback look) sit on top of a moving camera. The picture under them never stops.
+4. Screen-only moves (`MOVE.waterline`, `MOVE.through`, `MOVE.wipe`) are a fallback for explainer pictures that have no world to travel through.
+5. The camera always moves a little, but calmly (section 8), and the world stays in one place: things do not jump when the camera comes back.
 
 </script>
 <script type="application/json" id="project">
@@ -3210,6 +3254,33 @@ const TURN={
  /* inside a part: a is covered, then b is uncovered (dur seconds in all) */
  go(kind,t,t0,dur,a,b){dur=dur||.8;if(t<t0)return a;if(t>t0+dur)return b;const h=dur/2,first=t<t0+h,k=first?sm((t-t0)/h):1-sm((t-t0-h)/h);return (first?a:b)+TURN.cover(kind,k,first);}
 };
+/* ============ one take: the camera passes THROUGH the world (rulebook section 34) ============ */
+/* these follow the camera: the water level, the ground or the wall is a fixed place in the world, and the camera keys carry the view through it */
+const PASS={
+ /* UNDER WATER: above = the air view, below = the water view (both built with X.lay so they move with the camera). level = the world y of the water surface, f = its layer.
+    Lower the camera in P.KEYS (make y smaller and keep the surface in the frame) and the surface rises up the screen until we are under */
+ water(t,X,above,below,o){o=o||{};const W=STAGE.W,H=STAGE.H,y=X.screen(0,o.level||0,o.f||1)[1],id=ZOOM._id(),a=Math.max(3,7*X.s/1.6);
+  const tint=`<rect width="${W}" height="${H}" fill="${o.water||'#0E3A5C'}" opacity=".3"/>`+[0,1,2].map(i=>`<path d="M${120+i*150+20*Math.sin(t*.7+i)},${Math.max(-10,y)}L${60+i*150},${H}H${200+i*150}Z" fill="#BFE4FF" opacity=".07"/>`).join('');
+  if(y<=-a-4)return below+tint;if(y>=H+a+4)return above;
+  let d=`M-10,${y.toFixed(1)}`;for(let x=0;x<=W+20;x+=24)d+=`L${x},${(y+a*Math.sin(x/34+t*3)).toFixed(1)}`;
+  const bub=[...Array(6)].map((_,i)=>{const p=(t*.5+i*.17)%1;return `<circle cx="${(i*89+30)%W}" cy="${(y+12+(1-p)*160).toFixed(1)}" r="${3+i%3*2}" fill="none" stroke="#DDF1FF" stroke-width="1.5" opacity="${(.6*(1-p)).toFixed(2)}"/>`;}).join('');
+  return `<clipPath id="${id}a"><path d="${d}V-20H-10Z"/></clipPath><g clip-path="url(#${id}a)">${above}</g><clipPath id="${id}"><path d="${d}V${H+20}H-10Z"/></clipPath><g clip-path="url(#${id})">${below}${tint}${bub}<rect x="0" y="${y.toFixed(1)}" width="${W}" height="40" fill="#EAF6FF" opacity=".16"/></g><path d="${d}" fill="none" stroke="#EAF4FF" stroke-width="4" opacity=".9"/>`;},
+ /* INTO THE GROUND: level = world y of the ground, depth = how thick the earth is (world units). Lower the camera and the earth band rises past; below it the underground view */
+ ground(t,X,above,below,o){o=o||{};const W=STAGE.W,H=STAGE.H,f=o.f||1,y0=X.screen(0,o.level||0,f)[1],y1=X.screen(0,(o.level||0)+(o.depth||160),f)[1],id=ZOOM._id();
+  if(y1<=0)return below;if(y0>=H)return above;const C=o.colors||['#6B4A2E','#4E3622','#7A5A3A','#3A2416'],n=C.length,bh=(y1-y0)/n;
+  let band='';for(let i=0;i<n;i++)band+=`<rect x="-10" y="${(y0+i*bh).toFixed(1)}" width="${W+20}" height="${(bh+1).toFixed(1)}" fill="${C[i]}"/>`;
+  for(let i=0;i<12;i++)band+=`<ellipse cx="${(i*97+13)%W}" cy="${(y0+((i*37)%100)/100*(y1-y0)).toFixed(1)}" rx="${(8+i%4*5)*X.s/1.6}" ry="${(5+i%3*3)*X.s/1.6}" fill="#2A1A10" opacity=".55"/>`;
+  return `<clipPath id="${id}a"><rect x="-10" y="-10" width="${W+20}" height="${Math.max(0,y0+10).toFixed(1)}"/></clipPath><g clip-path="url(#${id}a)">${above}</g><clipPath id="${id}"><rect x="-10" y="${y1.toFixed(1)}" width="${W+20}" height="${H+20}"/></clipPath><g clip-path="url(#${id})">${below}</g>${band}<path d="M-10,${y0.toFixed(1)}H${W+10}M-10,${y1.toFixed(1)}H${W+10}" stroke="${P.gold}" stroke-width="2.5"/>`;},
+ /* THROUGH A WALL: at = world x of the wall, thick = its thickness (world units). Move the camera along x (P.KEYS) and the wall slides past; behind it the next room */
+ wall(t,X,left,right,o){o=o||{};const W=STAGE.W,H=STAGE.H,f=o.f||1,x0=X.screen(o.at||0,0,f)[0],x1=X.screen((o.at||0)+(o.thick||120),0,f)[0],id=ZOOM._id();
+  if(x1<=0)return right;if(x0>=W)return left;const C=o.colors||[P.red,'#A8432F','#8E3A2A'],rows=12,rh=H/rows;
+  let band=`<rect x="${x0.toFixed(1)}" y="-10" width="${(x1-x0).toFixed(1)}" height="${H+20}" fill="${C[0]}"/>`;for(let r=0;r<rows;r++)for(let k=0;k<3;k++){const bx=x0+(x1-x0)*(k/3+(r%2?1/6:0));band+=`<rect x="${bx.toFixed(1)}" y="${(r*rh+2).toFixed(1)}" width="${((x1-x0)/3-3).toFixed(1)}" height="${(rh-4).toFixed(1)}" fill="${C[1+(r+k)%2]}"/>`;}
+  return `<clipPath id="${id}a"><rect x="-10" y="-10" width="${Math.max(0,x0+10).toFixed(1)}" height="${H+20}"/></clipPath><g clip-path="url(#${id}a)">${left}</g><clipPath id="${id}"><rect x="${x1.toFixed(1)}" y="-10" width="${W+20}" height="${H+20}"/></clipPath><g clip-path="url(#${id})">${right}</g><clipPath id="${id}b"><rect x="${x0.toFixed(1)}" y="-10" width="${(x1-x0).toFixed(1)}" height="${H+20}"/></clipPath><g clip-path="url(#${id}b)">${band}</g><path d="M${x0.toFixed(1)},-10V${H+10}M${x1.toFixed(1)},-10V${H+10}" stroke="${P.gold}" stroke-width="2.5"/>`;},
+ /* INTO A THING (a window, a screen, an eye, a keyhole): the camera first flies up to it in P.KEYS, then the window opens from where the thing really is.
+    wx, wy = the world point of the thing (layer f), r or w, h = its size in world units */
+ into(t,X,t0,dur,outer,inner,o){o=o||{};const f=o.f||1,sc=f>1?X.s*f:1+(X.s-1)*f,p=X.screen(o.wx||0,o.wy||0,f),q=o.w!=null?{x:p[0],y:p[1],w:o.w*sc,h:o.h*sc}:{x:p[0],y:p[1],r:(o.r||20)*sc};
+  return ZOOM._win(ZOOM.k(t,t0,dur||1.2),outer,inner,q);}
+};
 /* ============ framing: one call gives the camera key for a named size, so heads are never cut off ============ */
 /* use inside KEYS:  [time, ...shot('CLOSE', CAST.boy, worldX, groundY)]     sizes: WIDE FULL MEDIUM CLOSE FACE DETAIL
    options: ox = push the subject left (-) or right (+) of centre in screen px, drop = how far the pose lowers the head (kneel 80, sit 120, crouch 70)
@@ -3534,6 +3605,9 @@ function lintProject(){const R=[],ok=(c,m)=>R.push({ok:!!c,msg:m}),ps=PROJECT.pa
   ok(!badO.length,'Every person\'s outfit has a side, front and back drawing'+(badO.length?' (missing: '+badO.join(', ')+')':''));
   let badR='';Object.keys(CAST).forEach(n=>V.forEach(v=>{if(badR)return;try{UID=9000;const o=place(CAST[n],0,0,poseAt('stand',1),faceAt('neutral',1),{light:'left',state:'normal',headR:43,t:1,size:1,view:v});if(/NaN|undefined/.test(o))badR=n+' '+v;}catch(e){badR=n+' '+v+': '+e.message;}}));UID=0;
   ok(!badR,'Every person draws in every view without an error'+(badR?' ('+badR+')':''));
+  const carry=ps.filter((p,i)=>i&&ps[i-1].out==='carry'&&PARTS[ps[i-1].id]&&PARTS[p.id]);
+  if(carry.length){const bad=carry.filter(p=>{const A=PARTS[ps[ps.indexOf(p)-1].id],B=PARTS[p.id],a=A.camAt(A.END),b=B.camAt(0);return Math.abs(a.x-b.x)>8||Math.abs(a.y-b.y)>8||Math.abs(Math.log(a.s/b.s))>.03;}).map(p=>p.id);
+    ok(!bad.length,'Carry joins: each part starts with the camera exactly where the part before ends'+(bad.length?' (not in part '+bad.join(', ')+')':''));}
   return R;}
 window.LINT=()=>{const o={project:lintProject()};built().forEach(id=>o['part '+id]=lintPart(PARTS[id]));return o;};
 /* ---------- video tab ---------- */

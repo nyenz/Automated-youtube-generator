@@ -32,12 +32,21 @@ const E=await p.evaluate(()=>{
   o.keys=MOVE.keys('crane',1,3,[0,60,2]).length===2&&MOVE.keys('crane',1,3,[0,60,2])[1][3]<2;
   o.backT=Math.abs(TIME.back(2.2,1,1.2,3)-(1-3))<.01&&TIME.back(.5,1,1.2,3)===.5&&SHOW.slowT(2,1,3,.5)===1.5;
   {const J=PART({id:++id,of:3,AUDIO_START:0,AUDIO_END:5,SEG:[[0,5,'join test words']],IN:'ink',OUT:'page',draw:(t,X)=>scene(t,X)});const s0=J.render(.05),s1=J.render(2),s2=J.render(4.95);o.joins=s0.length>s1.length&&s2.length>s1.length&&/#F3E4BE/.test(s2);}
+  {const P1=PART({id:++id,of:1,AUDIO_START:0,AUDIO_END:5,SEG:[[0,5,'pass test words']],KEYS:[[0,0,60,1.5],[5,0,-700,1.5]],draw:(t,X)=>PASS.water(t,X,'ABOVE','BELOW',{level:0})});
+   const a=P1.render(0),b=P1.render(2.5),c=P1.render(5);o.water=/ABOVE/.test(a)&&/ABOVE/.test(b)&&/BELOW/.test(b)&&!/ABOVE/.test(c)&&/BELOW/.test(c);
+   const P2=PART({id:++id,of:1,AUDIO_START:0,AUDIO_END:5,SEG:[[0,5,'pass test words']],KEYS:[[0,0,60,1.5],[5,0,-900,1.5]],draw:(t,X)=>PASS.ground(t,X,'TOP','UNDER',{level:0,depth:160})});
+   o.ground=/TOP/.test(P2.render(0))&&!/TOP/.test(P2.render(5))&&/UNDER/.test(P2.render(5));
+   const P3=PART({id:++id,of:1,AUDIO_START:0,AUDIO_END:5,SEG:[[0,5,'pass test words']],KEYS:[[0,0,60,1.5],[5,1200,60,1.5]],draw:(t,X)=>PASS.wall(t,X,'LEFT','RIGHT',{at:300,thick:120})});
+   o.wall=/LEFT/.test(P3.render(0))&&!/RIGHT/.test(P3.render(0))&&/RIGHT/.test(P3.render(5))&&!/LEFT/.test(P3.render(5));
+   const P4=PART({id:++id,of:1,AUDIO_START:0,AUDIO_END:5,SEG:[[0,5,'pass test words']],KEYS:[[0,0,60,1.3],[2,300,250,2.6],[5,300,250,2.6]],draw:(t,X)=>PASS.into(t,X,2,1.2,'OUT','IN',{wx:300,wy:-250,w:120,h:100})});
+   o.into=P4.render(1)==='OUT'||/OUT/.test(P4.render(1));o.into=o.into&&/IN/.test(P4.render(4.9));
+   const P5=PART({id:++id,of:2,AUDIO_START:0,AUDIO_END:3,SEG:[[0,3,'carry test words']],IN:'carry',OUT:'carry',draw:()=>'<rect width="10" height="10"/>'});o.carry=!/opacity="1.00"/.test(P5.render(0))&&P5.render(0).indexOf('translate(0.0 0)')>=0;}
   o.diveEnd=ZOOM.dive(5,1,1.2,'OUT','IN',{})==='IN'&&ZOOM.dive(0,1,1.2,'OUT','IN',{})==='OUT';
   o.pullEnds=ZOOM.pull(0,1,1.2,'IN','OUT',{})==='IN'&&ZOOM.pull(5,1,1.2,'IN','OUT',{})==='OUT';
   o.xrayClosed=ZOOM.xray(4,1,3,'OUT','IN',{})==='OUT';
   o.refs=Object.keys(ZOOM.REFS).every(n=>ZOOM.ref(n,0,0).length>40);
   o.lint=o.lint0;
-  o.rule=/## 30\. Special shots/.test(document.getElementById('rulebook').textContent)&&/\| 8 \| Special shots/.test(document.getElementById('rulebook').textContent)&&/## 33\. Explaining and emphasis/.test(document.getElementById('rulebook').textContent)&&/\| 9 \| Frames/.test(document.getElementById('rulebook').textContent);
+  o.rule=/## 30\. Special shots/.test(document.getElementById('rulebook').textContent)&&/\| 8 \| Special shots/.test(document.getElementById('rulebook').textContent)&&/## 33\. Explaining and emphasis/.test(document.getElementById('rulebook').textContent)&&/\| 9 \| Frames/.test(document.getElementById('rulebook').textContent)&&/## 34\. One take/.test(document.getElementById('rulebook').textContent);
   return o;});
 for(const m of ['dive','pull','xray','cutaway','lens','exploded','scale'])ok(E[m]&&!E[m].err&&E[m].moved&&E[m].len>500,'engine: ZOOM.'+m+' draws and moves'+(E[m]&&E[m].err?' ('+E[m].err+')':''));
 ok(E.dive.ids>=1&&E.xray.ids>=1,'engine: windows use their own clip ids');
@@ -50,6 +59,7 @@ for(const m in E.more)ok(E.more[m]==='ok','engine (sections 31 to 33): '+m+' dra
 ok(E.keys,'engine: MOVE.keys gives camera keys for a crane');
 ok(E.backT,'engine: rewind and slow motion clocks');
 ok(E.joins,'engine: paper joins (ink in, page out) are drawn by the engine');
+ok(E.water,'one take: PASS.water follows the camera through the surface');ok(E.ground,'one take: PASS.ground follows the camera into the earth');ok(E.wall,'one take: PASS.wall follows the camera through the wall');ok(E.into,'one take: PASS.into opens the window after the camera flies up');ok(E.carry,'one take: a carry join draws no dip and no slide');
 ok(E.rule,'rulebook: sections 30 to 33 and the version 8 and 9 entries');
 
 // ---------- 2. the app ----------
@@ -62,9 +72,9 @@ await p.fill('textarea',fs.readFileSync(SP+'/script-long.txt','utf8'));await p.s
 await p.addScriptTag({path:SP+'/fixtures.js'});
 await p.click('.nextbar >> text=Next: Prompts');await p.waitForTimeout(800);await p.click('.tabs button:has-text("All")');await p.waitForTimeout(300);
 await p.click('.jt-body .jt-row >> text=Copy prompt');const pp=await clipP();
-ok(/SPECIAL SHOTS \(sections 30 to 33\)/.test(pp)&&/"shots": \[\{"part": 2/.test(pp)&&/zoom and inside views/.test(pp)&&/flashback/.test(pp)&&/paper join: page, fold, flats, ink/.test(pp),'plan prompt: special shots rules, groups, joins and the "shots" field');
+ok(/SPECIAL SHOTS \(sections 30 to 33\)/.test(pp)&&/"shots": \[\{"part": 2/.test(pp)&&/zoom and inside views/.test(pp)&&/flashback/.test(pp)&&/paper join: page, fold, flats, ink/.test(pp)&&/carry \(the same place flowing on/.test(pp)&&/ONE TAKE/.test(pp),'plan prompt: special shots rules, groups, joins and the "shots" field');
 const parts=await p.evaluate(()=>STORE.list().then(a=>AUDIO.plan(a[0]).parts.map(x=>({id:x.id}))));
-const plan=await p.evaluate(ps=>{const t=FIX.plan(ps,0),j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));j.shots=[{part:2,word:'pulse',shot:'dive',what:'into the chest to the slow heart'},{part:3,word:'ice',shot:'teleport',what:'x'}];return '```json\n'+JSON.stringify(j)+'\n```'},parts);
+const plan=await p.evaluate(ps=>{const t=FIX.plan(ps,0),j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));j.parts[0].out='carry';j.parts[1].in='carry';j.shots=[{part:2,word:'pulse',shot:'dive',what:'into the chest to the slow heart'},{part:3,word:'ice',shot:'teleport',what:'x'}];return '```json\n'+JSON.stringify(j)+'\n```'},parts);
 await pasteIn('The plan',plan);
 const rep=await p.evaluate(()=>document.querySelector('.modal')?document.querySelector('.modal').innerText:'');
 ok(/Unknown special shots: teleport/.test(rep)||await p.evaluate(()=>STORE.list().then(a=>JSON.stringify(a[0].jobs.plan.A.check.problems).includes('Unknown special shots'))),'plan check: an unknown shot name is flagged');
@@ -75,8 +85,11 @@ await p.locator('.jt-body .jt-row',{hasText:'Part 2:'}).locator('text=Copy promp
 ok(/SPECIAL SHOTS FOR THIS PART/.test(sp)&&/at T\('pulse'\): Dive in/.test(sp)&&/Use ZOOM\.dive\(\.\.\.\)/.test(sp),'scene prompt: the planned shot with its word and call');
 await p.locator('.jt-body .jt-row',{hasText:'Part 1:'}).locator('text=Copy prompt').click();const sp1=await clipP();ok(!/SPECIAL SHOTS FOR THIS PART/.test(sp1),'scene prompt: no shot text where none is planned');
 const fx=await p.evaluate(async()=>{const tpl=await (await fetch('styles/gilded-kasumi/project.html')).text();const P=(await STORE.list())[0];const plan=GK.plan(P);return plan.parts.map(pt=>FIX.scene(tpl,pt,P.timing.words,plan,1))});
+await pasteIn('Part 1:',fx[0]);if(await p.locator('.veil').count())await p.click('.modal .x');
+await p.locator('.jt-body .jt-row',{hasText:'Part 2:'}).locator('text=Copy prompt').click();const cp=await clipP();ok(/CARRY JOIN IN \(one take\)/.test(cp)&&/The first camera key is exactly \[0, -?[\d.]+, -?[\d.]+, [\d.]+\]/.test(cp),'carry join: part 2 prompt says exactly where part 1 camera stopped');ok(/ONE TAKE \(section 34/.test(cp),'scene prompt carries the one take rule');
 await pasteIn('Part 2:',fx[1]);
 const sc=await p.evaluate(()=>STORE.list().then(a=>JSON.stringify(a[0].jobs['scene-2'].A.check.problems)));
+ok(/does not start where part 1 ends/.test(sc),'carry join: a part that starts somewhere else is flagged with the key to use');
 ok(/The planned dive shot is missing/.test(sc)&&/ZOOM\.dive/.test(sc),'scene check: a missing planned shot is flagged with the call to add');
 if(await p.locator('.veil').count())await p.click('.modal .x');
 const withDive=fx[1].replace('P.draw=(t,X)=>{','P.draw=(t,X)=>{if(t>T(\'pulse\')&&t<T(\'pulse\')+1.4)return ZOOM.dive(t,T(\'pulse\'),1.2,surface(t,X),`<rect width="${STAGE.W}" height="${STAGE.H}" fill="#3A1020"/>`,{x:280,y:470,r:24});');

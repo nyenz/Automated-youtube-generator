@@ -226,6 +226,7 @@
     R.shotPlanProblems(j, want, GK().plan(P)).forEach(function (x) { problems.push(x) });
     var badJ = []; j.parts.forEach(function (p) { if (!p) return; ['in', 'out'].forEach(function (k) { if (p[k] && p[k] !== 'none' && J().JOINS.indexOf(p[k]) < 0) badJ.push('part ' + p.id + ' ' + k + ': ' + p[k]) }) });
     if (badJ.length) problems.push(warn('bad-join', 'Unknown joins: ' + badJ.slice(0, 5).join(', '), 'The engine has these joins: ' + J().JOINS.join(', ') + '.', 'Use only those names.'));
+    var cc = R.cutCount(j, (GK().plan(P).audio || {}).length); if (cc.n > cc.max) problems.push(warn('too-many-cuts', plural(cc.n, 'cut-like change') + ' in a ' + Math.round((GK().plan(P).audio || {}).length || 0) + ' s video', 'One take (section 34): at most one dip, paper join, morph, match cut or split in any 60 seconds (' + cc.max + ' here). The others should be carry or whip joins, or camera journeys.', 'Change the extra joins to carry (same place) or whip (a short trip), and plan PASS shots to go under, into or through.'));
     res.plan = j;
   }
 
@@ -241,6 +242,7 @@
     });
     if (job.kind === 'scene' && !r.broken) R.sceneStateProblems(P, job, String(ver.code || ''), r.info).forEach(function (x) { out.push(x) });
     if (job.kind === 'scene' && !r.broken) R.shotProblems(P, job.part, String(ver.code || '')).forEach(function (x) { out.push(x) });
+    if (job.kind === 'scene' && !r.broken) R.takeProblems(P, job.part, String(ver.code || ''), r.info).forEach(function (x) { out.push(x) });
     (r.lint || []).filter(function (x) { return !x.ok }).forEach(function (x) { out.push(err('lint', 'Check (LINT) failed', x.msg, 'Change the code so LINT() passes this line (rulebook sections 14 to 16).')) });
     (r.cards || []).forEach(function (c) {
       if (c.missing) out.push(err('card-missing', c.name + ' was not made', 'The file has no ' + (job.kind === 'cast' ? 'CAST.' + c.name : "ASSET('" + c.name + "')") + '.', 'Add it with exactly this name.'));
@@ -325,6 +327,25 @@
     var len = (plan && plan.audio && plan.audio.length) || 0, max = Math.max(1, Math.ceil(len / 15)), n = L.filter(function (x) { return x && S[x.shot] && S[x.shot][2] === 'big' }).length;
     if (len && n > max) out.push(warn('shots-many', plural(n, 'zoom, frame or going-under shot') + ' for a ' + Math.round(len) + ' s video', 'At most one of these every 15 seconds (' + max + ' here), or they stop feeling special.', 'Keep the ' + max + ' strongest.'));
     return out;
+  };
+  /* one take (section 34): carry joins start where the camera stopped; cut-like calls only where the plan asks */
+  R.CUTCALLS = [['TURN.go(', 'a paper transition'], ['SHOW.match(', 'a match cut'], ['MOVE.morph(', 'a morph'], ['SHOW.split(', 'a split screen']];
+  R.takeProblems = function (P, id, code, info) {
+    var out = [], plan = GK().plan(P), p = plan.parts.filter(function (x) { return x.id === id })[0] || {}, B = (info && info.built) || [];
+    var me = B.filter(function (b) { return b.id === id })[0], prev = B.filter(function (b) { return b.id === id - 1 })[0], next = B.filter(function (b) { return b.id === id + 1 })[0];
+    function far(a, b) { return !a || !b || Math.abs(a[0] - b[0]) > 8 || Math.abs(a[1] - b[1]) > 8 || Math.abs(Math.log(a[2] / b[2])) > .03 }
+    var pe = prev && prev.CAMEND || J().camEnd(P, id - 1);
+    if (p.in === 'carry' && me && me.CAM0 && pe && far(pe, me.CAM0)) out.push(warn('carry-start', 'Part ' + id + ' does not start where part ' + (id - 1) + ' ends', 'The join is a carry (one take): the first frame must be exactly the last frame of part ' + (id - 1) + '. Its camera stops at [' + pe.join(', ') + '], this part starts at [' + me.CAM0.join(', ') + '].', 'Make the first key of P.KEYS exactly [0, ' + pe.join(', ') + '] and start in the same place (section 34).'));
+    if (p.out === 'carry' && me && me.CAMEND && next && next.CAM0 && far(me.CAMEND, next.CAM0)) out.push(warn('carry-end', 'Part ' + (id + 1) + ' does not continue from the end of this part', 'The join is a carry: part ' + (id + 1) + ' starts at [' + next.CAM0.join(', ') + '], but this part ends at [' + me.CAMEND.join(', ') + '].', 'Rebuild part ' + (id + 1) + ' (its prompt now says where to start), or end this part on that camera.'));
+    var asked = J().shotsFor(plan, id).map(function (x) { return J().SHOTS[x.shot][0] + '(' });
+    var cuts = R.CUTCALLS.filter(function (c) { return code.indexOf(c[0]) >= 0 && asked.indexOf(c[0]) < 0 }).map(function (c) { return c[1] });
+    if (cuts.length) out.push(warn('breaks-take', 'The part uses ' + cuts.join(' and ') + ' that the plan did not ask for', 'These break the one take (section 34). Inside a scene the camera travels or passes through instead.', 'Replace it with a camera journey: travel to the new thing, or pass through with PASS.water, PASS.ground, PASS.wall or PASS.into.'));
+    return out;
+  };
+  R.cutCount = function (j, len) {
+    var n = 0, S = J().SHOTS; (j.parts || []).forEach(function (p, i) { if (p && i && J().CUTJOINS.indexOf(p.in) >= 0) n++ });
+    (j.shots || []).forEach(function (x) { if (x && S[x.shot] && S[x.shot][2] === 'cut') n++ });
+    return { n: n, max: Math.max(1, Math.floor((len || 0) / 60)) };
   };
   R.shotProblems = function (P, id, code) {
     return J().shotsFor(GK().plan(P), id).filter(function (s) { return code.indexOf(J().SHOTS[s.shot][0] + '(') < 0 }).map(function (s) {
