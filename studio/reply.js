@@ -223,6 +223,7 @@
     if (noAI.length) problems.push(warn('no-assets-info', 'New assets without a description: ' + noAI.join(', '), 'They are not in the library and have no "assets_info" entry, so the app treats them as medium.', 'Add them to "assets_info" with a note and a level.'));
     if (noCI.length) problems.push(warn('no-cast-info', 'New people without a description: ' + noCI.join(', '), 'They are not in the library and have no "cast_info" entry.', 'Add them to "cast_info" with a note and a level.'));
     R.stateProblems(j, want).forEach(function (x) { problems.push(x) });
+    R.shotPlanProblems(j, want, GK().plan(P)).forEach(function (x) { problems.push(x) });
     res.plan = j;
   }
 
@@ -237,6 +238,7 @@
       out.push(err('script-error', 'Script error' + (e.line ? ' at line ' + e.line + ' of the code' : ''), e.msg + (snip ? '   →   ' + snip : ''), 'Fix this error. It stops the code from drawing.', { line: e.line || null }));
     });
     if (job.kind === 'scene' && !r.broken) R.sceneStateProblems(P, job, String(ver.code || ''), r.info).forEach(function (x) { out.push(x) });
+    if (job.kind === 'scene' && !r.broken) R.shotProblems(P, job.part, String(ver.code || '')).forEach(function (x) { out.push(x) });
     (r.lint || []).filter(function (x) { return !x.ok }).forEach(function (x) { out.push(err('lint', 'Check (LINT) failed', x.msg, 'Change the code so LINT() passes this line (rulebook sections 14 to 16).')) });
     (r.cards || []).forEach(function (c) {
       if (c.missing) out.push(err('card-missing', c.name + ' was not made', 'The file has no ' + (job.kind === 'cast' ? 'CAST.' + c.name : "ASSET('" + c.name + "')") + '.', 'Add it with exactly this name.'));
@@ -310,6 +312,22 @@
     Object.keys(row.feel).forEach(function (n) { var f = row.feel[n]; [f.start].concat(f.during.map(function (d) { return d.feel })).forEach(function (x) { if (x && code.indexOf("'" + x + "'") < 0 && code.indexOf('"' + x + '"') < 0 && noFeel.indexOf(n + ' ' + x) < 0) noFeel.push(n + ' ' + x) }) });
     if (noFeel.length) out.push(warn('arc-missing', 'Feelings from the arcs are not used: ' + noFeel.join(', '), 'The plan says these feelings belong in part ' + job.part + ', but the code never names them.', 'Follow the arcs with feelAt(t, [[0,\'feeling\'], [T(\'word\'),\'next feeling\']]).'));
     return out;
+  };
+  /* special shots (section 30): names from the list, real parts, not too many; a scene uses the call its plan asks for */
+  R.shotPlanProblems = function (j, want, plan) {
+    var out = [], S = J().SHOTS, L = j.shots; if (!L) return out;
+    if (!Array.isArray(L)) { out.push(warn('shots-shape', '"shots" is not a list', 'It must be a list like [{"part": 2, "word": "inside", "shot": "dive", "what": "..."}].', 'Write "shots" as a list, or [] when nothing calls for one.')); return out }
+    var bad = L.filter(function (x) { return !x || !S[x.shot] }).map(function (x) { return x && x.shot || '?' }), badP = L.filter(function (x) { return x && S[x.shot] && want.indexOf(+x.part) < 0 }).map(function (x) { return x.part });
+    if (bad.length) out.push(warn('shots-unknown', 'Unknown special shots: ' + bad.join(', '), 'The engine has these special shots: ' + Object.keys(S).join(', ') + ' (section 30).', 'Use only those names.'));
+    if (badP.length) out.push(warn('shots-bad-part', 'Special shots in parts that do not exist: ' + badP.join(', '), 'The video has parts ' + want.join(', ') + '.', 'Use only those part numbers.'));
+    var len = (plan && plan.audio && plan.audio.length) || 0, max = Math.max(1, Math.ceil(len / 15)), n = L.filter(function (x) { return x && S[x.shot] }).length;
+    if (len && n > max) out.push(warn('shots-many', plural(n, 'special shot') + ' for a ' + Math.round(len) + ' s video', 'At most one every 15 seconds (' + max + ' here), or they stop feeling special.', 'Keep the ' + max + ' strongest.'));
+    return out;
+  };
+  R.shotProblems = function (P, id, code) {
+    return J().shotsFor(GK().plan(P), id).filter(function (s) { return code.indexOf(J().SHOTS[s.shot][0] + '(') < 0 }).map(function (s) {
+      return warn('shot-missing', 'The planned ' + s.shot + ' shot is missing', 'The plan asks for ' + J().SHOTS[s.shot][1].split(':')[0].toLowerCase() + (s.word ? ' at "' + s.word + '"' : '') + (s.what ? ' (' + s.what + ')' : '') + ', but the code never calls ' + J().SHOTS[s.shot][0] + '.', 'Add ' + J().SHOTS[s.shot][0] + '(...) ' + (s.word ? 'starting at T(\'' + s.word + '\')' : '') + ' (rulebook section 30).');
+    });
   };
   /* true when every line of a reply without ``` marks is code (the first line is the REPLY line, a comment or code) */
   function looksLikeCode(text) {

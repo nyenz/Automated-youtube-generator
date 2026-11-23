@@ -39,7 +39,7 @@
       if (i === n - 1) p.out = 'none'; else if (!p.out) p.out = 'dip';
       if (i > 0) p.in = base.parts[i - 1].out;
     });
-    ['continuity', 'chapters', 'places', 'assets_info', 'cast_info', 'state', 'arcs', 'world', 'effects'].forEach(function (k) { if (mp[k] != null) base[k] = mp[k] });
+    ['continuity', 'chapters', 'places', 'assets_info', 'cast_info', 'state', 'arcs', 'world', 'effects', 'shots'].forEach(function (k) { if (mp[k] != null) base[k] = mp[k] });
     if (!mp.parts) base.todo = 'Run MODE: PROJECT to fill in place, time, moods, cast, assets, joins and beats for every part. The times and words are already final.';
     return base;
   };

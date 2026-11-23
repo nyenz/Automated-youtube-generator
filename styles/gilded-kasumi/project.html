@@ -21,7 +21,7 @@
 
 Nov 14, 2026 · @nyenz david
 
-**Version 6.** This version replaces the calm camera with a fast, flying camera modelled on a short that reached 5 million views. It adds expressive jointed people, motion blur, micro shake and light that follows the story. Sections 6 and 8 are rewritten, sections 7, 9, 11 and 13 are extended, and section 14 is new. Version 4 turns the file into a project file. The camera, blur, shake, light, captions and joins now live in a shared engine, things live in a shared asset library, and a video is planned once and built as separate parts that join by themselves (sections 14 to 21). Sections 22 to 28 cover exact timing, story shape, staging, instruments and explainer pictures, formats, delivery and a guide for the user. Version 5 adds front and back views for people (section 18), a wide 16:9 stage (section 26) and the steps for Whisper word times (section 22). Version 6 adds the LOOKS library, so any model can add new hair, hats and outfits (section 18).
+**Version 6.** This version replaces the calm camera with a fast, flying camera modelled on a short that reached 5 million views. It adds expressive jointed people, motion blur, micro shake and light that follows the story. Sections 6 and 8 are rewritten, sections 7, 9, 11 and 13 are extended, and section 14 is new. Version 4 turns the file into a project file. The camera, blur, shake, light, captions and joins now live in a shared engine, things live in a shared asset library, and a video is planned once and built as separate parts that join by themselves (sections 14 to 21). Sections 22 to 28 cover exact timing, story shape, staging, instruments and explainer pictures, formats, delivery and a guide for the user. Version 5 adds front and back views for people (section 18), a wide 16:9 stage (section 26) and the steps for Whisper word times (section 22). Version 6 adds the LOOKS library, so any model can add new hair, hats and outfits (section 18). Version 7 adds conditions, feelings arcs and living scenes (sections 6, 9 and 10). Version 8 adds special shots: zoom into a thing, pull back, x-ray and inside views, cutaways, a lens, exploded views and size comparisons (section 30).
 
 ## 1. How to use this rulebook
 
@@ -742,6 +742,7 @@ The camera follows one list of keys for a whole place: `[time, x, y, s]`.
 | Pull back | Whip outward to a smaller zoom | Revealing who or what is around |
 | Track | `x = subject x - 64` every frame, so space stays in front of the mover | Running, walking, driving |
 | Dive or rise | A vertical whip of 0.25 s, down or up, that ends in a new place | Going under, going in, leaving a place |
+| Special shots | `ZOOM.dive`, `ZOOM.pull`, `ZOOM.xray` and the other calls of section 30 | Going inside a thing, showing the inside, showing size, at most one every 15 seconds |
 
 - **Joins are whips, not cuts.** Inside one place, never cut. Between two places, swap the place at the middle of a whip, hidden by the blur.
 - A hard cut is allowed only for a jump in time or a planned shock, at most once every 20 seconds.
@@ -1274,6 +1275,7 @@ Run this list before you deliver anything. Fix every failure first, then deliver
 - [ ] Focus is on the subject. The subject and the named thing are never blurred.
 - [ ] Motion blur is only on fast things, along their direction of travel.
 - [ ] Subject on a third, horizon off the middle, space in front of movement, key things inside the margins.
+- [ ] Every special shot (section 30) starts on its word, comes from the plan's `"shots"` when there are any, and joins back without a cut.
 
 ### Motion and comfort
 
@@ -1407,6 +1409,7 @@ What `X` gives you inside `draw`:
 | `X.who(state, size, view, cond)` | The options for `place()`: the right light for the mood, the body state (`normal`, `cold`, `wet`), head size 43, the view (`side`, `front` or `back`; side if left out) and the conditions (`{dirt:.5, bandage:'head'}`, section 6) |
 | `feelAt(t, keys)`, `feelName(t, keys)`, `react(t, t0)` | A feelings arc that blends, the feeling in charge for `poseAt`, and a late reaction to an event (section 6) |
 | `LIFE.sway`, `bob`, `flicker`, `blink`, `drift`, `pulse`, `spin` | Small motions for living assets (section 9) |
+| `ZOOM.dive`, `pull`, `xray`, `cutaway`, `lens`, `exploded`, `scale`, `bones` | Special shots: zoom into a thing, pull back out of a frame, x-ray and inside views, a torn-open cutaway, a magnifying lens, an exploded view and a size comparison (section 30) |
 | `STAGE.W`, `STAGE.H`, `STAGE.cx`, `STAGE.cy` | The stage size and camera centre: 540, 960, 270, 610 on the vertical stage and 960, 540, 480, 352 on the wide stage. Use these, never the bare numbers, for anything full-screen |
 | `X.full(svg, verticalBlur)` | A full-screen place with no camera layers (under water, inside a pipe). Set `X.sky = false`, and `X.grade = false` and `X.vig = .8` if it has its own dark light |
 | `X.x, X.y, X.s, X.vx, X.vy, X.t` | Camera position, zoom, speed, and the clock |
@@ -2245,8 +2248,40 @@ What the words mean:
 | 5 | Front and back views for people. A wide 16:9 stage chosen in the plan. Steps for Whisper word times |
 | 6 | The LOOKS library: new hair, hats and outfits plug in without changing the engine. Cast tab shows every person from three sides. Checks for new looks. A procedure for improving people and looks |
 | 7 | Conditions that stay from shot to shot (dirt, soot, torn, frost, bruise, blood, bandage, sling, pale, sweat) and a hospital gown. Feelings arcs that blend, late reactions, three new feelings (groggy, wince, hopeful) and a limping walk. Every scene alive: `LIFE` motion helpers, `alive` or `still` on every asset, and the library assets now move. The state sheet in section 10 |
+| 8 | Special shots: zoom and inside views (section 30). `ZOOM.dive`, `pull`, `xray`, `cutaway`, `lens`, `exploded`, `scale`, the x-ray skeleton `ZOOM.bones` and the grey reference things. The plan can ask for them with `"shots"` |
 
-Known limits of version 7: no view from above and no three-quarter view of people. No animal engine (animals are assets). The wide stage has not yet been used for a full video. Word times are exact only when word times are supplied (Whisper, section 22).
+Known limits of version 8: no view from above and no three-quarter view of people. No animal engine (animals are assets). The wide stage has not yet been used for a full video. Word times are exact only when word times are supplied (Whisper, section 22).
+
+## 30. Special shots: zoom and inside views
+
+Explainer videos go viral with a few clever moves: the camera flies into an eye and we are inside the body, a see-through window shows the bones, a building is torn open to show the rooms. The engine has one call for each. Use them only where the words call for it: **at most one special shot every 15 seconds**, each one starting on its word with `T('word')`, lasting **0.8 to 1.6 seconds** to move in and holding long enough to read.
+
+Two kinds of call:
+
+- **Screen calls** (`dive`, `pull`, `xray`, `cutaway`, `lens`) take whole pictures, the svg that `X.lay(...)` and `X.full(...)` give you, and return the final picture. Build the normal view and the inside view as two strings, then `return ZOOM.dive(t, T('eye'), 1.2, outer, inner, {x: 300, y: 420, r: 26})`. Positions are screen pixels (0 to `STAGE.W`, 0 to `STAGE.H`).
+- **World calls** (`exploded`, `scale`, `bones`, `ref`) return shapes in world units for inside `X.lay(1, ...)`, next to people and assets.
+
+| Shot | Call | Use it for |
+| --- | --- | --- |
+| Dive in | `ZOOM.dive(t, t0, dur, outer, inner, {x, y, r})` or `{x, y, w, h}` | Into an eye, a wound, a cell, a screen, a keyhole. The point stays still while the world grows, a gold-edged window opens and the inside view fills the screen. After `t0 + dur` only `inner` is drawn |
+| Pull back | `ZOOM.pull(t, t0, dur, inner, outer, {x, y, w, h})` | The reverse: start inside (the news footage, the photo, the cell) and pull out until it sits in its frame inside the bigger world (the TV in a room, the photo in a hand) |
+| X-ray / inside view | `ZOOM.xray(t, t0, t1, outside, inside, {x, y, r})` or `{x, y, w, h}`, `ghost` | A glowing blue see-through window, open from `t0` to `t1`, that may move with `t`. Draw the inside in `XR` colours: `XR.line` lines on `XR.bg`, `XR.hurt` for the hurt place |
+| Bones of a person | `ZOOM.bones(x, y, h, {organs, hurt, beat})` | The inside of a person for an x-ray: a front skeleton `h` tall with its feet at `x, y` (for a cast member use `h = CAST.name.scale * 340`). `organs: true` adds lungs and a heart that beats with `beat: t`; `hurt: 'armF'` (`armB`, `legF`, `legB`, `head`, `chest`, `heart`) turns that bone red with a pulsing ring |
+| Cutaway | `ZOOM.cutaway(t, t0, t1, front, inside, {x, y, w, h, from, bg})` | The front of a house, a body or a machine tears open like paper (from `'left'`, `'right'` or `'top'`) and the inside shows on `bg`, with a cream torn edge and a gold line |
+| Magnifying lens | `ZOOM.lens(t, t0, t1, scene, {path: [[t, x, y], ...], r, k})` | A glass moves along `path` and shows the same scene `k` times bigger inside it. For small writing, a tiny part, a crack |
+| Exploded view | `ZOOM.exploded(t, t0, pieces, {dur, stagger, back, size})` | The pieces of a thing float apart one after another with gold labels. `pieces = [{svg, dx, dy, label, ax, ay, lx, ly}]`: how far each moves, where its label line starts and where the label sits (keep labels inside the frame). `back: T('word')` brings them back together |
+| Scale comparison | `ZOOM.scale(t, t0, {x, y, h, ref, side, label, gap})` | A grey known thing (`'person'` 340, `'child'` 230, `'car'`, `'bus'`, `'house'`, `'elephant'`) slides in beside the subject with a gold measuring bar and a label (`'12 m'`, or the times bigger, `'x 6'`, by itself). `ZOOM.ref(name, x, y)` draws only the grey thing |
+| Helpers | `ZOOM.k(t, t0, dur)`, `ZOOM.on(t, t0, t1)` | The eased 0 to 1 progress of a move, and 0 to 1 while a view is open (soft in and out) |
+
+Rules:
+
+1. **The words decide.** A dive happens on the word that names the inside ("inside", "cells", "the screen showed"); an x-ray on "bone", "broken", "heart"; a scale on the number.
+2. **The inside view is a full picture.** It paints its own background over the whole stage (a `rect` of `STAGE.W` x `STAGE.H`) and has its own life (moving cells, a beating heart, drifting dust). Set `X.sky = false` while only the inside shows.
+3. **Keep the point still.** For a dive, `x, y` is where the thing is on screen at `t0`; the camera keys hold still during the dive (the call does the zoom).
+4. **Come back the same way.** After a dive, return with a `pull` into the same window, or join to the next beat with a whip. Never cut back.
+5. **Continuity holds inside.** The hurt arm in the x-ray is the same arm the state sheet bandaged; the inside of the house matches the outside.
+6. **One special shot at a time.** Never put an x-ray inside a lens inside a dive.
+7. **Captions stay on top.** The engine draws captions over every special shot; keep the important inside detail away from the caption line.
 
 </script>
 <script type="application/json" id="project">
@@ -2852,6 +2887,77 @@ const FX={
  lamp:(k,cx=STAGE.lamp[0],cy=STAGE.lamp[1])=>`<ellipse cx="${cx}" cy="${cy}" rx="${STAGE.lamp[2]}" ry="${STAGE.lamp[3]}" fill="url(#lampG)" opacity="${(.8*k).toFixed(2)}" style="mix-blend-mode:screen"/>`,
  beacon:(t,k)=>`<rect width="${STAGE.W}" height="${STAGE.H}" fill="${.5+.5*Math.sin(t*7.5)>.5?'#FF3B2E':'#3B6BFF'}" opacity="${(.07*k).toFixed(3)}" style="mix-blend-mode:screen"/>`,
  flash:(t,t0,col='#FFE2C0',dur=.22,amt=.5)=>t>=t0&&t<t0+dur?`<rect width="${STAGE.W}" height="${STAGE.H}" fill="${col}" opacity="${(amt*(1-(t-t0)/dur)).toFixed(2)}"/>`:''};
+/* ============ special shots: zoom and inside views (rulebook section 30) ============ */
+/* screen helpers take and return SCREEN svg (what X.lay and X.full give); world helpers return svg for inside X.lay(1, ...) */
+const XR={bg:'#06213A',line:'#9FE3FF',glow:'#4FC3F7',hurt:'#FF5A4E',paper:'#F3E4BE'};
+const ZOOM={
+ k:(t,t0,dur)=>sm(clamp((t-t0)/(dur||1))),                                   // eased 0..1 progress of a move
+ on:(t,t0,t1,fade)=>{const f=fade||.35;return clamp((t-t0)/f)*clamp((t1-t)/f);}, // 0..1 while a view is open, with soft open and close
+ _id:()=>'z'+(UID++),
+ /* the window move shared by dive and pull: u 0 = outer only, 1 = inner only */
+ _win(u,outer,inner,o){const W=STAGE.W,H=STAGE.H;if(u<=0)return outer;if(u>=1)return inner;
+  const x=o.x==null?STAGE.cx:o.x,y=o.y==null?STAGE.cy:o.y,circle=o.w==null,w0=circle?2*(o.r||40):o.w,h0=circle?2*(o.r||40):o.h;
+  const v=sm(clamp((u-.12)/.88)),K=Math.max(o.k||10,Math.hypot(W,H)/Math.min(w0,h0)),s=Math.pow(K,u);
+  const cx=x+(W/2-x)*v,cy=y+(H/2-y)*v,D=Math.hypot(W,H)+40,bw=circle?w0+(D-w0)*v:w0+(W+8-w0)*v,bh=circle?bw:h0+(H+8-h0)*v;
+  const q0=Math.max(w0/W,h0/H),q=Math.min(1,Math.max(q0+(1-q0)*v,bw/W,bh/H)),id=ZOOM._id();   // the inside always fills its window
+  const clip=circle?`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(bw/2).toFixed(1)}"/>`:`<rect x="${(cx-bw/2).toFixed(1)}" y="${(cy-bh/2).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="${(o.rx||6)*(1-v)}"/>`;
+  const edge=clip.replace('/>',` fill="none" stroke="${P.gold}" stroke-width="${(3*(1-v)).toFixed(2)}" opacity="${(1-v).toFixed(2)}"/>`);
+  return `<g transform="translate(${x} ${y}) scale(${s.toFixed(4)}) translate(${-x} ${-y})">${outer}</g><clipPath id="${id}">${clip}</clipPath><g clip-path="url(#${id})"><rect width="${W}" height="${H}" fill="#05070F"/><g transform="translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${q.toFixed(4)}) translate(${-W/2} ${-H/2})">${inner}</g></g>${edge}`;},
+ /* DIVE IN: the camera flies into a point (an eye, a screen, a cell) and the inside view opens from it. o: {x,y,r} a round window or {x,y,w,h} a box (a TV, a phone, a page) */
+ dive(t,t0,dur,outer,inner,o){return ZOOM._win(ZOOM.k(t,t0,dur),outer,inner,o||{});},
+ /* PULL BACK: the reverse. Start inside, shrink into the window and the outer world appears around it (the news on a TV, then the room) */
+ pull(t,t0,dur,inner,outer,o){return ZOOM._win(1-ZOOM.k(t,t0,dur),outer,inner,o||{});},
+ /* X-RAY: a see-through window shows the inside layer in glowing blue lines. o: {x,y,r} or {x,y,w,h}; moves when x, y change with t */
+ xray(t,t0,t1,outside,inside,o){o=o||{};const a=ZOOM.on(t,t0,t1);if(a<=0)return outside;const id=ZOOM._id(),W=STAGE.W,H=STAGE.H,x=o.x==null?STAGE.cx:o.x,y=o.y==null?STAGE.cy:o.y;
+  let clip,box;if(o.w==null){const r=(o.r||110)*sm(a);clip=`<circle cx="${x}" cy="${y}" r="${r.toFixed(1)}"/>`;box=[x-r,y-r,2*r,2*r];}else{const hh=o.h*sm(a);box=[x-o.w/2,y-hh/2,o.w,hh];clip=`<rect x="${box[0].toFixed(1)}" y="${box[1].toFixed(1)}" width="${o.w}" height="${hh.toFixed(1)}" rx="10"/>`;}
+  const scan=box[1]+((t*140)%Math.max(1,box[3])),edge=c=>clip.replace('/>',` fill="none" stroke="${XR.line}" stroke-width="${c[0]}" opacity="${c[1]}"/>`);
+  return outside+`<clipPath id="${id}">${clip}</clipPath><g clip-path="url(#${id})"><rect width="${W}" height="${H}" fill="${XR.bg}" opacity=".93"/><g opacity="${o.ghost==null?.16:o.ghost}">${outside}</g>${inside}<rect x="${box[0].toFixed(1)}" y="${scan.toFixed(1)}" width="${box[2].toFixed(1)}" height="3" fill="${XR.line}" opacity=".35"/></g>`+edge([9,.18])+edge([2.5,.9]);},
+ /* CUTAWAY: the front of a building, body or machine is torn open like paper and the inside shows. o: {x,y,w,h, from:'left'|'right'|'top'} box in screen px, bg colour */
+ cutaway(t,t0,t1,front,inside,o){o=o||{};const a=sm(ZOOM.on(t,t0,t1,.6));if(a<=0)return front;const id=ZOOM._id(),mid=ZOOM._id(),W=STAGE.W,H=STAGE.H,x=o.x,y=o.y,w=o.w,h=o.h,f=o.from||'left',n=Math.max(6,Math.round((f==='top'?w:h)/26));
+  const pts=[];for(let i=0;i<=n;i++){const j=(i%2?7:-6)+((i*37)%5)-2;if(f==='top'){const yy=y+h*a+j;pts.push([x+w*i/n,yy]);}else{const xx=f==='left'?x+w*a+j:x+w*(1-a)+j;pts.push([xx,y+h*i/n]);}}
+  const poly=(f==='top'?[[x,y],[x+w,y]].concat(pts.slice().reverse()):f==='left'?[[x,y]].concat(pts).concat([[x,y+h]]):[[x+w,y]].concat(pts).concat([[x+w,y+h]])).map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const line=pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  return `<mask id="${mid}"><rect x="-50" y="-50" width="${W+100}" height="${H+100}" fill="#fff"/><polygon points="${poly}" fill="#000"/></mask><g mask="url(#${mid})">${front}</g><clipPath id="${id}"><polygon points="${poly}"/></clipPath><g clip-path="url(#${id})"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${o.bg||P.deep}"/>${inside}</g><polyline points="${line}" fill="none" stroke="${XR.paper}" stroke-width="7" stroke-linejoin="round" opacity=".9"/><polyline points="${line}" fill="none" stroke="${P.gold}" stroke-width="2"/>`;},
+ /* MAGNIFYING LENS: the same scene, bigger inside a moving glass. o: {path:[[t,x,y],...] or x,y, r, k (how much bigger)} */
+ lens(t,t0,t1,scene,o){o=o||{};const a=ZOOM.on(t,t0,t1);if(a<=0)return scene;const id=ZOOM._id(),k=o.k||2.2,r=(o.r||92)*(.6+.4*sm(a));let x=o.x==null?STAGE.cx:o.x,y=o.y==null?STAGE.cy:o.y;
+  if(o.path&&o.path.length){const L=o.path;let i=0;while(i<L.length-2&&t>=L[i+1][0])i++;const p0=L[i],p1=L[Math.min(i+1,L.length-1)],u=p1[0]>p0[0]?sm(clamp((t-p0[0])/(p1[0]-p0[0]))):0;x=p0[1]+(p1[1]-p0[1])*u;y=p0[2]+(p1[2]-p0[2])*u;}
+  const hx2=x+r*.72,hy2=y+r*.72;
+  return scene+`<clipPath id="${id}"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}"/></clipPath><g clip-path="url(#${id})" opacity="${sm(a).toFixed(2)}"><g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${k}) translate(${(-x).toFixed(1)} ${(-y).toFixed(1)})">${scene}</g><circle cx="${(x-r*.35).toFixed(1)}" cy="${(y-r*.4).toFixed(1)}" r="${(r*.32).toFixed(1)}" fill="#fff" opacity=".12"/></g>`+
+   `<g opacity="${sm(a).toFixed(2)}"><line x1="${hx2.toFixed(1)}" y1="${hy2.toFixed(1)}" x2="${(hx2+r*.9).toFixed(1)}" y2="${(hy2+r*.9).toFixed(1)}" stroke="${P.bark}" stroke-width="${(r*.2).toFixed(1)}" stroke-linecap="round"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="none" stroke="${INK}" stroke-width="9"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="none" stroke="${P.gold}" stroke-width="3.5"/></g>`;},
+ /* EXPLODED VIEW (world): the pieces of a thing float apart to show how it is built, with labels. pieces: [{svg, dx, dy, label, ax, ay}] (ax, ay = where the label line starts, before moving) */
+ exploded(t,t0,pieces,o){o=o||{};const dur=o.dur||.9,st=o.stagger==null?.12:o.stagger,back=o.back;let out='',lab='';
+  pieces.forEach((p,i)=>{let e=ZOOM.k(t,t0+i*st,dur);if(back!=null)e*=1-ZOOM.k(t,back,dur);const dx=(p.dx||0)*e,dy=(p.dy||0)*e;out+=`<g transform="translate(${dx.toFixed(1)} ${dy.toFixed(1)})">${p.svg}</g>`;
+   if(p.label&&e>.6){const la=clamp((e-.6)/.4),ax=(p.ax||0)+dx,ay=(p.ay||0)+dy,lx=ax+(p.lx==null?(p.dx>=0?90:-90):p.lx),ly=ay+(p.ly==null?-50:p.ly);
+    lab+=`<g opacity="${la.toFixed(2)}"><polyline points="${ax.toFixed(1)},${ay.toFixed(1)} ${lx.toFixed(1)},${ly.toFixed(1)} ${(lx+(lx>=ax?40:-40)).toFixed(1)},${ly.toFixed(1)}" fill="none" stroke="${P.gold}" stroke-width="3"/><circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="6" fill="${P.gold}"/><text x="${(lx+(lx>=ax?48:-48)).toFixed(1)}" y="${(ly+9).toFixed(1)}" text-anchor="${lx>=ax?'start':'end'}" font-family="Archivo Black,Impact,sans-serif" font-size="${o.size||30}" fill="#FFFDF4" stroke="#0A0A12" stroke-width="6" paint-order="stroke">${p.label}</text></g>`;}});
+  return out+lab;},
+ /* SCALE COMPARISON (world): a known thing stands next to the subject, with a measuring bar. o: {x, y (ground), ref:'person'|'child'|'car'|'bus'|'house'|'elephant', side:1 or -1, h: the subject's height in units, label:'12 m', gap} */
+ REFS:{person:[120,340],child:[90,230],car:[860,280],bus:[2280,570],house:[1100,1140],elephant:[900,600]},
+ ref(name,x,y,c){const R=ZOOM.REFS[name]||ZOOM.REFS.person,w=R[0],h=R[1];c=c||'#9AA3B2';
+  if(name==='person'||name==='child'){const k=h/340;return `<g fill="${c}"><circle cx="${x}" cy="${(y-314*k).toFixed(1)}" r="${(24*k).toFixed(1)}"/><path d="M${x-39*k},${y-279*k}Q${x},${y-294*k} ${x+39*k},${y-279*k}L${x+31*k},${y-169*k}L${x+20*k},${y}L${x+5*k},${y}L${x},${y-150*k}L${x-5*k},${y}L${x-20*k},${y}L${x-31*k},${y-169*k}Z"/></g>`;}
+  if(name==='car')return `<g fill="${c}"><path d="M${x-w/2},${y-60}V${y-150}Q${x-w/2},${y-170} ${x-w*.38},${y-172}L${x-w*.22},${y-h}H${x+w*.18}L${x+w*.34},${y-175}Q${x+w/2},${y-165} ${x+w/2},${y-120}V${y-60}Z"/><circle cx="${x-w*.3}" cy="${y-55}" r="55"/><circle cx="${x+w*.3}" cy="${y-55}" r="55"/></g>`;
+  if(name==='bus')return `<g fill="${c}"><rect x="${x-w/2}" y="${y-h}" width="${w}" height="${h-60}" rx="40"/><circle cx="${x-w*.34}" cy="${y-60}" r="62"/><circle cx="${x+w*.32}" cy="${y-60}" r="62"/></g>`;
+  if(name==='house')return `<g fill="${c}"><rect x="${x-w/2}" y="${y-h*.62}" width="${w}" height="${h*.62}"/><path d="M${x-w/2-40},${y-h*.6}L${x},${y-h}L${x+w/2+40},${y-h*.6}Z"/></g>`;
+  return `<g fill="${c}"><ellipse cx="${x}" cy="${y-h*.6}" rx="${w*.42}" ry="${h*.3}"/><circle cx="${x+w*.4}" cy="${y-h*.72}" r="${h*.2}"/><rect x="${x-w*.3}" y="${y-h*.45}" width="60" height="${h*.45}"/><rect x="${x+w*.18}" y="${y-h*.45}" width="60" height="${h*.45}"/><path d="M${x+w*.55},${y-h*.7}Q${x+w*.62},${y-h*.2} ${x+w*.5},${y-40}" stroke="${c}" stroke-width="34" fill="none"/></g>`;},
+ scale(t,t0,o){o=o||{};const e=ZOOM.k(t,t0,o.dur||.7);if(e<=0)return '';const R=ZOOM.REFS[o.ref||'person'],sd=o.side||1,gap=o.gap==null?60:o.gap,rx=(o.x||0)+sd*(gap+R[0]/2),y=o.y||0,hh=o.h||R[1],bx=(o.x||0)-sd*(o.barGap||90),top=y-hh*sm(clamp(e*1.2));
+  let s=`<g opacity="${e.toFixed(2)}" transform="translate(0 ${(30*(1-e)).toFixed(1)})">${ZOOM.ref(o.ref||'person',rx,y)}</g>`;
+  s+=`<g opacity="${clamp(e*1.5).toFixed(2)}"><line x1="${bx}" y1="${y}" x2="${bx}" y2="${top.toFixed(1)}" stroke="${P.gold}" stroke-width="5"/><line x1="${bx-18}" y1="${y}" x2="${bx+18}" y2="${y}" stroke="${P.gold}" stroke-width="5"/><line x1="${bx-18}" y1="${top.toFixed(1)}" x2="${bx+18}" y2="${top.toFixed(1)}" stroke="${P.gold}" stroke-width="5"/>`;
+  const lab=o.label||('x '+(hh/R[1]).toFixed(hh/R[1]<10?1:0));
+  if(e>.5)s+=`<text x="${bx-sd*28}" y="${((y+top)/2+12).toFixed(1)}" text-anchor="${sd>0?'end':'start'}" font-family="Archivo Black,Impact,sans-serif" font-size="${o.size||44}" fill="#F6C956" stroke="#0A0A12" stroke-width="8" paint-order="stroke" opacity="${clamp((e-.5)*2).toFixed(2)}">${lab}</text>`;
+  return s+'</g>';},
+ /* the inside of a person for X-RAY views (world or screen): a front skeleton h tall standing at x, y (feet). o: {organs:true, hurt:'armF'|'armB'|'legF'|'legB'|'head'|'chest'|'heart', beat:t} */
+ bones(x,y,h,o){o=o||{};const k=h/340,L=XR.line,u=v=>(v*k).toFixed(1),X0=x,Y=v=>(y-v*k).toFixed(1),hurt=o.hurt||'',col=n=>hurt===n?XR.hurt:L,sw=(6*k).toFixed(1);
+  let s=`<g fill="none" stroke-linecap="round" stroke-linejoin="round">`;
+  s+=`<ellipse cx="${X0}" cy="${Y(306)}" rx="${u(25)}" ry="${u(30)}" stroke="${col('head')}" stroke-width="${sw}"/><path d="M${X0-10*k},${Y(282)}h${u(20)}" stroke="${col('head')}" stroke-width="${sw}"/>`;
+  s+=`<path d="M${X0},${Y(276)}V${Y(160)}" stroke="${L}" stroke-width="${u(7)}" stroke-dasharray="${u(9)} ${u(4)}"/>`;
+  for(let i=0;i<5;i++){const yy=258-i*17,w=30+i*3;s+=`<path d="M${X0},${Y(yy)}Q${X0-w*k},${Y(yy+6)} ${X0-(w-4)*k},${Y(yy-12)}M${X0},${Y(yy)}Q${X0+w*k},${Y(yy+6)} ${X0+(w-4)*k},${Y(yy-12)}" stroke="${col('chest')}" stroke-width="${(4.5*k).toFixed(1)}"/>`;}
+  s+=`<path d="M${X0-36*k},${Y(266)}H${X0+36*k}" stroke="${L}" stroke-width="${sw}"/><path d="M${X0-30*k},${Y(160)}Q${X0},${Y(178)} ${X0+30*k},${Y(160)}L${X0+22*k},${Y(140)}H${X0-22*k}Z" stroke="${L}" stroke-width="${sw}"/>`;
+  const limb=(n,a,b,c)=>`<path d="M${a[0]},${a[1]}L${b[0]},${b[1]}L${c[0]},${c[1]}" stroke="${col(n)}" stroke-width="${sw}"/><circle cx="${b[0]}" cy="${b[1]}" r="${u(5)}" stroke="${col(n)}" stroke-width="${(3*k).toFixed(1)}"/>`;
+  s+=limb('armF',[X0+38*k,Y(264)],[X0+48*k,Y(200)],[X0+52*k,Y(138)])+limb('armB',[X0-38*k,Y(264)],[X0-48*k,Y(200)],[X0-52*k,Y(138)]);
+  s+=limb('legF',[X0+16*k,Y(146)],[X0+20*k,Y(76)],[X0+22*k,Y(6)])+limb('legB',[X0-16*k,Y(146)],[X0-20*k,Y(76)],[X0-22*k,Y(6)]);
+  if(o.organs){const b=o.beat==null?0:LIFE.pulse(o.beat,76),hr=(13+3*b)*k;s+=`<path d="M${X0-6*k},${Y(234)}q${u(-26)},${u(-4)} ${u(-24)},${u(46)}q${u(8)},${u(8)} ${u(20)},${u(-4)}Z" fill="${L}" fill-opacity=".14" stroke="${L}" stroke-width="${(2.5*k).toFixed(1)}"/><path d="M${X0+6*k},${Y(234)}q${u(26)},${u(-4)} ${u(24)},${u(46)}q${u(-8)},${u(8)} ${u(-20)},${u(-4)}Z" fill="${L}" fill-opacity=".14" stroke="${L}" stroke-width="${(2.5*k).toFixed(1)}"/><circle cx="${X0+6*k}" cy="${Y(222)}" r="${hr.toFixed(1)}" fill="${XR.hurt}" fill-opacity="${(.35+.4*b).toFixed(2)}" stroke="${XR.hurt}" stroke-width="${(2*k).toFixed(1)}"/>`;}
+  if(hurt){const at={head:[0,306],chest:[0,236],heart:[6,222],armF:[48,200],armB:[-48,200],legF:[20,76],legB:[-20,76]}[hurt];if(at)s+=`<circle cx="${(X0+at[0]*k).toFixed(1)}" cy="${Y(at[1])}" r="${u(26+6*Math.sin(NOW*6))}" stroke="${XR.hurt}" stroke-width="${(3*k).toFixed(1)}" opacity=".8"/>`;}
+  return s+'</g>';}
+};
 /* ============ framing: one call gives the camera key for a named size, so heads are never cut off ============ */
 /* use inside KEYS:  [time, ...shot('CLOSE', CAST.boy, worldX, groundY)]     sizes: WIDE FULL MEDIUM CLOSE FACE DETAIL
    options: ox = push the subject left (-) or right (+) of centre in screen px, drop = how far the pose lowers the head (kneel 80, sit 120, crouch 70)
