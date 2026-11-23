@@ -16,5 +16,5 @@ node <repo>/tools/studio-check/sound.js /tmp/sc        # Sound page: song start,
 node <repo>/tools/studio-check/fit.js /tmp/sc          # every page fits 1366 x 720 without page scrolling; phone width has no sideways spill
 node <repo>/tools/studio-check/pipeline.js /tmp/sc     # stages 3 to 7 in compare mode with sample Sonnet replies (copy fixtures.js into /tmp/sc first)
 node <repo>/tools/studio-check/improve.js /tmp/sc      # Watch & improve: player keys, 0.5x, loop, timeline pictures and markers, problem finder, improve prompt I01, before/after report, keep and undo, review R01, phone
-node <repo>/tools/studio-check/shots.js /tmp/sc        # special shots: every ZOOM call draws and moves; plan, scene prompt, reply check and improve prompt know them
+node <repo>/tools/studio-check/shots.js /tmp/sc        # special shots (sections 30 to 33): every ZOOM, FRAME, MOVE, TIME, PLACE, SHOW and TURN call draws and moves; paper joins; plan, scene prompt, reply check and improve prompt know them
 node <repo>/tools/studio-check/export.js /tmp/sc       # makes a real video file from a one-part project (slow: run it alone)

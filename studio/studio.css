@@ -669,3 +669,4 @@ table.sheet td > div + div { margin-top: 3px; }
   .ws-right > .ws-body { flex: none; max-height: 72dvh; }
   .ws-controls .grow { display: none; }
 }
+.menu { max-height: calc(100dvh - 16px); overflow-y: auto; }
