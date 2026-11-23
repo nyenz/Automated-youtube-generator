@@ -16,6 +16,7 @@
     return el;
   }
   var ICONS = {
+    loop: '<path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>',
     plus: '<path d="M12 5v14M5 12h14"/>', more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
     music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>', play: '<path d="M7 4l13 8-13 8z"/>', pause: '<path d="M7 4h4v16H7zM14 4h4v16h-4z"/>',
     folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', wave: '<path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/>',
@@ -61,7 +62,7 @@
   document.addEventListener('click', closeMenu); window.addEventListener('resize', closeMenu);
   function modal(o) {
     var v = h('div', { class: 'veil', onclick: function (e) { if (e.target === v) close() } }), close = function () { v.remove(); document.removeEventListener('keydown', esc) }, esc = function (e) { if (e.key === 'Escape') close() };
-    var box = h('div', { class: 'modal', role: 'dialog' }, h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '×'), h('h3', null, o.title), o.body, h('div', { class: 'acts' }, (o.actions || []).map(function (a) { return h('button', { class: 'btn ' + (a.primary ? 'primary' : '') + (a.danger ? ' danger' : ''), onclick: function () { var r = a.do && a.do(); if (r !== false) close() } }, a.label) })));
+    var box = h('div', { class: 'modal' + (o.wide ? ' wide' : ''), role: 'dialog' }, h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '×'), h('h3', null, o.title), o.body, h('div', { class: 'acts' }, (o.actions || []).map(function (a) { return h('button', { class: 'btn ' + (a.primary ? 'primary' : '') + (a.danger ? ' danger' : ''), onclick: function () { var r = a.do && a.do(); if (r !== false) close() } }, a.label) })));
     v.appendChild(box); document.body.appendChild(v); document.addEventListener('keydown', esc);
     var f = box.querySelector('input'); if (f) setTimeout(function () { f.focus(); f.select() }, 30);
     return close;
@@ -80,7 +81,7 @@
     { id: 'pick', t: 'Pick the best', s: 'A/B and the critic' },
     { id: 'sound', t: 'Sound', s: 'Music and effects' },
     { id: 'thumbs', t: 'Thumbnails', s: 'Three designs' },
-    { id: 'export', t: 'Watch & export', s: 'MP4 and upload pack' }
+    { id: 'export', t: 'Watch & improve', s: 'Improve, MP4, upload' }
   ];
   var ALL = [], P = null, STAGE = 'style', HOMETAB = 'videos', AUDIOTAB = 'inputs', SELPART = 0, SELWORD = -1, PREVIEW = null, INSTALL = null;
   var AUDIOEL = new Audio(), AUDIOURL = '', PLAYEND = null, RAF = 0, BUSY = false, PROG = { msg: '', f: null };
@@ -572,7 +573,7 @@
   }
 
   /* ================= the project file in the locked frame (one at a time, rebuilt when the picks change) ================= */
-  var J = window.JOBS, GK = window.GK, CR = window.CRITIC, SD = window.SOUND, REPLY = window.REPLY;
+  var J = window.JOBS, GK = window.GK, CR = window.CRITIC, SD = window.SOUND, REPLY = window.REPLY, WS = window.WS;
   var MASTER = { key: '', host: null, info: null, job: null };
   function masterKey() { return JSON.stringify([GK.plan(P), J.blocks(P)]) }
   function master() {
@@ -1449,109 +1450,453 @@
       h('div', { class: 'muted', style: { fontSize: '12px' } }, 'Category: ' + (j.category || 'Education') + ' · Audience: not made for kids (comments stay on) · Captions are already in the video.')),
       actions: [{ label: 'Copy title + description', primary: true, do: function () { copyText(j.titles[j.best - 1].title + '\n\n' + j.description, 'Title and description are copied'); return false } }] });
   }
+  /* ================= 7. Watch & improve ================= */
+  var WSS = { tab: 'improve', types: ['logic'], shot: 'dive', scope: 'here', focus: 0, notes: {}, ticks: {}, loop: false, checksOpen: false, part: null };
+  var WSA = { key: '', parts: {}, done: 0, total: 0, run: null, onStep: null };
+  var WSKEY = null;
+  function ensureWS() { if (!P.workshop || typeof P.workshop !== 'object') P.workshop = { n: 0, items: [], review: null }; if (!Array.isArray(P.workshop.items)) P.workshop.items = []; P.workshop.n = P.workshop.n || P.workshop.items.length; return P.workshop }
+  function codeOf(id) { var b = J.blocks(P).parts.filter(function (x) { return x.id === id })[0]; return b ? b.code : '' }
+  function blocksWith(id, code) { var b = J.blocks(P); b.parts = b.parts.filter(function (x) { return x.id !== id }).concat([{ id: id, code: code }]); return b }
+  function tagS(id) { return 'S' + (id < 10 ? '0' : '') + id }
+  function tagI(n) { return 'I' + (n < 10 ? '0' : '') + n }
+  function issueKey(x) { return x.part + '@' + x.key }
+  function ticked(x) { var k = issueKey(x); return k in WSS.ticks ? WSS.ticks[k] : x.level !== 'info' }
+  function partIssues(id) { var a = WSA.key === MASTER.key ? WSA.parts[id] : null; return (a ? a.issues : []).concat(WS.reviewIssues(P).filter(function (x) { return x.part === id })) }
+  function allIssues() { var o = []; GK.plan(P).parts.forEach(function (p) { o = o.concat(partIssues(p.id)) }); return o }
+  function lastWaiting(id) { return P.workshop.items.filter(function (i) { return i.part === id && i.status === 'waiting' }).pop() || null }
+  /* look at every built part once per version of the project (frames, checks, camera, faces, frozen moments) */
+  function analyseAll() {
+    var key = MASTER.key, M = MASTER;
+    if (WSA.key === key && WSA.run) return WSA.run;
+    var built = ((M.info && M.info.built) || []).map(function (b) { return b.id });
+    WSA.key = key; WSA.parts = {}; WSA.done = 0; WSA.total = built.length;
+    WSA.run = built.reduce(function (pr, id) {
+      return pr.then(function () { if (WSA.key !== key || !M.host) return; return WS.analyse(P, M.host, M.info, id, codeOf(id)).then(function (r) { if (WSA.key !== key) return; WSA.parts[id] = r; WSA.done++; if (WSA.onStep) WSA.onStep() }) });
+    }, Promise.resolve()).catch(function () { });
+    return WSA.run;
+  }
+  function moment() {
+    var plan = GK.plan(P), t = WSS.focus, p = plan.parts.filter(function (x) { return t >= x.start && t < x.end })[0] || plan.parts[plan.parts.length - 1];
+    if (!p) return null;
+    var len = p.end - p.start, loc = Math.max(0, Math.min(len, t - p.start));
+    if (WSS.scope === 'whole') return { part: p, a: 0, b: +len.toFixed(2), whole: true };
+    var b = Math.min(len, Math.max(loc - 1.5, 0) + 3), a = Math.max(0, b - 3);
+    return { part: p, a: +a.toFixed(2), b: +b.toFixed(2), whole: false };
+  }
+  function wsSec(label, body, extra) { return h('div', { class: 'ws-sec' }, h('div', { class: 'ws-k' }, h('span', null, label), extra ? h('span', { class: 'muted' }, extra) : null), body) }
+
   function exportPage() {
-    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(7, 'Watch & export', 'The finished video.'), nt);
-    ensureJobs();
-    var plan = GK.plan(P), wide = P.format === 'long';
-    var pg = h('div', { class: 'page' }, pageHead(7, 'Watch & export', 'Watch the joined video with all the sound. Click a moment to improve it, then make the MP4.',
+    var nt = needTiming(); if (nt) return h('div', { class: 'page' }, pageHead(7, 'Watch & improve', 'The finished video.'), nt);
+    ensureJobs(); ensureWS();
+    var plan = GK.plan(P), wide = P.format === 'long', dur = totalDur(), WSD = P.workshop;
+    if (!(WSS.focus >= 0 && WSS.focus < dur)) WSS.focus = 0;
+    if (WSS.pid !== P.id) { WSS.pid = P.id; WSS.focus = 0; WSS.notes = {}; WSS.ticks = {}; WATCH.t = 0 }
+    WATCH.rate = WATCH.rate || 1;
+    var pg = h('div', { class: 'page fit ws-page' }, pageHead(7, 'Watch & improve', 'Watch the video, pick what to make better, send it to Sonnet, then compare before and after.',
       h('button', { class: 'btn', onclick: fileForModel }, icon('download'), 'Project file')));
-    var stage = h('canvas', { width: wide ? 960 : 540, height: wide ? 540 : 960, style: { width: 'auto', height: wide ? 'auto' : 'clamp(240px, calc(100dvh - 445px), 640px)', maxWidth: '100%', maxHeight: wide ? 'max(220px, calc(100dvh - 445px))' : null, display: 'block', margin: '0 auto', background: '#000', borderRadius: '12px' } });
-    var status = h('div', { class: 'muted', style: { fontSize: '12.5px', margin: '8px 0' } }, 'Loading the project file…');
-    var tm = h('span', { class: 'time' }), fill = h('i'), where = h('span', { class: 'where' });
-    var dur = totalDur();
-    var bar = h('div', { class: 'bar', onclick: function (e) { var r = bar.getBoundingClientRect(); WATCH.t = Math.max(0, Math.min(dur - .05, (e.clientX - r.left) / r.width * dur)); if (WATCH.on) { stopWatch(); startWatch() } else drawAt(WATCH.t) } }, fill);
-    var pbtn = h('button', { class: 'btn round primary', 'aria-label': 'Play', onclick: function () { if (WATCH.on) stopWatch(); else startWatch() } }, icon('play'));
-    var player = h('div', { class: 'player', style: { position: 'static', marginTop: '10px' } }, pbtn, h('button', { class: 'btn round', 'aria-label': 'Stop', title: 'Stop', onclick: function () { stopWatch(); WATCH.t = 0; drawAt(0) } }, icon('stop')), tm, bar, where,
-      h('button', { class: 'btn small', onclick: improveMoment }, icon('spark'), 'Improve this moment'));
-    function paint() { tm.textContent = fmtT(WATCH.t) + ' / ' + fmtT(dur); fill.style.width = (dur ? WATCH.t / dur * 100 : 0) + '%'; var p = plan.parts.filter(function (x) { return WATCH.t >= x.start && WATCH.t < x.end })[0]; where.textContent = p ? 'Part ' + p.id : '' }
+
+    /* ---------- the player ---------- */
+    var stage = h('canvas', { class: 'ws-stage', width: wide ? 960 : 540, height: wide ? 540 : 960 });
+    var status = h('div', { class: 'muted ws-status' }, 'Loading the project file…');
+    var tm = h('span', { class: 'time' }), where = h('span', { class: 'where' });
+    var pbtn = h('button', { class: 'btn round primary', 'aria-label': 'Play', title: 'Play or pause (Space)', onclick: toggle }, icon('play'));
+    var loopBtn = h('button', { class: 'btn round' + (WSS.loop ? ' on' : ''), 'aria-label': 'Loop', title: 'Loop the moment (L)', onclick: toggleLoop }, icon('loop'));
+    var rateBox = h('span', { class: 'ws-rate' });
+    function paintRate() { rateBox.innerHTML = ''; rateBox.appendChild(seg([{ id: '0.5', label: '0.5x' }, { id: '1', label: '1x' }], String(WATCH.rate), function (v) { var was = WATCH.on; if (was) stopWatch(true); WATCH.rate = +v; paintRate(); if (was) startWatch() })); rateBox.title = WATCH.rate === 1 ? 'Normal speed, with sound' : 'Half speed, no sound' }
+    paintRate();
+    var player = h('div', { class: 'player ws-controls' }, pbtn,
+      h('button', { class: 'btn round', 'aria-label': 'Stop', title: 'Stop and go to the start', onclick: function () { stopWatch(true); seek(0) } }, icon('stop')),
+      h('button', { class: 'btn round', 'aria-label': 'One frame back', title: 'One frame back (←), one second with Shift', onclick: function () { step(-1 / 30) } }, icon('prev')),
+      h('button', { class: 'btn round', 'aria-label': 'One frame forward', title: 'One frame forward (→), one second with Shift', onclick: function () { step(1 / 30) } }, icon('next')),
+      tm, h('div', { class: 'grow' }), rateBox, loopBtn, where);
+    var cells = plan.parts.map(function (p) {
+      var cv = h('canvas', { width: 9, height: 16 });
+      var c = h('button', { class: 'ws-cell', style: { flexGrow: String(Math.max(.2, p.end - p.start)) }, title: tagS(p.id) + (p.title ? ' · ' + p.title : ''), onclick: function (e) { var r = c.getBoundingClientRect(); seek(p.start + Math.max(0, Math.min(.999, (e.clientX - r.left) / r.width)) * (p.end - p.start)) } }, cv, h('span', { class: 'lb mono' }, tagS(p.id)));
+      c._cv = cv; c._p = p; return c;
+    });
+    var marks = h('div', { class: 'ws-marks' }), head = h('i', { class: 'ws-head' }), band = h('i', { class: 'ws-band' });
+    var strip = h('div', { class: 'ws-strip' }, h('div', { class: 'ws-cells' }, cells), band, marks, head);
+    var wordsEl = h('div', { class: 'ws-words scroller' });   // a clipped ticker strip (like the timeline)
+    var left = h('div', { class: 'panel ws-left' }, h('div', { class: 'ws-screen' }, stage), status, player, strip, wordsEl);
+
+    function partAt(t) { return plan.parts.filter(function (x) { return t >= x.start && t < x.end })[0] || null }
+    var WORDS = (P.timing && P.timing.words) || [], lastWi = -2;
+    function paintWords(t) {
+      var lo = 0, hi = WORDS.length - 1, wi = -1;
+      while (lo <= hi) { var mid = (lo + hi) >> 1; if (WORDS[mid][1] <= t + .02) { wi = mid; lo = mid + 1 } else hi = mid - 1 }
+      var on = wi >= 0 && t <= WORDS[wi][2] + .25, k = wi + (on ? 'on' : '');
+      if (k === lastWi) return; lastWi = k; wordsEl.innerHTML = '';
+      for (var i = Math.max(0, wi - 5); i < Math.min(WORDS.length, wi + 10); i++) wordsEl.appendChild(h('span', { class: i === wi && on ? 'on' : i <= wi ? 'past' : '' }, WORDS[i][0]));
+    }
+    function paint() {
+      var t = WATCH.t, p = partAt(t);
+      tm.textContent = fmtT(t) + ' / ' + fmtT(dur); head.style.left = (dur ? t / dur * 100 : 0) + '%';
+      where.textContent = p ? tagS(p.id) + ' · ' + (t - p.start).toFixed(1) + ' s' : '';
+      cells.forEach(function (c) { c.classList.toggle('cur', c._p === p) });
+      paintWords(t);
+    }
+    function paintBand() { var m = moment(); if (!m || !dur) { band.style.display = 'none'; return } band.style.display = ''; band.style.left = ((m.part.start + m.a) / dur * 100) + '%'; band.style.width = ((m.b - m.a) / dur * 100) + '%' }
+    function paintStrip() {
+      cells.forEach(function (c) {
+        var a = WSA.key === MASTER.key ? WSA.parts[c._p.id] : null, f = a && a.frames[Math.floor(a.frames.length / 2)];
+        if (f && f.c && !c._done) { c._cv.width = f.c.width; c._cv.height = f.c.height; c._cv.getContext('2d').drawImage(f.c, 0, 0); c._done = true }
+        var L = partIssues(c._p.id).map(function (x) { return x.level });
+        c.classList.toggle('bad', L.indexOf('bad') >= 0); c.classList.toggle('warn', L.indexOf('bad') < 0 && L.indexOf('warn') >= 0);
+      });
+      marks.innerHTML = '';
+      allIssues().forEach(function (x) {
+        if (x.t == null || !dur) return; var p = plan.parts.filter(function (q) { return q.id === x.part })[0]; if (!p) return;
+        marks.appendChild(h('button', { class: 'ws-mark ' + x.level, style: { left: ((p.start + x.t) / dur * 100) + '%' }, title: tagS(x.part) + ' at ' + x.t.toFixed(1) + ' s: ' + x.title, onclick: function (e) { e.stopPropagation(); seek(p.start + x.t); WSS.tab = 'improve'; paintRight() } }));
+      });
+    }
+    var posterDone = false;
     function drawAt(t) {
       paint();
       if (!MASTER.host || WATCH.busy) return Promise.resolve();
       WATCH.busy = true;
       return MASTER.host.ask({ cmd: 'frame', t: t }).then(function (svg) { if (!svg || typeof svg !== 'string') return; return GK.raster(svg, stage.width, stage.height).then(function (c) { stage.getContext('2d').drawImage(c, 0, 0) }) }).catch(function () { }).then(function () { WATCH.busy = false });
     }
-    function startWatch() {
-      stopAudio(); if (WATCH.t >= dur - .1) WATCH.t = 0;
-      soundBlobs().then(function (b) { return SD.play(P, WATCH.t, dur, b) }).then(function () { WATCH.on = true; pbtn.innerHTML = ''; pbtn.appendChild(icon('pause')); pbtn.setAttribute('aria-label', 'Pause'); loop() });
+    /* the first picture shows at once; when the video opens on black (a fade in), show a moment a little later instead */
+    function poster() {
+      if (posterDone) return; posterDone = true;
+      return drawAt(WATCH.t).then(function () {
+        if (WATCH.t > .05 || WATCH.on) return;
+        var d = stage.getContext('2d').getImageData(0, 0, stage.width, stage.height).data, s = 0; for (var i = 0; i < d.length; i += 4000) s += d[i] + d[i + 1] + d[i + 2];
+        if (s > 400 || !MASTER.host) return;
+        var p0 = plan.parts[0], tt = Math.min(dur - .1, (p0 ? p0.start : 0) + 1.2);
+        return MASTER.host.ask({ cmd: 'frame', t: tt }).then(function (svg) { if (typeof svg === 'string' && !WATCH.on && WATCH.t < .05) return GK.raster(svg, stage.width, stage.height).then(function (c) { stage.getContext('2d').drawImage(c, 0, 0) }) }).catch(function () { });
+      });
     }
-    function stopWatch() { var n = SD.now(); if (n != null) WATCH.t = n; SD.stop(); WATCH.on = false; cancelAnimationFrame(WATCH.raf); pbtn.innerHTML = ''; pbtn.appendChild(icon('play')); pbtn.setAttribute('aria-label', 'Play') }
-    function loop() { if (!stage.isConnected) { SD.stop(); WATCH.on = false; return } var n = SD.now(); if (n != null) { WATCH.t = n; if (n >= dur) { stopWatch(); WATCH.t = 0; return } drawAt(n) } WATCH.raf = requestAnimationFrame(loop) }
-    function improveMoment() {
-      if (WATCH.on) stopWatch();
-      var p = plan.parts.filter(function (x) { return WATCH.t >= x.start && WATCH.t < x.end })[0]; if (!p) return;
-      var local = WATCH.t - p.start, note = h('textarea', { class: 'area', style: { minHeight: '110px' }, placeholder: 'What should be better here? For example: the boy is too small, the light is too dark, the camera moves too fast.' });
-      var reply = h('textarea', { class: 'area', style: { minHeight: '140px', marginTop: '10px' }, placeholder: 'Then paste the Sonnet reply with the improved part here.' }), repOut = h('div', { class: 'rep-stack', style: { marginTop: '10px' } });
-      var fake = { id: 'improve-' + p.id, kind: 'scene', part: p.id, title: 'Improve part ' + p.id, tagName: 'IMPROVE part ' + p.id, replyOverride: '<!-- REPLY IMPROVE part-' + p.id + ' -->' }, closeImp;
-      function applyImprove(code) {
-        S.snapshot(P, 'Before improving part ' + p.id);
-        P.improved = (P.improved || []).filter(function (b) { return b.id !== p.id }).concat([{ id: p.id, code: code, at: Date.now(), note: note.value.trim() }]);
-        save(true).then(function () { closeMaster(); render(); toast('Part ' + p.id + ' is improved. Earlier versions are kept (Script & audio, More, Undo).', 'ok', 7000) });
+    function setP(on) { pbtn.innerHTML = ''; pbtn.appendChild(icon(on ? 'pause' : 'play')); pbtn.setAttribute('aria-label', on ? 'Pause' : 'Play') }
+    function clockNow() { return WATCH.rate === 1 ? SD.now() : WATCH.t0 + (performance.now() - WATCH.p0) / 1000 * WATCH.rate }
+    function loopRange() { if (!WSS.loop) return null; var m = moment(); return m ? [m.part.start + m.a, m.part.start + m.b] : null }
+    function startWatch() {
+      stopAudio();
+      var L = loopRange(); if (L && (WATCH.t < L[0] - .01 || WATCH.t >= L[1] - .05)) WATCH.t = L[0];
+      if (WATCH.t >= dur - .1) WATCH.t = 0;
+      function go2() { WATCH.on = true; setP(true); WATCH.raf = requestAnimationFrame(loop) }
+      if (WATCH.rate === 1) soundBlobs().then(function (b) { return SD.play(P, WATCH.t, dur, b) }).then(go2);
+      else { SD.stop(); WATCH.t0 = WATCH.t; WATCH.p0 = performance.now(); go2() }
+    }
+    function stopWatch(keepFocus) {
+      if (WATCH.on) { var n = clockNow(); if (n != null) WATCH.t = Math.max(0, Math.min(n, dur - .02)) }
+      SD.stop(); WATCH.on = false; cancelAnimationFrame(WATCH.raf); setP(false);
+      if (!keepFocus) setFocus(WATCH.t);
+    }
+    function loop() {
+      if (!stage.isConnected) { SD.stop(); WATCH.on = false; return }
+      var n = clockNow();
+      if (n != null) {
+        var L = loopRange();
+        if (L && n >= L[1]) { SD.stop(); WATCH.on = false; WATCH.t = L[0]; startWatch(); return }
+        if (n >= dur) { WATCH.t = dur - .02; stopWatch(); drawAt(WATCH.t); return }
+        WATCH.t = n; drawAt(n);
       }
-      closeImp = modal({ title: 'Improve part ' + p.id + ' at ' + local.toFixed(1) + ' s', body: h('div', null, h('p', { class: 'muted', style: { margin: '0 0 8px', fontSize: '12.5px' } }, 'Video time ' + fmtT(WATCH.t) + '. Write what you want, copy the prompt into a new Sonnet chat with the project file, then paste the reply.'), note,
-        h('div', { class: 'row', style: { marginTop: '8px' } }, h('button', { class: 'btn small', onclick: function () { copyPrompt(J.improvePrompt(P, p.id, local, note.value.trim()), 'IMPROVE part ' + p.id) } }, icon('copy'), 'Copy prompt'), h('button', { class: 'btn small', onclick: fileForModel }, icon('download'), 'Project file ' + J.stamp(P))), reply, repOut),
-        actions: [{ label: 'Check and use', primary: true, do: function () {
-          repOut.innerHTML = '';
-          var r = REPLY.read(P, fake, reply.value, {});
-          if (!r.usable || !r.ok) {
-            reply.classList.add('field-bad');
-            repOut.appendChild(problemPanel(fake, { found: r.found, problems: r.problems, redirect: null }, { saved: r.usable, promptFn: function () { return J.improvePrompt(P, p.id, local, note.value.trim()) }, onUse: r.usable ? function () { closeImp(); applyImprove(r.code) } : null }));
+      WATCH.raf = requestAnimationFrame(loop);
+    }
+    function toggle() { if (WATCH.on) stopWatch(); else startWatch() }
+    function seek(t) { t = Math.max(0, Math.min(dur - .02, t)); var was = WATCH.on; if (was) stopWatch(true); WATCH.t = t; setFocus(t); if (was) startWatch(); else drawAt(t) }
+    function step(d) { seek(WATCH.t + d) }
+    function toggleLoop() { WSS.loop = !WSS.loop; loopBtn.classList.toggle('on', WSS.loop); toast(WSS.loop ? 'Loop on: the moment plays again and again. Press L to stop.' : 'Loop off.', 'ok', 2500) }
+    function setFocus(t) {
+      var before = moment(); WSS.focus = t; var now = moment();
+      paintBand();
+      if (WSS.tab === 'improve' && (!before || !now || before.part.id !== now.part.id || before.a !== now.a || before.b !== now.b)) paintRight();
+    }
+    WSKEY = function (e) {
+      if (!stage.isConnected) return false;
+      if (e.code === 'Space') { e.preventDefault(); toggle(); return true }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); step((e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 1 : 1 / 30)); return true }
+      if (e.key === 'l' || e.key === 'L') { toggleLoop(); return true }
+      if (e.key === 'Home') { seek(0); return true }
+      return false;
+    };
+
+    /* ---------- the right side: Improve · Issues · Changes · Export · Upload ---------- */
+    var tabBar = h('div', { class: 'ws-tabs' }), body = h('div', { class: 'scrollbox ws-body' }), foot = h('div', { class: 'ws-foot' });
+    var right = h('div', { class: 'panel ws-right' }, tabBar, body, foot);
+    function tabList() {
+      var n = allIssues().filter(function (x) { return x.level !== 'info' }).length;
+      return [{ id: 'improve', label: 'Improve' }, { id: 'issues', label: 'Issues', count: String(n) }, { id: 'changes', label: 'Changes', count: WSD.items.length ? String(WSD.items.length) : null }, { id: 'export', label: 'Export' }, { id: 'upload', label: 'Upload' }];
+    }
+    function paintTabs() { tabBar.innerHTML = ''; tabBar.appendChild(tabs(tabList(), WSS.tab, function (t) { WSS.tab = t; paintRight() })) }
+    function paintRight() {
+      if (!body.isConnected && body.parentNode) return;
+      paintTabs(); body.innerHTML = ''; foot.innerHTML = ''; foot.style.display = '';
+      ({ improve: improveTab, issues: issuesTab, changes: changesTab, export: exportTab, upload: uploadTab })[WSS.tab]();
+      if (!foot.children.length) foot.style.display = 'none';
+    }
+    function issueRow(x, withPart) {
+      var p = plan.parts.filter(function (q) { return q.id === x.part })[0];
+      var box = h('button', { class: 'ws-tick' + (ticked(x) ? ' on' : ''), 'aria-pressed': String(ticked(x)), 'aria-label': 'Tick', onclick: function () { WSS.ticks[issueKey(x)] = !ticked(x); paintRight() } }, icon('check'));
+      return h('div', { class: 'ws-issue ' + x.level }, box,
+        h('div', { class: 'ws-it' },
+          h('div', { class: 'ws-ih' }, withPart ? h('span', { class: 'mono muted' }, tagS(x.part)) : null, h('b', null, x.title)),
+          h('div', { class: 'ws-im' }, h('span', { class: x.level === 'bad' ? 't-bad' : x.level === 'warn' ? 't-warn' : 't-info' }, WS.LEVEL[x.level]), ' · ' + (WS.type(x.type) || {}).label + (x.source ? ' · ' + x.source : '') + (x.t != null ? ' · ' : ''),
+            x.t != null && p ? h('button', { class: 'linkbtn', onclick: function () { seek(p.start + x.t) } }, 'at ' + x.t.toFixed(1) + ' s') : null),
+          h('div', { class: 'ws-id muted' }, x.detail)));
+    }
+    function improveTab() {
+      var m = moment(); if (!m) { body.appendChild(h('p', { class: 'muted' }, 'This video has no parts yet.')); return }
+      var p = m.part, built = MASTER.info && (MASTER.info.built || []).some(function (b) { return b.id === p.id });
+      body.appendChild(h('div', { class: 'ws-moment' },
+        h('div', { class: 'ws-mh' }, h('span', { class: 'num mono' }, tagS(p.id)),
+          h('div', { style: { minWidth: 0, flex: 1 } }, h('b', null, p.title || 'Part ' + p.id), h('div', { class: 'muted mono', style: { fontSize: '11.5px' } }, fmtT(p.start + m.a) + ' – ' + fmtT(p.start + m.b) + (m.whole ? ' · whole part' : ' · 3 s around the playhead'))),
+          seg([{ id: 'here', label: 'Around here' }, { id: 'whole', label: 'Whole part' }], WSS.scope, function (v) { WSS.scope = v; paintBand(); paintRight() })),
+        h('div', { class: 'ws-quote' }, '“' + ((m.whole ? p.text : WS.words(P, p.start + m.a, p.start + m.b)) || '(no words here)') + '”')));
+      if (!built) body.appendChild(h('div', { class: 'warnline' }, 'This part is not built yet. Build it in Prompts, then improve it here.'));
+      body.appendChild(wsSec('What to improve', h('div', { class: 'ws-types' }, WS.TYPES.map(function (t) {
+        var on = WSS.types.indexOf(t.id) >= 0;
+        return h('button', { class: 'chip toggle' + (on ? ' on' : ''), title: t.hint, 'aria-pressed': String(on), onclick: function () { var i = WSS.types.indexOf(t.id); if (i >= 0) WSS.types.splice(i, 1); else WSS.types.push(t.id); paintRight() } }, h('span', { class: 'tick' }, icon('check')), h('span', null, t.label));
+      }))));
+      if (WSS.types.indexOf('special') >= 0) {
+        var sh = WS.shot(WSS.shot), sb = h('button', { class: 'btn small', onclick: function (e) { e.stopPropagation(); menu(sb, WS.SHOTS.map(function (s) { return { label: s[1], icon: s[0] === sh[0] ? 'check' : null, do: function () { WSS.shot = s[0]; paintRight() } } })) } }, h('span', { class: 'muted' }, 'Shot:'), sh[1], h('span', { style: { display: 'inline-flex', transform: 'rotate(90deg)' } }, icon('chev')));
+        body.appendChild(h('div', { class: 'ws-shot' }, sb, h('span', { class: 'muted' }, sh[2])));
+      }
+      var nC = WSS.types.reduce(function (s, id) { return s + ((WS.type(id) || {}).checks || []).length }, 0);
+      if (nC) {
+        body.appendChild(h('button', { class: 'linkbtn', style: { margin: '2px 0 8px' }, onclick: function () { WSS.checksOpen = !WSS.checksOpen; paintRight() } }, (WSS.checksOpen ? 'Hide' : 'See') + ' the ' + nC + ' checks that go into the prompt'));
+        if (WSS.checksOpen) body.appendChild(h('div', { class: 'howbox' }, WSS.types.map(function (id) { var t = WS.type(id); return t && t.checks.length ? h('div', { style: { marginBottom: '6px' } }, h('b', null, t.label), h('ul', { class: 'rep-list' }, t.checks.map(function (c) { return h('li', null, c) }))) : null })));
+      }
+      var found = partIssues(p.id), fl = h('div', { class: 'ws-issues' }), ready = WSA.key === MASTER.key && WSA.parts[p.id];
+      if (!ready && built) fl.appendChild(h('div', { class: 'muted', style: { fontSize: '12.5px' } }, 'Looking for problems in this part…'));
+      else if (!found.length && built) fl.appendChild(h('div', { class: 't-ok', style: { fontSize: '12.5px' } }, 'Nothing found in this part.'));
+      found.forEach(function (x) { fl.appendChild(issueRow(x, false)) });
+      body.appendChild(wsSec('Found in ' + tagS(p.id), fl, found.length ? found.filter(ticked).length + ' of ' + found.length + ' ticked' : ''));
+      var note = h('textarea', { class: 'area', rows: '3', placeholder: 'Your own words (optional). For example: the mother should look at the boy; the room is too dark.' }, WSS.notes[p.id] || '');
+      note.addEventListener('input', function () { WSS.notes[p.id] = note.value });
+      body.appendChild(wsSec('Your note', note));
+      var w = lastWaiting(p.id), nextId = w && !w.reply ? w.id : tagI(WSD.n + 1);
+      foot.appendChild(h('button', { class: 'btn primary', disabled: !built, onclick: function () { copyImprove(m, note.value.trim()) } }, icon('copy'), 'Copy prompt ' + nextId));
+      foot.appendChild(h('button', { class: 'btn', disabled: !w, title: w ? 'Paste the Sonnet reply for ' + w.id : 'Copy a prompt first', onclick: function () { pasteImprove(w) } }, icon('paste'), w ? 'Paste reply ' + w.id : 'Paste reply'));
+    }
+    function copyImprove(m, note) {
+      var p = m.part, picks = partIssues(p.id).filter(ticked);
+      if (!WSS.types.filter(function (t) { return t !== 'free' }).length && !picks.length && !note) { toast('Pick a kind of improvement, tick a problem or write a note first.', 'warn'); return }
+      if (WSS.types.length === 1 && WSS.types[0] === 'free' && !note) { toast('"Free note" needs your note. Write what you want changed.', 'warn'); return }
+      var w = lastWaiting(p.id), item = w && !w.reply ? w : null;
+      if (!item) { WSD.n += 1; item = { id: tagI(WSD.n), no: WSD.n, part: p.id, status: 'waiting', at: Date.now() }; WSD.items.push(item) }
+      Object.assign(item, { a: m.a, b: m.b, whole: m.whole, types: WSS.types.slice(), shot: WSS.types.indexOf('special') >= 0 ? WSS.shot : null, picks: picks.map(function (x) { return { key: x.key, part: x.part, level: x.level, type: x.type, title: x.title, detail: x.detail, fix: x.fix, t: x.t, source: x.source || null } }), note: note, at: Date.now() });
+      save(true); copyPrompt(WS.prompt(P, item, codeOf(p.id)), item.id); paintRight();
+    }
+    function issuesTab() {
+      var all = allIssues(), vid = WS.videoIssues(P), rv = WSD.review;
+      var c = { bad: 0, warn: 0, info: 0 }; all.forEach(function (x) { c[x.level]++ });
+      body.appendChild(h('div', { class: 'chips' }, chip(String(c.bad), 'problems', c.bad ? 'bad' : 'ok'), chip(String(c.warn), 'to look at', c.warn ? 'warn' : 'ok'), chip(String(c.info), 'ideas'),
+        WSA.key === MASTER.key && WSA.done < WSA.total ? chip(WSA.done + ' / ' + WSA.total, 'parts checked', 'warn') : null));
+      if (rv) body.appendChild(h('div', { class: 'muted', style: { fontSize: '12px', margin: '-4px 0 8px' } }, 'Includes ' + plural(rv.issues.length, 'issue') + ' from the Sonnet review (' + ago(rv.at) + ').'));
+      plan.parts.forEach(function (p) {
+        var L = partIssues(p.id); if (!L.length) return;
+        body.appendChild(h('div', { class: 'ws-group' }, h('div', { class: 'ws-gh' }, h('span', { class: 'num mono' }, tagS(p.id)), h('b', null, p.title || 'Part ' + p.id), h('div', { class: 'grow' }),
+          h('button', { class: 'btn small', onclick: function () { seek(p.start + .05); WSS.scope = 'whole'; WSS.tab = 'improve'; paintBand(); paintRight() } }, icon('spark'), 'Improve ' + tagS(p.id))), L.map(function (x) { return issueRow(x, false) })));
+      });
+      if (vid.length) body.appendChild(h('div', { class: 'ws-group' }, h('div', { class: 'ws-gh' }, h('b', null, 'Assets and people'), h('span', { class: 'muted', style: { fontSize: '11.5px' } }, 'fixed in their own result')),
+        vid.map(function (x) { return h('div', { class: 'ws-issue ' + x.level }, h('span', { class: 'num mono' }, x.tag), h('div', { class: 'ws-it' }, h('div', { class: 'ws-ih' }, h('b', null, x.title)), h('div', { class: 'ws-id muted' }, x.detail), h('button', { class: 'linkbtn', onclick: function () { go(P.id + '/pick/' + x.job) } }, 'Open ' + x.tag))) })));
+      if (!all.length && !vid.length) body.appendChild(h('div', { class: 'muted', style: { padding: '14px 4px' } }, WSA.key === MASTER.key && WSA.done >= WSA.total ? 'No problems found. Ask Sonnet for a full review below for a second opinion.' : 'Checking the parts…'));
+      foot.appendChild(h('button', { class: 'btn', onclick: function () { copyPrompt(WS.reviewPrompt(P), 'R01') } }, icon('copy'), 'Copy review prompt R01'));
+      foot.appendChild(h('button', { class: 'btn', onclick: pasteReview }, icon('paste'), rv ? 'Replace review' : 'Paste review'));
+      if (rv) foot.appendChild(h('button', { class: 'btn quiet', onclick: function () { WSD.review = null; save(true); paintRight(); paintStrip() } }, 'Clear review'));
+    }
+    function pasteReview() {
+      var ta = h('textarea', { class: 'area', style: { minHeight: '220px' }, placeholder: 'Paste the whole Sonnet reply for R01 (the json code block).' });
+      modal({ title: 'Paste the review (R01)', body: h('div', null, h('p', { class: 'muted', style: { margin: '0 0 8px', fontSize: '12.5px' } }, 'Each issue becomes a marker on the timeline and a line in Issues, ready to tick.'), ta), actions: [{ label: 'Check and add', primary: true, do: function () {
+        var r = WS.parseReview(ta.value, P); if (r.err) { ta.classList.add('field-bad'); toast(r.err, 'warn', 9000); return false }
+        WSD.review = { at: Date.now(), issues: r.issues }; save(true).then(function () { paintRight(); paintStrip(); toast(plural(r.issues.length, 'issue') + ' from the review added' + (r.skipped ? ' (' + r.skipped + ' skipped: no real part)' : '') + '.', 'ok', 6000) });
+      } }] });
+    }
+    var STATUS = { waiting: ['Waiting for the reply', 't-warn'], checked: ['Checked: decide', 't-info'], kept: ['Kept', 't-ok'], dropped: ['Old version kept', 'muted'], undone: ['Undone', 'muted'] };
+    var VERD = { changed: ['Changed', 't-ok'], partly: ['Partly changed', 't-warn'], nothing: ['Nothing changed', 't-bad'] };
+    function changesTab() {
+      if (!WSD.items.length) { body.appendChild(h('div', { class: 'muted', style: { padding: '14px 4px', fontSize: '13px' } }, 'No improvements yet. In Improve, pick what to make better and press Copy prompt. Each one gets a number (I01, I02 …) and shows here.')); return }
+      WSD.items.slice().reverse().forEach(function (it) {
+        var st = STATUS[it.status] || STATUS.waiting, vd = it.report ? VERD[it.report.verdict] : null;
+        var acts = h('div', { class: 'ws-acts' });
+        if (it.status === 'waiting') acts.appendChild(h('button', { class: 'btn small primary', onclick: function () { pasteImprove(it) } }, icon('paste'), 'Paste reply'));
+        if (it.code && it.status !== 'waiting') acts.appendChild(h('button', { class: 'btn small' + (it.status === 'checked' ? ' primary' : ''), onclick: function () { runCompare(it) } }, icon('spark'), 'Compare'));
+        if (it.status === 'kept') acts.appendChild(h('button', { class: 'btn small', onclick: function () { undoItem(it) } }, icon('undo'), 'Undo'));
+        acts.appendChild(h('button', { class: 'btn small', title: 'Copy the prompt again', onclick: function () { copyPrompt(WS.prompt(P, it, it.status === 'kept' && it.prev ? it.prev.code : codeOf(it.part)), it.id) } }, icon('copy')));
+        body.appendChild(h('div', { class: 'ws-change' }, h('span', { class: 'num mono' }, it.id),
+          h('div', { class: 'ws-it' }, h('div', { class: 'ws-ih' }, h('span', { class: 'mono muted' }, tagS(it.part)), h('b', null, ((it.types || []).map(function (t) { return (WS.type(t) || {}).label }).concat((it.picks || []).length ? [plural(it.picks.length, 'problem')] : []).join(', ')) || 'Note')),
+            h('div', { class: 'ws-im' }, h('span', { class: st[1] }, st[0]), vd ? h('span', null, ' · ', h('span', { class: vd[1] }, vd[0])) : null, ' · ' + ago(it.at)), it.note ? h('div', { class: 'ws-id muted' }, '“' + it.note + '”') : null),
+          acts));
+      });
+    }
+    function exportTab() {
+      body.appendChild(h('h2', { class: 'ws-h2' }, 'Make the MP4'));
+      body.appendChild(h('p', { class: 'sub muted', style: { fontSize: '12.5px' } }, (wide ? '1920 x 1080' : '1080 x 1920') + ', 30 frames a second, with the narration, music and effects. Keep this window open while it works.'));
+      var prog = h('div', { style: { display: 'none', marginTop: '10px' } }, h('div', { class: 'status-line' }), h('div', { class: 'progress' }, h('i', { style: { width: '0%' } })));
+      var ebtn = h('button', { class: 'btn primary', onclick: doExport }, icon('film'), 'Make the MP4'), cbtn = h('button', { class: 'btn', style: { display: 'none' }, onclick: function () { window.EXPORTER.cancel() } }, 'Stop');
+      body.appendChild(h('div', { class: 'row' }, ebtn, cbtn)); body.appendChild(prog);
+      if (LASTVIDEO && LASTVIDEO.pid === P.id) body.appendChild(h('div', { class: 'row', style: { marginTop: '10px' } }, h('span', { class: 't-ok' }, 'Ready: ' + LASTVIDEO.name), h('button', { class: 'btn small', onclick: function () { download(LASTVIDEO.name, LASTVIDEO.blob) } }, icon('download'), 'Download again')));
+      var open = WSD.items.filter(function (i) { return i.status === 'checked' });
+      if (open.length) body.appendChild(h('div', { class: 'warnline', style: { marginTop: '12px' } }, plural(open.length, 'improvement') + ' checked but not decided (' + open.map(function (i) { return i.id }).join(', ') + '). The MP4 uses the versions in use now.'));
+      function doExport() {
+        if (!window.EXPORTER.supported()) { toast('This browser cannot make video files. Use Chrome or Edge on a computer.', 'bad', 8000); return }
+        var missing = plan.parts.filter(function (p) { return !(MASTER.info && MASTER.info.built.some(function (b) { return b.id === p.id })) });
+        if (missing.length) { toast('Not every part is built yet (missing: ' + missing.map(function (p) { return p.id }).join(', ') + '). Build and pick them first.', 'warn', 8000); return }
+        if (WATCH.on) stopWatch(true);
+        BUSY = true; ebtn.setAttribute('disabled', ''); cbtn.style.display = ''; prog.style.display = '';
+        var line = prog.querySelector('.status-line'), bfill = prog.querySelector('.progress i');
+        line.textContent = 'Mixing the sound…';
+        soundBlobs().then(function (b) { return SD.mix(P, dur, b) }).then(function (mix) {
+          return window.EXPORTER.run(MASTER.host, mix, dur, wide, function (stage2, f, left2) { bfill.style.width = (f * 100).toFixed(1) + '%'; line.textContent = stage2 === 'audio' ? 'Encoding the sound…' : stage2 === 'done' ? 'Finishing…' : 'Drawing frames: ' + Math.round(f * 100) + '% · about ' + fmtLen(left2) + ' left' });
+        }).then(function (r) {
+          var name = safeName(P.name) + '.' + r.ext; LASTVIDEO = { pid: P.id, name: name, blob: r.blob };
+          download(name, r.blob); P.exported = Date.now(); save(true);
+          S.folder().state === 'ok' && S.saveFile && S.saveFile(P, name, r.blob);
+          toast('Your video is ready: ' + name + ' (' + (r.blob.size / 1048576).toFixed(1) + ' MB, made in ' + fmtLen(r.seconds) + ').', 'ok', 9000);
+        }).catch(function (e) { toast('The MP4 could not be made: ' + e.message, 'bad', 9000) })
+          .then(function () { BUSY = false; render() });
+      }
+    }
+    function uploadTab() {
+      var chIn = h('input', { class: 'input', placeholder: 'Channel name (optional), e.g. NYENZ LEARN', value: channelName(), style: { height: '34px' } });
+      chIn.addEventListener('input', function () { try { localStorage.setItem('studio.channel', chIn.value.trim()) } catch (e) { } });
+      function pastePack() {
+        var ta = h('textarea', { class: 'area', style: { minHeight: '220px' }, placeholder: 'Paste the whole Sonnet reply (the json code block).' });
+        modal({ title: 'Paste the upload package', body: ta, actions: [{ label: 'Check and save', primary: true, do: function () { var r = parsePack(ta.value); if (r.err) { ta.classList.add('field-bad'); toast(r.err, 'warn', 9000); return false } P.uploadPack = r.pack; P.upload = ta.value; save(true).then(function () { paintRight(); packModal() }) } }] });
+      }
+      var UP = P.uploadPack, upChecks = UP ? packChecks(UP) : [];
+      body.appendChild(h('div', { class: 'card ws-card' }, h('h2', { class: 'ws-h2' }, 'Upload package'), h('p', { class: 'sub muted', style: { fontSize: '12.5px' } }, 'Titles, description, tags, hashtags and a pinned comment, written for clicks without misleading.'),
+        chIn,
+        h('div', { class: 'row', style: { margin: '10px 0 0' } }, h('button', { class: 'btn', onclick: function () { copyText(uploadPrompt(), 'Upload prompt U01 is copied', 'Paste it in a new Sonnet chat (no file needed).') } }, icon('copy'), 'Copy prompt'),
+          h('button', { class: 'btn' + (UP ? '' : ' primary'), onclick: pastePack }, icon('paste'), UP ? 'Replace' : 'Paste package'),
+          UP ? h('button', { class: 'btn primary', onclick: packModal }, icon('spark'), 'Open package') : null),
+        UP ? h('div', { style: { marginTop: '10px', fontSize: '12.5px' } }, h('div', null, h('span', { class: 'muted' }, 'Title: '), h('b', null, UP.titles[UP.best - 1].title)), h('div', { class: upChecks.some(function (c) { return c[0] === 'bad' }) ? 't-bad' : upChecks.length ? 't-warn' : 't-ok', style: { marginTop: '4px', fontSize: '12px' } }, upChecks.length ? plural(upChecks.length, 'thing') + ' to look at' : UP.titles.length + ' titles · ' + UP.tags.length + ' tags · ' + UP.hashtags.length + ' hashtags · all within YouTube’s limits')) : null));
+    }
+
+    /* ---------- paste a reply, check it, compare before and after ---------- */
+    function pasteImprove(item) {
+      if (!item) return;
+      var ta = h('textarea', { class: 'area', style: { minHeight: '190px' }, placeholder: 'Paste the whole Sonnet reply for ' + item.id + ' here.' }), out = h('div', { class: 'rep-stack', style: { marginTop: '10px' } }), close;
+      var fake = { id: 'scene-' + item.part, kind: 'scene', part: item.part, title: 'Improve part ' + item.part, tagName: item.id, replyOverride: WS.replyLine(item) };
+      close = modal({ title: 'Paste the reply · ' + item.id + ' · ' + tagS(item.part), body: h('div', null, h('div', { class: 'expect' }, h('span', { class: 'k' }, 'First line expected'), h('code', null, WS.replyLine(item))), ta, out),
+        actions: [{ label: 'Check and compare', primary: true, do: function () {
+          out.innerHTML = ''; ta.classList.remove('field-bad');
+          var txt = ta.value, other = /REPLY\W{0,6}I(\d+)\b/i.exec(txt), r;
+          if (other && +other[1] !== item.no) {
+            var o2 = WSD.items.filter(function (i) { return i.no === +other[1] })[0];
+            ta.classList.add('field-bad');
+            out.appendChild(h('div', { class: 'warnline' }, 'This reply is for ' + tagI(+other[1]) + ', not ' + item.id + '.', o2 && o2.status === 'waiting' ? h('button', { class: 'btn small', onclick: function () { close(); pasteImprove(o2); setTimeout(function () { var t2 = document.querySelector('.modal textarea'); if (t2) t2.value = txt }, 50) } }, 'Paste it in ' + o2.id) : null));
             return false;
           }
-          applyImprove(r.code);
+          r = REPLY.read(P, fake, txt, {});
+          if (!r.usable) { ta.classList.add('field-bad'); out.appendChild(problemPanel(fake, { found: r.found, problems: r.problems, redirect: null }, { saved: false, promptFn: function () { return WS.prompt(P, item, codeOf(item.part)) } })); return false }
+          item.reply = txt.slice(0, 80000); item.code = r.code; item.format = r.problems.map(function (p) { return { level: p.level, title: p.title } }); item.repliedAt = Date.now();
+          save(true).then(function () { runCompare(item) });
         } }] });
     }
-    var info = h('div', { class: 'stack', style: { gap: '10px' } });
-    var left = h('div', { class: 'panel' }, stage, status, player);
-    var exp = h('div', { class: 'card' }, h('h2', null, 'Make the MP4'), h('p', { class: 'sub' }, (wide ? '1920 x 1080' : '1080 x 1920') + ', 30 frames a second, with the narration, music and effects. Keep this window open while it works.'));
-    var prog = h('div', { style: { display: 'none', marginTop: '10px' } }, h('div', { class: 'status-line' }), h('div', { class: 'progress' }, h('i', { style: { width: '0%' } })));
-    var ebtn = h('button', { class: 'btn primary', onclick: doExport }, icon('film'), 'Make the MP4'), cbtn = h('button', { class: 'btn', style: { display: 'none' }, onclick: function () { window.EXPORTER.cancel() } }, 'Stop');
-    exp.appendChild(h('div', { class: 'row' }, ebtn, cbtn)); exp.appendChild(prog);
-    if (LASTVIDEO && LASTVIDEO.pid === P.id) exp.appendChild(h('div', { class: 'row', style: { marginTop: '10px' } }, h('span', { class: 't-ok' }, 'Ready: ' + LASTVIDEO.name), h('button', { class: 'btn small', onclick: function () { download(LASTVIDEO.name, LASTVIDEO.blob) } }, icon('download'), 'Download again')));
-    function doExport() {
-      if (!window.EXPORTER.supported()) { toast('This browser cannot make video files. Use Chrome or Edge on a computer.', 'bad', 8000); return }
-      var missing = plan.parts.filter(function (p) { return !(MASTER.info && MASTER.info.built.some(function (b) { return b.id === p.id })) });
-      if (missing.length) { toast('Not every part is built yet (missing: ' + missing.map(function (p) { return p.id }).join(', ') + '). Build and pick them first.', 'warn', 8000); return }
-      if (WATCH.on) stopWatch();
-      BUSY = true; ebtn.setAttribute('disabled', ''); cbtn.style.display = ''; prog.style.display = '';
-      var line = prog.querySelector('.status-line'), bfill = prog.querySelector('.progress i');
-      line.textContent = 'Mixing the sound…';
-      soundBlobs().then(function (b) { return SD.mix(P, dur, b) }).then(function (mix) {
-        return window.EXPORTER.run(MASTER.host, mix, dur, wide, function (stage2, f, left) { bfill.style.width = (f * 100).toFixed(1) + '%'; line.textContent = stage2 === 'audio' ? 'Encoding the sound…' : stage2 === 'done' ? 'Finishing…' : 'Drawing frames: ' + Math.round(f * 100) + '% · about ' + fmtLen(left) + ' left' });
-      }).then(function (r) {
-        var name = safeName(P.name) + '.' + r.ext; LASTVIDEO = { pid: P.id, name: name, blob: r.blob };
-        download(name, r.blob); P.exported = Date.now(); save(true);
-        S.folder().state === 'ok' && S.saveFile && S.saveFile(P, name, r.blob);
-        toast('Your video is ready: ' + name + ' (' + (r.blob.size / 1048576).toFixed(1) + ' MB, made in ' + fmtLen(r.seconds) + ').', 'ok', 9000);
-      }).catch(function (e) { toast('The MP4 could not be made: ' + e.message, 'bad', 9000) })
-        .then(function () { BUSY = false; render() });
+    function runCompare(item) {
+      var id = item.part, kept = item.status === 'kept', beforeCode = kept && item.prev ? item.prev.code : codeOf(id), afterCode = item.code;
+      var wait = modal({ title: 'Comparing ' + item.id + ' · ' + tagS(id), body: h('div', { class: 'drawing' }, h('div', { class: 'muted', style: { marginBottom: '10px' } }, 'Drawing the old and the new version and checking both…'), h('div', { class: 'progress' }, h('i', { style: { width: '60%' } }))), actions: [] });
+      var hosts = [];
+      function side(code) {
+        var useCache = code === codeOf(id) && WSA.key === MASTER.key && WSA.parts[id] && MASTER.host;
+        if (useCache) return Promise.resolve({ a: WSA.parts[id], H: MASTER.host, own: false });
+        return GK.open(P, blocksWith(id, code)).then(function (H) { hosts.push(H); return H.ask({ cmd: 'info' }).then(function (info) { info = info || { built: [], lint: {}, errors: ['The file did not answer.'] }; return WS.analyse(P, H, info, id, code).then(function (a) { return { a: a, H: H, own: true } }) }) });
+      }
+      side(beforeCode).then(function (B) { return side(afterCode).then(function (A) { return [B, A] }) }).then(function (r) {
+        var rep = WS.report(P, item, r[0].a, r[1].a);
+        item.report = { verdict: rep.verdict, summary: rep.summary, at: Date.now() };
+        if (item.status === 'waiting') item.status = 'checked';
+        save(true); wait(); var cleaned = false; compareModal(item, rep, r[0], r[1], function () { if (cleaned) return; cleaned = true; hosts.forEach(function (H) { H.close() }) });
+        if (WSS.tab === 'changes' || WSS.tab === 'improve') paintRight();
+      }).catch(function (e) { wait(); hosts.forEach(function (H) { H.close() }); toast('The comparison could not run: ' + (e && e.message || e), 'bad', 9000) });
     }
-    var chIn = h('input', { class: 'input', placeholder: 'Channel name (optional), e.g. NYENZ LEARN', value: channelName(), style: { height: '34px' } });
-    chIn.addEventListener('input', function () { try { localStorage.setItem('studio.channel', chIn.value.trim()) } catch (e) {} });
-    function pastePack() {
-      var ta = h('textarea', { class: 'area', style: { minHeight: '220px' }, placeholder: 'Paste the whole Sonnet reply (the json code block).' });
-      modal({ title: 'Paste the upload package', body: ta, actions: [{ label: 'Check and save', primary: true, do: function () { var r = parsePack(ta.value); if (r.err) { ta.classList.add('field-bad'); toast(r.err, 'warn', 9000); return false } P.uploadPack = r.pack; P.upload = ta.value; save(true).then(function () { render(); packModal() }) } }] });
+    function compareModal(item, rep, B, A, cleanup) {
+      var id = item.part, pp = plan.parts.filter(function (x) { return x.id === id })[0], me = (A.a.info.built || []).filter(function (b) { return b.id === id })[0] || (B.a.info.built || []).filter(function (b) { return b.id === id })[0] || { END: pp.end - pp.start };
+      var END = me.END, st = (B.a.info && B.a.info.stage) || { W: 540, H: 960 }, k = 300 / Math.max(st.W, st.H), cw = Math.round(st.W * k), ch = Math.round(st.H * k);
+      var cb = h('canvas', { width: cw * 2, height: ch * 2 }), ca = h('canvas', { width: cw * 2, height: ch * 2 });
+      var CT = { t: Math.min(END - .05, item.whole ? .3 : (item.a || 0) + .2), on: false, raf: 0, busy: false };
+      var tl = h('span', { class: 'mono', style: { fontSize: '12px', minWidth: '96px' } }), slider = h('input', { type: 'range', class: 'range', min: '0', max: String(END), step: '0.01', value: String(CT.t) });
+      var cp = h('button', { class: 'btn round primary', 'aria-label': 'Play both', onclick: function () { CT.on ? cstop() : cplay() } }, icon('play'));
+      function cdraw(t) {
+        tl.textContent = t.toFixed(2) + ' / ' + END.toFixed(1) + ' s'; slider.value = String(t);
+        if (CT.busy) return; CT.busy = true;
+        Promise.all([B.H.ask({ cmd: 'frame', t: t, id: id }), A.H.ask({ cmd: 'frame', t: t, id: id })]).then(function (s) {
+          return Promise.all(s.map(function (svg, i) { return typeof svg === 'string' ? GK.raster(svg, cb.width, cb.height).then(function (c) { (i ? ca : cb).getContext('2d').drawImage(c, 0, 0) }) : null }));
+        }).catch(function () { }).then(function () { CT.busy = false });
+      }
+      function cplay() {
+        CT.on = true; cp.innerHTML = ''; cp.appendChild(icon('pause')); cp.setAttribute('aria-label', 'Pause');
+        if (WATCH.on) stopWatch(true);
+        var t0 = CT.t >= END - .1 ? 0 : CT.t;
+        soundBlobs().then(function (b) { return SD.play(P, pp.start + t0, totalDur(), b) }).catch(function () { }).then(function () { CT.p0 = performance.now(); CT.t0 = t0; ctick() });
+      }
+      function ctick() {
+        if (!cb.isConnected || !CT.on) return;
+        var n = SD.now(), t = n != null ? n - pp.start : CT.t0 + (performance.now() - CT.p0) / 1000;
+        if (t >= END - .02) { SD.stop(); CT.t = 0; cplay(); return }
+        CT.t = t; cdraw(t); CT.raf = requestAnimationFrame(ctick);
+      }
+      function cstop() { CT.on = false; SD.stop(); cancelAnimationFrame(CT.raf); cp.innerHTML = ''; cp.appendChild(icon('play')); cp.setAttribute('aria-label', 'Play both') }
+      slider.addEventListener('input', function () { if (CT.on) cstop(); CT.t = +slider.value; cdraw(CT.t) });
+      var VD = { changed: ['ok', 'Changed', 'The improvement shows in the pictures.'], partly: ['warn', 'Partly changed', 'Some of it worked. Send the message back for the rest.'], nothing: ['bad', 'Nothing changed', 'The pictures look the same as before. Send the message back.'] }[rep.verdict];
+      var ST = { fixed: ['t-ok', 'Fixed'], still: ['t-bad', 'Still there'], eye: ['t-info', 'Check by eye'] };
+      var frames = h('div', { class: 'ws-cframes' }, (A.a.frames || []).map(function (f, i) {
+        var d = rep.frames[i] ? rep.frames[i].d : 0, cv = h('canvas', { width: f.c ? f.c.width : 9, height: f.c ? f.c.height : 16 }); if (f.c) cv.getContext('2d').drawImage(f.c, 0, 0);
+        return h('button', { class: 'ws-cf' + (d > .004 ? ' on' : ''), title: 'Show ' + f.t.toFixed(1) + ' s', onclick: function () { if (CT.on) cstop(); CT.t = f.t; cdraw(f.t) } }, cv, h('span', { class: 'mono' }, f.t.toFixed(1) + ' s'), h('span', { class: d > .004 ? 't-ok' : 'muted' }, d > .004 ? Math.round(d * 100) + '% new' : 'same'));
+      }));
+      var bodyC = h('div', { class: 'ws-compare' },
+        h('div', { class: 'rep-head ' + VD[0] }, h('b', null, VD[1] + ' · ' + item.id), h('span', null, rep.summary)),
+        h('div', { class: 'ws-cgrid' },
+          h('div', { class: 'ws-cview' },
+            h('div', { class: 'ws-pair' }, h('figure', null, cb, h('figcaption', null, 'Before')), h('figure', null, ca, h('figcaption', null, 'After'))),
+            h('div', { class: 'row ws-cctl' }, cp, slider, tl),
+            wsSec('Changed pictures', frames, rep.moved + ' of ' + rep.frames.length)),
+          h('div', { class: 'ws-cinfo scrollbox' },
+            wsSec('What you asked', h('div', null, rep.asked.length ? rep.asked.map(function (x) { var s = ST[x.state]; return h('div', { class: 'ws-ask' }, h('span', { class: s[0] + ' ws-st' }, s[1]), h('span', null, x.text)) }) : h('div', { class: 'muted' }, 'Nothing was asked.'))),
+            rep.fresh.length ? wsSec('New problems', h('div', null, rep.fresh.map(function (x) { return h('div', { class: 'ws-ask' }, h('span', { class: (x.level === 'bad' ? 't-bad' : 't-warn') + ' ws-st' }, 'New'), h('span', null, x.title)) }))) : null,
+            wsSec('What changed in the code', h('ul', { class: 'rep-list' }, rep.code.map(function (l) { return h('li', null, l) }))),
+            wsSec('Nothing broken around it', h('div', null, rep.around.map(function (x) { return h('div', { class: 'ws-ask' }, h('span', { class: (x.ok ? 't-ok' : 't-bad') + ' ws-st' }, x.ok ? 'OK' : 'Broken'), h('span', null, x.text)) }))),
+            (item.format || []).length ? wsSec('Format notes', h('ul', { class: 'rep-list' }, item.format.map(function (x) { return h('li', { class: x.level === 'error' ? 't-bad' : '' }, x.title) }))) : null)));
+      var acts = [];
+      if (item.status === 'checked') {
+        acts.push({ label: 'Keep the new version', primary: true, do: function () { cstop(); cleanup(); keepItem(item) } });
+        acts.push({ label: 'Keep the old version', do: function () { cstop(); cleanup(); item.status = 'dropped'; save(true).then(function () { paintRight(); toast(item.id + ': the old version stays. The reply is kept in Changes if you change your mind.', 'ok', 6000) }) } });
+      }
+      if (rep.message) acts.push({ label: 'Copy message to send back', do: function () { copyText(rep.message, 'The message for ' + item.id + ' is copied', 'Send it in the same Sonnet chat, then paste the new reply.'); item.status = item.status === 'checked' ? 'waiting' : item.status; if (item.status === 'waiting') { item.reply = null } save(true).then(paintRight); return false } });
+      var close = modal({ title: 'Before and after · ' + item.id + ' · ' + tagS(id), body: bodyC, actions: acts, wide: true });
+      // the modal closes with X, Escape or a click outside: always stop the sound and close the frames
+      var veil = cb.closest('.veil'), mo = new MutationObserver(function () { if (!veil.isConnected) { mo.disconnect(); cstop(); cleanup() } }); mo.observe(document.body, { childList: true });
+      cdraw(CT.t);
+      return close;
     }
-    var UP = P.uploadPack, upChecks = UP ? packChecks(UP) : [];
-    var pack = h('div', { class: 'card' }, h('h2', null, 'Upload package'), h('p', { class: 'sub' }, 'Titles, description, tags, hashtags and a pinned comment, written for clicks without misleading.'),
-      chIn,
-      h('div', { class: 'row', style: { margin: '10px 0 0' } }, h('button', { class: 'btn', onclick: function () { copyText(uploadPrompt(), 'Upload prompt U01 is copied', 'Paste it in a new Sonnet chat (no file needed).') } }, icon('copy'), 'Copy prompt'),
-        h('button', { class: 'btn' + (UP ? '' : ' primary'), onclick: pastePack }, icon('paste'), UP ? 'Replace' : 'Paste package'),
-        UP ? h('button', { class: 'btn primary', onclick: packModal }, icon('spark'), 'Open package') : null),
-      UP ? h('div', { style: { marginTop: '10px', fontSize: '12.5px' } }, h('div', null, h('span', { class: 'muted' }, 'Title: '), h('b', null, UP.titles[UP.best - 1].title)), h('div', { class: upChecks.some(function (c) { return c[0] === 'bad' }) ? 't-bad' : upChecks.length ? 't-warn' : 't-ok', style: { marginTop: '4px', fontSize: '12px' } }, upChecks.length ? plural(upChecks.length, 'thing') + ' to look at' : UP.titles.length + ' titles · ' + UP.tags.length + ' tags · ' + UP.hashtags.length + ' hashtags · all within YouTube’s limits')) : null);
-    info.appendChild(exp); info.appendChild(pack);
-    pg.appendChild(h('div', { class: 'cols' }, left, info));
+    function keepItem(item) {
+      var id = item.part, prevEntry = (P.improved || []).filter(function (b) { return b.id === id })[0] || null;
+      S.snapshot(P, 'Before keeping ' + item.id + ' (part ' + id + ')').then(function () {
+        item.prev = { code: codeOf(id), improved: prevEntry ? { id: prevEntry.id, code: prevEntry.code, at: prevEntry.at, by: prevEntry.by || null } : null };
+        P.improved = (P.improved || []).filter(function (b) { return b.id !== id }).concat([{ id: id, code: item.code, at: Date.now(), by: item.id, note: item.note || '' }]);
+        item.status = 'kept'; item.keptAt = Date.now();
+        return save(true);
+      }).then(function () { closeMaster(); render(); toast(item.id + ' is kept: part ' + id + ' now uses the new version. Undo it any time in Changes.', 'ok', 7000) });
+    }
+    function undoItem(item) {
+      var later = WSD.items.filter(function (i) { return i.part === item.part && i.status === 'kept' && i.keptAt > item.keptAt })[0];
+      if (later) { toast('Undo ' + later.id + ' first: it changed part ' + item.part + ' after ' + item.id + '.', 'warn', 7000); return }
+      S.snapshot(P, 'Before undoing ' + item.id).then(function () {
+        P.improved = (P.improved || []).filter(function (b) { return b.id !== item.part });
+        if (item.prev && item.prev.improved) P.improved.push(item.prev.improved);
+        item.status = 'undone';
+        return save(true);
+      }).then(function () { closeMaster(); render(); toast(item.id + ' is undone: part ' + item.part + ' is back to the version before it.', 'ok', 6000) });
+    }
+
+    pg.appendChild(h('div', { class: 'ws fill' }, left, right));
     pg.appendChild(nextBar({ label: 'Thumbnails', go: 'thumbs' }, null));
+    WSA.onStep = function () { if (!stage.isConnected) return; paintStrip(); if (WSS.tab === 'improve' || WSS.tab === 'issues') paintRight(); else paintTabs() };
     master().then(function (M) {
+      if (!stage.isConnected) return;
       var b = M.info.built.map(function (x) { return x.id }), miss = plan.parts.filter(function (p) { return b.indexOf(p.id) < 0 }).map(function (p) { return p.id });
       var bad = Object.keys(M.info.lint || {}).filter(function (k) { return (M.info.lint[k] || []).some(function (r) { return !r.ok }) });
       status.innerHTML = '';
-      status.appendChild(h('span', { class: miss.length ? 't-warn' : 't-ok' }, miss.length ? (b.length ? 'Built parts: ' + b.join(', ') + '. Not built yet: ' + miss.join(', ') + '.' : 'No parts are built yet. Build them in Prompts and pick them in Pick the best.') : 'All ' + b.length + ' parts are built.'));
+      status.appendChild(h('span', { class: miss.length ? 't-warn' : 't-ok' }, miss.length ? (b.length ? 'Built parts: ' + b.join(', ') + '. Not built yet: ' + miss.join(', ') + '.' : 'No parts are built yet. Build them in Prompts and pick them in Results.') : 'All ' + b.length + ' parts are built.'));
       if (bad.length) status.appendChild(h('span', { class: 't-warn' }, '  Checks with problems: ' + bad.join(', ') + '.'));
-      if ((M.info.errors || []).length) status.appendChild(h('div', { class: 't-bad' }, 'Script errors: ' + M.info.errors.slice(0, 2).join('; ')));
-      if (b.length) drawAt(WATCH.t);
+      if ((M.info.errors || []).length) status.appendChild(h('span', { class: 't-bad' }, '  Script errors: ' + M.info.errors.slice(0, 2).join('; ')));
+      if (b.length) { poster(); analyseAll(); paintStrip(); paintRight() }
       else { var g = stage.getContext('2d'); g.fillStyle = '#141416'; g.fillRect(0, 0, stage.width, stage.height); g.fillStyle = 'rgba(236,230,216,.7)'; g.font = '600 22px Inter, Arial, sans-serif'; g.textAlign = 'center'; g.fillText('No parts are built yet', stage.width / 2, stage.height / 2 - 10); g.font = '15px Inter, Arial, sans-serif'; g.fillText('Build and pick them in stages 3 and 4', stage.width / 2, stage.height / 2 + 20) }
     });
-    paint();
+    paint(); paintBand(); paintRight();
     return pg;
   }
   var LASTVIDEO = null;
@@ -1602,6 +1947,7 @@
       if (e.key === 'Escape') closeMenu();
       if (typing || document.querySelector('.veil')) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && P && STAGE === 'audio') { e.preventDefault(); undo(); return }
+      if (P && STAGE === 'export' && WSKEY && WSKEY(e)) return;
       if (!P || STAGE !== 'audio' || !AUDIOEL.src) return;
       var T = P.timing, parts = T ? AU.parts(T.words, P.cuts || [], T.duration) : [], onParts = AUDIOTAB === 'parts' && parts.length;
       if (e.code === 'Space') { e.preventDefault(); var q = onParts ? parts[SELPART] : null; playToggle(q ? 'part' + SELPART : 'all', q ? q.start : 0, q ? q.end : (T ? T.duration : AUDIOEL.duration || 1e9)) }
