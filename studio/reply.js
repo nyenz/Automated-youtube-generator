@@ -8,7 +8,7 @@
 (function () {
   'use strict';
   var R = {}; window.REPLY = R;
-  var TAG = /REPLY\W{0,6}([PACS])(\d+)\s+([^\s"'<>*,]+)(?:\s+([AB])\b)?/i;
+  var TAG = /REPLY\W{0,6}([PACSI])(\d+)\s+([^\s"'<>*,]+)(?:\s+([AB])\b)?/i;
   function mk(level) { return function (id, title, detail, fix, x) { return Object.assign({ id: id, level: level, title: title, detail: detail, fix: fix }, x || {}) } }
   var err = mk('error'), warn = mk('warn');
   function pad(n) { return (n < 10 ? '0' : '') + n }

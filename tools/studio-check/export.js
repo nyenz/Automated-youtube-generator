@@ -21,6 +21,7 @@ await useIt('scene-1');
 await p.click('.side .stage:has-text("Sound")');await p.waitForTimeout(600);await p.setInputFiles('.card input[type=file]',SP+'/a.wav');await p.waitForTimeout(1000);
 await p.click('.side .stage:has-text("Watch")');await p.waitForTimeout(3000);
 ok((await p.locator('.panel .muted').first().innerText()).includes('All 1 parts are built')||(await p.locator('.panel').first().innerText()).includes('All 1 parts'),'the part is built');
+await p.click('.ws-tabs button:has-text("Export")');await p.waitForTimeout(300);
 const t0=Date.now();
 const [dl]=await Promise.all([p.waitForEvent('download',{timeout:600000}),p.click('button:has-text("Make the MP4")')]);
 const f=await dl.path();const size=fs.statSync(f).size;fs.copyFileSync(f,SP+'/export.'+(dl.suggestedFilename().split('.').pop()));

@@ -100,8 +100,9 @@ ok((await p.locator('.panel .muted').first().innerText()).includes('All '+parts.
 await p.click('.player [aria-label=Play]');await p.waitForTimeout(2500);const wt=await p.locator('.player .time').innerText();ok(!/^0:00.0/.test(wt),'joined video plays with sound ('+wt+')');
 await p.click('.player [aria-label=Pause]');await p.waitForTimeout(400);await shot('11-watch-playing');
 const px=await p.evaluate(()=>{const c=document.querySelector('canvas');const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let s=0;for(let i=0;i<d.length;i+=4000)s+=d[i]+d[i+1]+d[i+2];return s});ok(px>1000,'the video frame is drawn (not black)');
-await p.click('text=Improve this moment');await p.waitForTimeout(400);ok((await p.locator('.modal h3').innerText()).startsWith('Improve part'),'improve this moment opens');
-await p.click('.modal >> text=Copy prompt');await p.waitForTimeout(1200);const ip=promptOf(await p.evaluate(()=>navigator.clipboard.readText()));ok(/MODE: IMPROVE/.test(ip),'improve prompt copied');await p.click('.modal .x');
+await p.click('.ws-tabs button:has-text("Improve")');await p.waitForTimeout(400);ok(await p.locator('.ws-moment').count()===1,'the Improve tab shows the moment');
+await p.click('.ws-foot button:has-text("Copy prompt I01")');await p.waitForTimeout(1200);const ip=promptOf(await p.evaluate(()=>navigator.clipboard.readText()));ok(/MODE: IMPROVE/.test(ip)&&/REPLY I01 scene-/.test(ip),'improve prompt I01 copied');
+await p.click('.ws-tabs button:has-text("Upload")');await p.waitForTimeout(300);
 await p.fill('input[placeholder^="Channel name"]','NYENZ LEARN');
 await p.click('.card button:has-text("Copy prompt")');const upp=await p.evaluate(()=>navigator.clipboard.readText());
 ok(/^PROMPT U01/.test(upp)&&/write 6/.test(upp)&&/No "#Shorts" in the title/.test(upp)&&/FIRST 3 appear above the title/.test(upp)&&/under 450 characters/.test(upp)&&/NYENZ LEARN/.test(upp)&&/ONE ```json/.test(upp),'upload prompt: 6 title angles, Shorts length rule, hashtag order, tag limit, channel name, JSON only');

@@ -215,6 +215,8 @@
     if (r.effects.length) out.push('- Cause and effect in this part: ' + r.effects.map(function (e) { return e.cause + ' -> ' + e.effect }).join('; ') + '.');
     return out.join('\n') + '\n';
   }
+  J.fileLine = fileLine; J.rowText = rowText;
+  J.condRule = function () { return 'Draw every person with X.who(state, size, view, P.COND.<name>) so what happened before stays visible.' };
   J.prompt = function (P, job, mode) {
     mode = mode === true ? 'one' : (mode === 'one' || mode === 'two' ? mode : 'single');
     var plan = window.GK.plan(P), txt = '', task = '', ctr, bar;
