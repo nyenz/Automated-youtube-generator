@@ -57,6 +57,11 @@
       'Fix every script error and every LINT line that fails; the part must draw every frame.',
       'Never remove a feature to make an error go away; fix the cause.',
       'Keep everything that already works exactly as it is.'] },
+    { id: 'flow', label: 'Cuts and flow', hint: 'one take: the camera never cuts', checks: [
+      'One take (section 34): no cut inside the part. Every change of place is a camera journey: travel along the world, or pass through water, ground, a wall or a window with PASS.water, PASS.ground, PASS.wall, PASS.into.',
+      'Before a special shot the camera flies to the spot first (push in on the eye before the dive, sink to the water before going under).',
+      'A carry join starts exactly where the part before stopped (the same first camera key and the same place) and ends on a calm framing the next part can carry on from.',
+      'No paper transition, morph, match cut or split screen unless the plan asks for one (a new chapter only).'] },
     { id: 'free', label: 'Free note', hint: 'only what you write', checks: [] }
   ];
   W.type = function (id) { return W.TYPES.filter(function (t) { return t.id === id })[0] };
@@ -105,6 +110,7 @@
     });
     (pp.cast || []).forEach(function (n) { if (!has(code, n, 'CAST')) add('cast:' + n, 'warn', 'logic', n + ' is planned here but never drawn', 'The plan puts ' + n + ' in part ' + id + ', but the code never draws CAST.' + n + '.', 'Draw ' + n + ' with place(CAST.' + n + ', ...) where the words need them.') });
     (pp.assets || []).forEach(function (n) { if (!has(code, n, 'A')) add('asset:' + n, 'warn', 'logic', n + ' is planned here but never drawn', 'The plan lists ' + n + ' for part ' + id + ', but the code never calls A.' + n + '(...).', 'Draw A.' + n + '({...}) where the words mention it.') });
+    if (window.REPLY && window.REPLY.takeProblems) window.REPLY.takeProblems(P, id, code, info).forEach(function (p) { add('take:' + p.id, 'warn', 'flow', p.title, p.detail, p.fix) });
     if (window.REPLY && window.REPLY.shotProblems) window.REPLY.shotProblems(P, id, code).forEach(function (p) { add('shot:' + p.title, 'warn', 'special', p.title, p.detail, p.fix) });
     var faces = W.facesIn(code);
     if ((pp.cast || []).length && faces.length < 2 && !/feelAt\s*\(/.test(code)) add('faces-flat', 'warn', 'faces', 'Faces barely change', 'The code uses ' + (faces.length ? 'only the face "' + faces[0] + '"' : 'no named face') + ' for everyone in this part.', 'Give each person faces that follow the words and the feelings arc (feelAt with T(\'word\') keys).');
