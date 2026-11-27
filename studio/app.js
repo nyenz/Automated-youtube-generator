@@ -61,7 +61,7 @@
   }
   document.addEventListener('click', closeMenu); window.addEventListener('resize', closeMenu);
   function modal(o) {
-    var v = h('div', { class: 'veil', onclick: function (e) { if (e.target === v) close() } }), close = function () { v.remove(); document.removeEventListener('keydown', esc) }, esc = function (e) { if (e.key === 'Escape') close() };
+    var v = h('div', { class: 'veil', onclick: function (e) { if (e.target === v) close() } }), close = function () { v.remove(); document.removeEventListener('keydown', esc); if (o.onClose) try { o.onClose() } catch (e) { } }, esc = function (e) { if (e.key === 'Escape') close() };
     var box = h('div', { class: 'modal' + (o.wide ? ' wide' : ''), role: 'dialog' }, h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '×'), h('h3', null, o.title), o.body, h('div', { class: 'acts' }, (o.actions || []).map(function (a) { return h('button', { class: 'btn ' + (a.primary ? 'primary' : '') + (a.danger ? ' danger' : ''), onclick: function () { var r = a.do && a.do(); if (r !== false) close() } }, a.label) })));
     v.appendChild(box); document.body.appendChild(v); document.addEventListener('keydown', esc);
     var f = box.querySelector('input'); if (f) setTimeout(function () { f.focus(); f.select() }, 30);
@@ -1148,7 +1148,8 @@
         h('button', { class: 'btn small', onclick: function () { SD.stopOne() } }, icon('stop'), 'Stop'), dur));
   }
   function cuesCard(Sx) {
-    var card = h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('h2', null, 'Sound effects'), h('p', { class: 'sub', style: { margin: 0 } }, 'Placed on whips and big hits from the built scenes, plus any Sonnet suggests. Sounds come from your folder first, then Freesound.')),
+    var card = h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', { style: { flex: 1, minWidth: '240px' } }, h('h2', null, 'Sound effects'), h('p', { class: 'sub', style: { margin: 0 } }, 'Placed on whips and big hits from the built scenes, plus any Sonnet suggests. Sounds come from your folder first, then made by code, then Freesound.')),
+      h('button', { class: 'btn', title: 'Hear and shape the sounds made by code', onclick: function () { codeLab(null) } }, icon('wave'), 'Code sounds'),
       h('button', { class: 'btn', onclick: autoCues }, icon('spark'), 'Find moments'),
       h('button', { class: 'btn', onclick: function () { copyText(SD.cuePrompt(P), 'The sound prompt is copied') } }, icon('copy'), 'Sonnet prompt'),
       h('button', { class: 'btn', onclick: pasteCues }, icon('paste'), 'Paste cues'),
@@ -1163,18 +1164,88 @@
       list.appendChild(h('div', { class: 'pitem' + (c.off ? ' warn' : ''), style: { gridTemplateColumns: '70px 1fr', rowGap: '8px', cursor: 'default', borderLeftColor: c.off ? 'var(--line-2)' : has ? 'var(--ok)' : 'var(--warn)' } },
         h('div', { class: 'mono', style: { fontSize: '13px' } }, fmtT(c.t)),
         h('div', { style: { minWidth: 0 } }, h('div', { class: 'hd' }, h('b', null, c.label), h('span', { class: 'muted' }, c.from === 'auto' ? 'from the video' : c.from === 'sonnet' ? 'from Sonnet' : '')),
-          h('div', { class: 'txt' }, c.busy ? 'Looking for a sound…' : has ? (c.pickFrom === 'folder' ? 'Your folder: ' : 'Freesound: ') + c.pickName + (c.pickVia ? ' · related sound (searched "' + c.pickVia + '")' : '') : 'No sound yet · search: ' + c.query),
+          h('div', { class: 'txt' }, c.busy ? 'Looking for a sound…' : has ? (c.pickFrom === 'folder' ? 'Your folder: ' : c.pickFrom === 'code' ? '' : 'Freesound: ') + c.pickName + (c.pickVia ? ' · related sound (searched "' + c.pickVia + '")' : '') : 'No sound yet · search: ' + c.query),
           c.err && !c.busy ? h('div', { class: 't-bad', style: { fontSize: '12px', marginTop: '3px' } }, c.err) : null),
         h('div', { class: 'row', style: { gridColumn: '2', gap: '6px' } },
           h('button', { class: 'btn small', title: 'Hear it', disabled: has ? null : true, onclick: function () { S.getBlob(P.id + ':sfx:' + c.id).then(function (b) { if (b) SD.playOne(P.id + ':sfx:' + c.id + ':' + c.pickKey, b, (c.vol || .6) * SD.cfg(P).sfxVol) }) } }, icon('play')),
           h('button', { class: 'btn small', title: 'Hear it in the mix: plays from 2 s before it, with your Listen choices', disabled: has ? null : true, onclick: function () { if (SPLAY.playFrom) SPLAY.playFrom(Math.max(0, c.t - 2)) } }, icon('wave'), 'In mix'),
           h('button', { class: 'btn small', title: 'Change the time, search words or volume', onclick: function () { editCue(c) } }, 'Edit'),
           h('button', { class: 'btn small', title: 'Use the next best sound', onclick: function () { redoCue(c) } }, icon('redo'), has ? 'Redo' : 'Find'),
+          c.pickFrom === 'code' && c.code ? h('button', { class: 'btn small', title: 'Change this code-made sound: size, distance, room, length, brightness, take and layers', onclick: function () { codeLab(c) } }, icon('wave'), 'Shape') : null,
           h('button', { class: 'btn small', onclick: function () { c.off = !c.off; save(); render() } }, c.off ? 'Turn on' : 'Turn off'),
           h('button', { class: 'btn small danger', title: 'Remove', onclick: function () { Sx.cues = Sx.cues.filter(function (x) { return x !== c }); save(); render() } }, icon('trash')))));
     });
     card.appendChild(list);
     return card;
+  }
+  /* Code sounds: hear and shape the sound effects made by code (rules: docs/SOUND-GUIDE.md). c = the cue to use it for, or null to just listen */
+  function codeLab(c) {
+    var FG = window.FORGE; if (!FG) { toast('The code sound maker did not load. Refresh the app.', 'bad'); return }
+    var start = c && c.code ? c.code : { name: FG.match((c && (c.query + ' ' + (c.label || ''))) || '') ? FG.match(c.query + ' ' + (c.label || '')).name : 'impact', p: c ? (FG.match(c.query + ' ' + (c.label || '')) || {}).p : null };
+    var st = { name: start.name, p: FG.norm(start.p), buf: null, busy: 0, ctx: null, src: null };
+    var listEl = h('div', { class: 'fl-list scroller', role: 'listbox', 'aria-label': 'Code sounds' }), side = h('div', { class: 'fl-side' });
+    var wave = h('canvas', { class: 'fl-wave', width: 760, height: 96 }), checks = h('div', { class: 'fl-checks' }), status = h('span', { class: 'muted fl-status' }, '');
+    var playBtn = h('button', { class: 'btn primary', onclick: togglePlay }, icon('play'), 'Play'), takeEl = h('span', { class: 'mono fl-take' }, '');
+    function stopSound() { if (st.src) { try { st.src.stop() } catch (e) { } st.src = null } playBtn.replaceChildren(icon('play'), 'Play') }
+    function togglePlay() {
+      if (st.src) { stopSound(); return }
+      if (!st.buf) return;
+      SD.stop(); SD.stopOne();
+      try { if (!st.ctx) st.ctx = new (window.AudioContext || window.webkitAudioContext)(); var s = st.ctx.createBufferSource(); s.buffer = st.buf; s.connect(st.ctx.destination); s.onended = function () { if (st.src === s) stopSound() }; s.start(); st.src = s; playBtn.replaceChildren(icon('stop'), 'Stop') } catch (e) { toast('This browser could not play the sound.', 'bad') }
+    }
+    function draw() {
+      var g = wave.getContext('2d'), W = wave.width, H = wave.height; g.clearRect(0, 0, W, H);
+      if (!st.buf) return; var d = st.buf.getChannelData(0), step = Math.max(1, Math.floor(d.length / W));
+      g.fillStyle = 'rgba(236,230,216,.06)'; g.fillRect(0, H / 2, W, 1);
+      var grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, '#E2575F'); grd.addColorStop(.5, '#C8202B'); grd.addColorStop(1, '#E2575F'); g.fillStyle = grd;
+      for (var x = 0; x < W; x++) { var mx = 0, o = x * step; for (var j = 0; j < step; j += 4) { var v = Math.abs(d[o + j] || 0); if (v > mx) mx = v } var hh = Math.max(1, mx * (H - 8)); g.fillRect(x, (H - hh) / 2, 1, hh) }
+    }
+    function make() {
+      var my = ++st.busy; status.textContent = 'Making the sound…'; status.className = 'muted fl-status';
+      return FG.render(st.name, st.p).then(function (buf) {
+        if (my !== st.busy) return; st.buf = buf; draw();
+        var r = FG.check(buf, st.name, st.p);
+        checks.replaceChildren.apply(checks, r.lines.map(function (l) { return h('div', { class: 'fl-check ' + (l.ok ? 't-ok' : 't-bad') }, h('span', null, (l.ok ? 'PASS ' : 'FAIL ') + l.label), h('span', { class: 'mono' }, l.val)) }));
+        status.textContent = (r.pass ? 'Passes all ' + r.lines.length + ' checks' : 'Fails ' + r.lines.filter(function (l) { return !l.ok }).length + ' check(s)') + ' · ' + buf.duration.toFixed(2) + ' s';
+        status.className = (r.pass ? 't-ok' : 't-bad') + ' fl-status';
+      }).catch(function (e) { if (my === st.busy) { status.textContent = 'Could not make it: ' + e.message; status.className = 't-bad fl-status' } });
+    }
+    var timer = 0; function later() { clearTimeout(timer); timer = setTimeout(make, 140) }
+    function slider(def) {
+      var min = def.min == null ? 0 : def.min, max = def.max == null ? 1 : def.max, fmt = function (v) { return def.id === 'length' ? (+v).toFixed(2) + 'x' : Math.round(v * 100) + '%' };
+      var val = h('span', { class: 'mono fl-val' }, fmt(st.p[def.id])), inp = h('input', { type: 'range', class: 'range', min: min, max: max, step: .01, value: st.p[def.id], 'aria-label': def.label });
+      inp.addEventListener('input', function () { st.p[def.id] = +inp.value; val.textContent = fmt(inp.value); later() });
+      return h('div', { class: 'fl-row', title: def.tip }, h('span', { class: 'fl-lab' }, def.label, h('small', null, def.tip)), inp, val);
+    }
+    function drawSide() {
+      var rc = FG.RECIPES[st.name]; takeEl.textContent = 'Take ' + st.p.take;
+      Array.prototype.forEach.call(listEl.children, function (b) { b.classList.toggle('on', b.dataset.n === st.name); b.setAttribute('aria-selected', b.dataset.n === st.name ? 'true' : 'false') });
+      var layers = h('div', { class: 'fl-box' }, h('div', { class: 'fl-cap' }, 'Layers (' + rc.layers.length + ' of at most 5)'), rc.layers.map(function (L) {
+        var on = st.p.mute.indexOf(L.name) < 0;
+        return h('button', { class: 'fl-layer' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', title: on ? 'Turn this layer off to hear what it adds' : 'Turn this layer back on', onclick: function () { if (on) st.p.mute.push(L.name); else st.p.mute = st.p.mute.filter(function (m) { return m !== L.name }); if (st.p.mute.length >= rc.layers.length) { st.p.mute.pop(); toast('At least one layer stays on.', 'info'); } drawSide(); later() } },
+          h('span', { class: 'fl-tick' }), h('span', { class: 'fl-ln' }, h('b', null, L.name), h('span', null, L.job)));
+      }));
+      var ctrls = h('div', { class: 'fl-box' }, h('div', { class: 'fl-cap' }, 'Controls'), FG.PARAMS.map(slider));
+      side.replaceChildren(
+        h('div', { class: 'fl-head' }, h('div', { style: { minWidth: 0 } }, h('h4', null, rc.title), h('p', { class: 'muted' }, rc.what)),
+          h('div', { class: 'row', style: { gap: '6px', flexWrap: 'nowrap' } }, playBtn,
+            h('button', { class: 'btn small', title: 'Previous take', 'aria-label': 'Previous take', disabled: st.p.take > 1 ? null : true, onclick: function () { st.p.take = Math.max(1, st.p.take - 1); drawSide(); make() } }, icon('prev')), takeEl,
+            h('button', { class: 'btn small', title: 'Another natural variation of the same sound', 'aria-label': 'Next take', onclick: function () { st.p.take++; drawSide(); make() } }, icon('next')),
+            h('button', { class: 'btn small', title: 'Back to the starting settings', onclick: function () { var m = c && c.code && c.code.name === st.name ? c.code.p : (c && FG.match(c.query) && FG.match(c.query).name === st.name ? FG.match(c.query).p : null); st.p = FG.norm(m); drawSide(); make() } }, icon('undo'), 'Reset'))),
+        wave, h('div', { class: 'fl-grid' }, layers, ctrls), h('div', { class: 'fl-box' }, h('div', { class: 'fl-cap' }, st.p.mute.length ? 'Checks (a layer is off: the checks are for the full sound) · ' : 'Checks (every sound must pass all of them) · ', status), checks));
+    }
+    FG.list().forEach(function (rc) { listEl.appendChild(h('button', { class: 'fl-item', 'data-n': rc.name, role: 'option', title: rc.what, onclick: function () { if (st.name === rc.name) return; stopSound(); st.name = rc.name; st.p = FG.norm(null); drawSide(); make() } }, rc.title)) });
+    drawSide(); make();
+    var acts = c ? [{ label: 'Use for this effect', primary: true, do: function () {
+      if (!st.buf) { toast('Wait a moment: the sound is still being made.', 'info'); return false }
+      var code = { name: st.name, p: FG.norm(st.p) }, blob = FG.wav(st.buf);
+      S.putBlob(P.id + ':sfx:' + c.id, blob).then(function () {
+        c.code = code; c.pickName = FG.label(code); c.pickFrom = 'code'; c.pickKey = FG.key(code); c.pickVia = null; c.credit = ''; c.err = null;
+        return save(true);
+      }).then(function () { render(); toast('Sound for ' + fmtT(c.t) + ': ' + c.pickName, 'ok'); if (SPLAY.on) liveRestart() }).catch(function () { toast('The sound could not be saved. Try again.', 'bad') });
+    } }] : [];
+    modal({ title: c ? 'Shape the sound at ' + fmtT(c.t) + ' · ' + c.label : 'Code sounds', wide: true, body: h('div', { class: 'fl' }, listEl, side), actions: acts,
+      onClose: function () { clearTimeout(timer); st.busy++; stopSound(); if (st.ctx) try { st.ctx.close() } catch (e) { } } });
   }
   function editCue(c) {
     var tIn = h('input', { class: 'input mono', value: c.t.toFixed(2), inputmode: 'decimal' }), lab = h('input', { class: 'input', value: c.label || '' }), q = h('input', { class: 'input', value: c.query || '' });
@@ -1202,8 +1273,7 @@
   }
   function autoFind() {
     loadSfxFolder().then(function (f) {
-      if (f || SD.fsKey()) findAll();
-      else toast('Cues added. To get sounds automatically, add a free Freesound key or pick a sound folder.', 'info', 9000, { label: 'Add key', do: settings });
+      findAll();
     });
   }
   function autoCues() {
@@ -1227,8 +1297,8 @@
     return S.setting('sfxDir').then(function (d) { if (!d) return null; return d.queryPermission({ mode: 'read' }).then(function (p) { if (p !== 'granted') return null; return SD.indexFolder(d).then(function (f) { SFXFILES = f; return f }) }) }).catch(function () { return null });
   }
   function search(q, files, errs) {
-    var local = files ? SD.matchFolder(files, q) : [];
-    return (SD.fsKey() ? SD.freesound(q).catch(function (e) { errs.push(e.message); return [] }) : Promise.resolve([])).then(function (fs) { return local.concat(fs) });
+    var local = files ? SD.matchFolder(files, q) : [], code = window.FORGE ? FORGE.candidates(q, 3) : [];
+    return (SD.fsKey() ? SD.freesound(q).catch(function (e) { errs.push(e.message); return [] }) : Promise.resolve([])).then(function (fs) { return local.concat(code, fs) });
   }
   /* exact words first; when nothing is found, related sounds (shorter words, sounds that do the same job) */
   function candidates(c) {
@@ -1245,10 +1315,10 @@
     var key = c.query;
     c.busy = true; if (!quiet) render();
     return (CANDS[c.id] && CANDS[c.id].q === key && CANDS[c.id].list.length ? Promise.resolve(CANDS[c.id].list) : candidates(c).then(function (l) { CANDS[c.id] = { q: key, list: l }; return l })).then(function (list) {
-      if (!list.length) throw new Error(list.fsErr || (SFXFILES || SD.fsKey() ? 'No sound found for "' + c.query + '", nor for related words (' + (list.tried || []).slice(1).join(', ') + '). Press Edit to change the search words.' : 'No sound folder and no Freesound key yet. Pick a sound folder here, or add a free Freesound key in Settings.'));
+      if (!list.length) throw new Error(list.fsErr || (SFXFILES || SD.fsKey() ? 'No sound found for "' + c.query + '", nor for related words (' + (list.tried || []).slice(1).join(', ') + '). Press Edit to change the search words.' : 'No code-made sound fits "' + c.query + '", and there is no sound folder and no Freesound key yet. Press Edit and use simple sound words (e.g. "impact", "whoosh"), pick a sound folder, or add a free Freesound key in Settings.'));
       var i = c.pickName ? (list.findIndex(function (x) { return x.name === c.pickName }) + 1) % list.length : 0, cand = list[i];
       return SD.fetchBlob(cand).then(function (b) { return S.putBlob(P.id + ':sfx:' + c.id, b) }).then(function () {
-        c.pickName = cand.name; c.pickFrom = cand.kind; c.pickVia = list.via || null; c.pickKey = cand.kind + ':' + (cand.id || cand.path); c.credit = cand.kind === 'freesound' ? cand.name + ' by ' + cand.by + ' (freesound.org, CC0)' : ''; c.err = null;
+        c.pickName = cand.name; c.pickFrom = cand.kind; c.pickVia = list.via || null; c.pickKey = cand.kind === 'code' ? FORGE.key(cand.code) : cand.kind + ':' + (cand.id || cand.path); if (cand.kind === 'code') c.code = cand.code; else delete c.code; c.credit = cand.kind === 'freesound' ? cand.name + ' by ' + cand.by + ' (freesound.org, CC0)' : ''; c.err = null;
         return save(true);
       }).then(function () { if (!quiet) toast('Sound for ' + fmtT(c.t) + ': ' + cand.name, 'ok'); return true });
     }).catch(function (e) { c.err = e.message; save(); if (!quiet) toast(e.message, 'bad', 9000); return false })
@@ -1268,14 +1338,13 @@
     }
     var todo = Sx.cues.filter(function (c) { return !c.pickName && !c.off && !c.busy && !AUTOSND.tried[c.id] });
     if (!todo.length) return;
-    loadSfxFolder().then(function (f) { if (!P || P.id !== pid || (!f && !SD.fsKey())) return; findAll(true) });
+    loadSfxFolder().then(function () { if (!P || P.id !== pid) return; findAll(true) });
   }
   function findAll(auto) {
     var Sx = SD.cfg(P), todo = Sx.cues.filter(function (c) { return !c.pickName && !c.off && !c.busy && (auto !== true || !AUTOSND.tried[c.id]) });
     todo.forEach(function (c) { AUTOSND.tried[c.id] = true });
     if (!todo.length) { if (auto !== true) toast('Every effect has a sound. Use Redo on one to change it.', 'info'); return }
     AUTOSND.busy = true;
-    if (!SFXFILES && !SD.fsKey()) { loadSfxFolder().then(function (f) { if (f) findAll(); else toast('No sound folder and no Freesound key yet. Add a free Freesound key in Settings, or press Pick sound folder.', 'warn', 10000, { label: 'Add key', do: settings }) }); return }
     var ok = 0, bad = [], i = 0;
     var tt = toast((auto === true ? 'Finding sounds by itself: 0 of ' : 'Finding sounds: 0 of ') + todo.length + '…', 'info', 600000);
     todo.reduce(function (pr, c) { return pr.then(function () { return redoCue(c, true).then(function (r) { i++; if (r) ok++; else bad.push(c); if (tt && tt.firstChild) tt.firstChild.textContent = 'Finding sounds: ' + i + ' of ' + todo.length + '…' }) }) }, Promise.resolve())
