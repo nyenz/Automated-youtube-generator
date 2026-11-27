@@ -34,38 +34,44 @@ await p.click('.panel.short .btn.primary');await p.waitForTimeout(300);ok(/Play 
 await p.click('.tabs button:has-text("Sound effects")');await p.waitForTimeout(400);
 await p.click('button:has-text("Paste cues")');await p.fill('.modal textarea','{"cues":[{"time":1.0,"label":"Thermometer beeps","search":"thermometer beep"},{"time":8,"label":"Arm drops","search":"body fall"},{"time":15,"label":"Ice cracks","search":"ice crack"}]}');await p.click('.modal .btn.primary');await p.waitForTimeout(800);
 ok((await p.locator('.card .pitem').count())===3,'3 cues pasted');
-// no key, no folder: clear reason
-await clear();await p.locator('.card .pitem').first().locator('button:has-text("Find")').click();await p.waitForTimeout(800);
-ok(/No sound folder and no Freesound key/.test(await p.locator('.card .pitem').first().innerText()),'no source: the row says what to do');
+// no key, no folder: every cue still gets a sound made by code, by itself
+await p.waitForFunction(()=>[...document.querySelectorAll('.card .pitem')].filter(r=>/made by code/.test(r.innerText)).length===3,null,{timeout:20000}).catch(()=>{});
+const rows0=await p.locator('.card .pitem').allInnerTexts();
+ok(rows0.filter(r=>/made by code/.test(r)).length===3,'no folder and no key: all 3 cues get a code-made sound by themselves');
+ok(/Beep \(made by code/.test(rows0.join('|'))&&/Thud \(made by code/.test(rows0.join('|'))&&/Ice crack \(made by code/.test(rows0.join('|')),'the right code sound for each: thermometer beep, body fall, ice crack');
+ok(await p.locator('.card .pitem button:has-text("Shape")').count()===3,'code-made sounds have a Shape button');
 // folder pick without the folder picker
 ok(await p.locator('button:has-text("Pick sound folder")').count()===1,'folder button shown even without the folder picker (Brave)');
 const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.click('button:has-text("Pick sound folder")')]);await fc.setFiles(SP+'/sfxdir');await p.waitForTimeout(800);
 ok(/1 sounds in your folder/.test(await p.locator('.card').innerText()),'folder read with a normal folder upload');
+await clear();await p.click('button:has-text("Paste cues")');await p.fill('.modal textarea','{"cues":[{"time":3,"label":"Second beep","search":"thermometer beep"}]}');await p.click('.modal .btn.primary');
 await p.waitForFunction(()=>[...document.querySelectorAll('.card .pitem')].some(r=>/Your folder: thermometer-beep.wav/.test(r.innerText)),null,{timeout:15000}).catch(()=>{});
-ok(/Your folder: thermometer-beep.wav/.test(await p.locator('.card .pitem',{hasText:'Thermometer'}).innerText()),'after picking a folder, sounds are found by themselves (no button)');
-// freesound blocked
+ok(/Your folder: thermometer-beep.wav/.test(await p.locator('.card .pitem',{hasText:'Second beep'}).innerText()),'your own folder comes first (before code-made sounds)');
+await p.locator('.card .pitem',{hasText:'Second beep'}).locator('button:has-text("Redo")').click();await p.waitForTimeout(900);
+ok(/Beep \(made by code, take 1\)/.test(await p.locator('.card .pitem',{hasText:'Second beep'}).innerText()),'Redo after your folder: the code-made sound is next');
+await p.locator('.card .pitem',{hasText:'Second beep'}).locator('button.danger').click();await p.waitForTimeout(300);
+// freesound blocked: shown when nothing else fits
 await p.evaluate(()=>SOUND.setFsKey('testkey'));fsMode='blocked';await p.click('.tabs button:has-text("Background music")');await p.click('.tabs button:has-text("Sound effects")');await p.waitForTimeout(300);
-await clear();await p.locator('.card .pitem',{hasText:'Ice cracks'}).locator('button:has-text("Find")').click();await p.waitForTimeout(1200);
-ok(/Shields/.test(await p.locator('.card .pitem',{hasText:'Ice cracks'}).innerText()),'blocked Freesound: the row explains Brave Shields');
-// freesound works
-fsMode='ok';await clear();await p.click('button:has-text("Find sounds")');await p.waitForFunction(()=>[...document.querySelectorAll('.toast')].some(t=>/Found/.test(t.innerText)),null,{timeout:20000}).catch(()=>{});
-ok(/Found a sound for all 2 cues/.test((await p.locator('.toast').allInnerTexts()).join('|')),'Find sounds: summary of what was found');
-ok(/Freesound: ice crack one/.test(await p.locator('.card .pitem',{hasText:'Ice cracks'}).innerText()),'Freesound sound picked');
-await p.locator('.card .pitem',{hasText:'Ice cracks'}).locator('button:has-text("Redo")').click();await p.waitForTimeout(1200);
-ok(/ice crack two/.test(await p.locator('.card .pitem',{hasText:'Ice cracks'}).innerText()),'Redo gives the next sound');
-await p.locator('.card .pitem',{hasText:'Ice cracks'}).locator('button[title="Hear it"]').click();await p.waitForTimeout(500);ok(!(await p.locator('.toast.bad').count()),'hear one effect');
+await clear();await p.click('button:has-text("Paste cues")');await p.fill('.modal textarea','{"cues":[{"time":20,"label":"Glowing zorbtron","search":"glowing zorbtron"}]}');await p.click('.modal .btn.primary');
+await p.waitForFunction(()=>[...document.querySelectorAll('.card .pitem')].some(r=>/zorbtron/i.test(r.innerText)&&/Shields/.test(r.innerText)),null,{timeout:20000}).catch(()=>{});
+ok(/Shields/.test(await p.locator('.card .pitem',{hasText:'zorbtron'}).innerText()),'blocked Freesound: the row explains Brave Shields');
+// freesound works: Redo goes through the code takes, then Freesound
+fsMode='ok';
+const ice=()=>p.locator('.card .pitem',{hasText:'Ice cracks'}).innerText();
+const order=[];for(let i=0;i<5;i++){await p.locator('.card .pitem',{hasText:'Ice cracks'}).locator('button:has-text("Redo")').click();await p.waitForTimeout(900);const t=await ice();order.push(/take (\d)/.test(t)?'code'+t.match(/take (\d)/)[1]:/Freesound: ice crack one/.test(t)?'fs1':/Freesound: ice crack two/.test(t)?'fs2':'?')}
+ok(order.join(',')==='code2,code3,fs1,fs2,code1','Redo order: code takes, then Freesound, then round again ('+order.join(',')+')');
+await clear();await p.locator('.card .pitem',{hasText:'Ice cracks'}).locator('button[title="Hear it"]').click();await p.waitForTimeout(500);ok(!(await p.locator('.toast.bad').count()),'hear one effect: '+(await p.locator('.toast').allInnerTexts()).join('|'));
+await clear();await p.click('button:has-text("Find sounds")');await p.waitForFunction(()=>[...document.querySelectorAll('.toast')].some(t=>/Found/.test(t.innerText)),null,{timeout:20000}).catch(()=>{});
+ok(/Found a sound for all 1 cues/.test((await p.locator('.toast').allInnerTexts()).join('|')),'Find sounds: summary of what was found');
+ok(/related sound \(searched "impact"\)/.test(await p.locator('.card .pitem',{hasText:'zorbtron'}).innerText()),'a strange search falls back to a related sound');
 // the key test in Settings
 fsMode='badkey';await clear();await p.click('button:has-text("Settings")');await p.waitForTimeout(400);await p.click('.modal button:has-text("Test key")');await p.waitForTimeout(800);
 ok(/did not accept the key/.test((await p.locator('.toast').allInnerTexts()).join('|')),'Test key: a wrong key is explained');
 fsMode='ok';await clear();await p.click('.modal button:has-text("Test key")');await p.waitForTimeout(800);ok(/key works/.test((await p.locator('.toast').allInnerTexts()).join('|')),'Test key: a good key works');
 await p.click('.modal .x');
-// cues pasted with a key: sounds are found by themselves; a strange search falls back to a related sound
-await clear();await p.click('button:has-text("Paste cues")');await p.fill('.modal textarea','{"cues":[{"time":20,"label":"Glowing zorbtron","search":"glowing zorbtron"}]}');await p.click('.modal .btn.primary');
-await p.waitForFunction(()=>[...document.querySelectorAll('.card .pitem')].some(r=>/zorbtron/i.test(r.innerText)&&/related sound/.test(r.innerText)),null,{timeout:20000}).catch(()=>{});
-ok(/related sound \(searched "impact"\)/.test(await p.locator('.card .pitem',{hasText:'zorbtron'}).innerText()),'pasted cue found automatically, with a related sound when the words find nothing');
 // edit: new search words fetch a new sound
 await p.locator('.card .pitem',{hasText:'zorbtron'}).locator('button:has-text("Edit")').click();await p.fill('.modal input >> nth=2','door slam');await p.click('.modal button:has-text("+0.1 s")');await p.click('.modal .btn.primary');await p.waitForTimeout(1500);
-const ed=await p.locator('.card .pitem',{hasText:'zorbtron'}).innerText();ok(/door slam one/.test(ed)&&/0:20\.1/.test(ed),'Edit: time nudged and new search words give a new sound');
+const ed=await p.locator('.card .pitem',{hasText:'zorbtron'}).innerText();ok(/Door \(made by code/.test(ed)&&/0:20\.1/.test(ed),'Edit: time nudged and new search words give a new sound');
 // listen choices
 await p.click('.chip.toggle:has-text("Music")');await p.click('.chip.toggle:has-text("Effects")');await p.waitForTimeout(1800);
 ok(await p.evaluate(()=>STORE.list().then(a=>{const L=a.filter(x=>x.name==='Sound test')[0].sound.listen;return L.voice&&!L.music&&!L.sfx})),'listen choices saved');

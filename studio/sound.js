@@ -1,7 +1,7 @@
 /* SOUND — background music that drops while the narrator speaks, and sound effects placed on the right moments.
    Music: your own file; it fades in, ducks under every piece of speech (from the audio map) and fades out.
    Effects: cues come from the video itself (whip joins and the big shake hits on key words) and, if you like, from a Sonnet prompt.
-   Each cue gets a sound from your own folder first, then from Freesound (free key, only sounds that are free to use, CC0).
+   Each cue gets a sound from your own folder first, then one made by code (studio/forge.js, rules in docs/SOUND-GUIDE.md), then Freesound (free key, CC0 only).
    "Redo" on a cue takes the next best sound. The final mix is brought to a YouTube-friendly loudness. */
 (function () {
   'use strict';
@@ -57,7 +57,7 @@
         var ws = W.filter(function (w) { return w[1] >= p.start && w[1] < p.end }).map(function (w) { return w[0] + '@' + w[1].toFixed(2) }).join(' ');
         return 'PART ' + p.id + ' (' + p.start + ' to ' + p.end + ' s) ' + (p.place ? 'place: ' + p.place + '. ' : '') + (p.beats ? 'seen: ' + [].concat(p.beats).join(' / ') + '. ' : '') + '\nwords: ' + ws;
       }).join('\n\n') +
-      '\n\n' + window.JOBS.jsonRules() + '{"cues": [{"time": seconds, "label": "what happens", "search": "2 to 4 words to search a sound library, e.g. ice crack", "volume": 0.2 to 1}]}';
+      '\n\nThese sounds are made by code and always available, so prefer their names as search words, plus words like big, small, distant, close, inside, sharp or muffled: ' + (window.FORGE ? window.FORGE.promptList() : '') + '.' + '\n\n' + window.JOBS.jsonRules() + '{"cues": [{"time": seconds, "label": "what happens", "search": "2 to 4 words to search a sound library, e.g. ice crack", "volume": 0.2 to 1}]}';
   };
   SD.parseCues = function (text) {
     text = String(text || ''); var a = text.indexOf('{'), b = text.lastIndexOf('}'), j = null;
@@ -116,6 +116,7 @@
   };
   SD.testKey = function (key) { return SD.freesound('beep', key).then(function (l) { return l.length }) };
   SD.fetchBlob = function (cand) {
+    if (cand.kind === 'code') return window.FORGE.blob(cand.code);
     if (cand.kind === 'folder') return cand.file ? Promise.resolve(cand.file) : cand.h.getFile();
     return fetch(cand.url).catch(function () { throw new Error('The sound "' + cand.name + '" could not be downloaded from Freesound. ' + BLOCKED) })
       .then(function (r) { if (!r.ok) throw new Error('The sound "' + cand.name + '" could not be downloaded (error ' + r.status + ').'); return r.blob() });
